@@ -1,7 +1,7 @@
 <template>
   <div class="settings-view-container">
     <div class="settings-panel">
-      <h1 class="panel-title">系统设置</h1>
+      <h1 class="panel-title">门扉之间</h1>
 
       <div class="settings-list">
         <!-- 全知视角设置项 -->
@@ -9,7 +9,7 @@
           <div class="info">
             <h2 class="setting-name">全知视角</h2>
             <p class="setting-description">
-              开启后，你将能看到通常对角色隐藏的内部信息，如具体经验值、隐藏状态等。
+              作为游离于历史之外的人，你可以拜请[守夜人]，让你目见更多隐藏的秘密
             </p>
           </div>
           <div class="control">
@@ -35,6 +35,7 @@
 import { computed } from 'vue';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { useStatStore } from '@/尘史使徒/store/StatStore';
+import * as toastr from 'toastr';
 
 const statStore = useStatStore();
 
@@ -57,13 +58,9 @@ const toggleOmniscientView = async () => {
     // 调用全局方法来发送更新请求
     await ERAUtil.UpdateByObject(updatePayload);
 
-    // [可选] 可以在这里添加一个临时的视觉反馈，比如一个小的 "已保存" 提示
-    // 但最佳实践是等待 statStore 从后端接收到更新并自动刷新 UI
-    console.log(`已请求将“全知视角”设置为: ${newValue}`);
-
   } catch (error) {
     console.error("更新“全知视角”设置失败:", error);
-    // 可以在这里向用户显示一个错误提示
+    toastr.error("守夜人没有回应你的祈求");
   }
 };
 </script>

@@ -104,9 +104,6 @@
           <div v-for="(level, name) in characterData.术之等级" :key="name" class="arcana-item">
             <span class="label">{{ name }}</span>
             <span class="value">{{ level.当前等级 }}</span>
-            <div v-if="isOmniscient" class="arcana-xp">
-              (EXP: {{ level.累计经验值 }} / {{ level.下一级需求经验 }})
-            </div>
           </div>
         </div>
       </div>
@@ -114,16 +111,15 @@
 
     <!-- Section: 人物关系  -->
     <div v-if="currentPage === '人物关系'" class="data-section">
-      <h3 class="section-title">人物关系</h3>
       <ul class="relation-list">
         <li v-for="(relation, targetName) in characterData.人物关系" :key="targetName">
           <div class="relation-summary">
             对 <strong class="relation-target">{{ targetName }}</strong>: {{ relation.关系总结 }}
           </div>
           <div v-if="isOmniscient" class="relation-details">
-            <div class="detail-group">情感纽带: 信{{ relation.情感纽带.信任度 }} 好{{ relation.情感纽带.好感度 }} 欲{{ relation.情感纽带.情欲 }} 依{{ relation.情感纽带.依赖度 }}</div>
-            <div class="detail-group">认知了解: 熟{{ relation.认知与了解.熟悉度 }} 洞{{ relation.认知与了解.洞察度 }} 预{{ relation.认知与了解.可预测度 }}</div>
-            <div class="detail-group">社交功利: 影{{ relation.社交与功利链接.影响力 }} 责{{ relation.社交与功利链接.责任义务 }} 利{{ relation.社交与功利链接.利用价值 }}</div>
+            <div class="detail-group">情感纽带: 信任{{ relation.情感纽带.信任度 }} 好感{{ relation.情感纽带.好感度 }} 情欲{{ relation.情感纽带.情欲 }} 依赖{{ relation.情感纽带.依赖度 }}</div>
+            <div class="detail-group">认知了解: 熟悉{{ relation.认知与了解.熟悉度 }} 洞察{{ relation.认知与了解.洞察度 }} 预测{{ relation.认知与了解.可预测度 }}</div>
+            <div class="detail-group">社交功利: 影响{{ relation.社交与功利链接.影响力 }} 责任{{ relation.社交与功利链接.责任义务 }} 功利{{ relation.社交与功利链接.利用价值 }}</div>
           </div>
         </li>
       </ul>

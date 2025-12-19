@@ -2,7 +2,7 @@
   <div class="options-view-container">
     <transition name="fade-options">
       <div v-if="optionsList.length > 0" class="options-panel">
-        <h2 class="panel-title">抉择之时</h2>
+        <h2 class="panel-title">下一幕历史会是？</h2>
         <ul class="options-list">
           <li v-for="(option, index) in optionsList" :key="index">
             <button class="option-button" @click="handleSelectOption(option)">

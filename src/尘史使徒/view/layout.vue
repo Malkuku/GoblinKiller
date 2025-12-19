@@ -3,7 +3,7 @@
     <header class="app-header">
       <!-- 这是一个干净的容器，只用于放置全局控件 -->
       <div class="header-controls">
-        <button @click="toggleTheme" class="theme-toggle-btn" aria-label="切换主题">
+        <button class="theme-toggle-btn" @click="toggleTheme" aria-label="切换主题">
           <span v-if="currentTheme === 'dark'">☀️</span>
           <span v-else>🌙</span>
         </button>
@@ -35,6 +35,8 @@
 <script setup>
 import { ref } from 'vue';
 import { RouterLink, RouterView } from 'vue-router';
+import { ERAUtil } from '@/Utils/ERAUtil';
+import { useStatStore } from '@/尘史使徒/store/StatStore';
 
 // 导航模块定义
 const navItems = ref([
@@ -46,10 +48,13 @@ const navItems = ref([
   { name: '拜请伟大存在', path: '/设置' },
 ]);
 
+const statStore = useStatStore();
+
 // 主题切换逻辑
-const currentTheme = ref('dark');
-const toggleTheme = () => {
-  currentTheme.value = currentTheme.value === 'dark' ? 'light' : 'dark';
+const currentTheme = computed(()=>statStore.stat_data?.theme);
+const toggleTheme = async () => {
+  const theme = currentTheme.value === 'dark' ? 'light' : 'dark';
+  await ERAUtil.UpdateByObject({"theme": theme});
 };
 </script>
 

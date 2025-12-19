@@ -3,7 +3,7 @@
     <h1 class="view-title">视界</h1>
 
     <p class="view-description">
-      我当前的处境
+      所待之时，所处之地，所见之物，所闻之人
     </p>
 
     <div class="world-status-grid">

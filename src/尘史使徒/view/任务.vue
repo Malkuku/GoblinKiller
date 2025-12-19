@@ -3,10 +3,10 @@
     <!-- 1. 顶层选项卡 -->
     <div class="tabs">
       <button class="tab-button" :class="{ active: activeTab === 'main' }" @click="selectTab('main')">
-        主线
+        主律
       </button>
       <button class="tab-button" :class="{ active: activeTab === 'side' }" @click="selectTab('side')">
-        支线
+        插曲
       </button>
     </div>
 
@@ -51,26 +51,30 @@
                   <p class="progress-result"><strong>目前成果：</strong>{{ currentSideQuest.data.目前成果 }}</p>
                 </div>
 
-                <div class="enemy-info-grid">
-                  <div class="quest-section">
-                    <h3>大敌</h3>
-                    <p>{{ currentSideQuest.data.大敌 }}</p>
+                <!-- [修改点 1] 使用 v-if 判断是否开启全知视角 -->
+                <template v-if="isOmniscient">
+                  <div class="enemy-info-grid">
+                    <div class="quest-section">
+                      <h3>大敌</h3>
+                      <p>{{ currentSideQuest.data.大敌 }}</p>
+                    </div>
+                    <div class="quest-section">
+                      <h3>敌人的目标</h3>
+                      <p>{{ currentSideQuest.data.敌人的目标 }}</p>
+                    </div>
                   </div>
-                  <div class="quest-section">
-                    <h3>敌人的目标</h3>
-                    <p>{{ currentSideQuest.data.敌人的目标 }}</p>
-                  </div>
-                </div>
 
-                <div class="quest-section">
-                  <h3>敌人的行动</h3>
-                  <p>{{ currentSideQuest.data.敌人的行动 }}</p>
-                </div>
+                  <div class="quest-section">
+                    <h3>敌人的行动</h3>
+                    <p>{{ currentSideQuest.data.敌人的行动 }}</p>
+                  </div>
+                </template>
+
               </div>
             </transition>
           </div>
         </div>
-        <div v-else class="loading-state">暂无支线任务...</div>
+        <div v-else class="loading-state">风平浪静，寂静宛如消逝的冬...</div>
       </template>
 
       <!-- B. "主线" 内容区 (固定布局) -->
@@ -115,6 +119,9 @@ const statStore = useStatStore();
 // --- 状态管理 ---
 const activeTab = ref('main'); // 默认值，将在 onMounted 中被覆盖
 const currentSideQuestIndex = ref(0);
+
+// --- [修改点 2] 新增：获取全知视角状态 ---
+const isOmniscient = computed(() => statStore.stat_data?.全知视角 === true);
 
 // --- 计算属性 ---
 const mainQuests = computed(() => statStore.stat_data?.主线);
@@ -187,6 +194,21 @@ function selectSideQuest(index) {
 .progress-section .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; color: var(--text-primary); mix-blend-mode: difference; filter: invert(1) grayscale(1) contrast(100); }
 .progress-section .progress-result { font-style: italic; }
 
+/* [修改点 3] 新增：为锁定的敌人信息添加样式 */
+.enemy-info-locked {
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  padding: 2rem;
+  text-align: center;
+  margin-top: 1.5rem;
+}
+.enemy-info-locked p {
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
 /* --- 主线任务布局与样式 --- */
 .main-quest-layout { display: flex; flex-direction: column; gap: 1.5rem; }
 .main-quest-panel { border-radius: 6px; padding: 2rem 2.5rem; position: relative; overflow: hidden; border: 1px solid var(--border-color); }
@@ -209,7 +231,7 @@ function selectSideQuest(index) {
 }
 @keyframes pulse { 0%, 100% { opacity: 0.8; transform: translate(-50%, -50%) scale(0.9); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 
-/* 主线特效：力量 */
+/* [修改点 4] 主线特效：力量 (已更换) */
 .theme-power {
   --theme-color: #DA70D6; /* 蛾准则的紫色 */
   background-color: #2a1a2a;
@@ -218,16 +240,31 @@ function selectSideQuest(index) {
 .theme-power::before {
   content: '';
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
   border-radius: 6px;
-  border: 2px solid transparent;
-  background: linear-gradient(var(--theme-color), var(--accent-danger));
-  background-clip: border-box;
-  -webkit-mask-composite: destination-out;
-  mask-composite: exclude;
-  animation: rotate-border 5s linear infinite;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(218, 112, 214, 0.2) 1px, transparent 2px),
+    radial-gradient(circle at 80% 10%, rgba(218, 112, 214, 0.25) 1px, transparent 2px),
+    radial-gradient(circle at 50% 70%, rgba(218, 112, 214, 0.15) 2px, transparent 3px),
+    radial-gradient(circle at 10% 90%, rgba(218, 112, 214, 0.2) 1px, transparent 2px),
+    radial-gradient(circle at 90% 60%, rgba(218, 112, 214, 0.22) 1px, transparent 2px);
+  background-size: 100px 100px, 150px 150px, 120px 120px, 180px 180px, 90px 90px;
+  animation: moth-dust-drift 20s linear infinite;
+  opacity: 0.5; /* 默认可见度 */
+  transition: opacity 0.5s;
 }
-@keyframes rotate-border { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.theme-power:hover::before {
+  opacity: 0.8; /* 鼠标悬浮时更明显 */
+}
+@keyframes moth-dust-drift {
+  from {
+    transform: translateY(0px) rotate(0deg);
+  }
+  to {
+    transform: translateY(-100px) rotate(10deg);
+  }
+}
 
 .soul-quality-section { margin-top: 2rem; }
 .soul-quality-section h3 { font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--text-secondary); margin-bottom: 1rem; }
