@@ -49,7 +49,8 @@ function parseOptions(msg: string): string[] {
   try {
     const block = msg.match(/<options>([\s\S]*?)<\/options>/)
     if (!block?.[1]) return []
-    const ops = Array.from(block[1].matchAll(/<op>(.*?)<\/op>/g), m => m[1].trim())
+    // 修改正则表达式以支持跨行内容
+    const ops = Array.from(block[1].matchAll(/<op>([\s\S]*?)<\/op>/g), m => m[1].trim())
     return ops.length ? ops : []
   } catch {
     return []
@@ -240,4 +241,3 @@ function selectOption(option: string) {
 .options-panel.dark ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
-</style>

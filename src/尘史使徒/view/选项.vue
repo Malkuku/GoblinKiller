@@ -38,8 +38,8 @@ function parseOptions(msg: string | null | undefined): string[] {
     const optionsBlock = msg.match(/<options>([\s\S]*?)<\/options>/);
     if (!optionsBlock?.[1]) return [];
 
-    // 从块中匹配所有的 <op>...</op>
-    const ops = Array.from(optionsBlock[1].matchAll(/<op>(.*?)<\/op>/g), m => m[1].trim());
+    // 从块中匹配所有的 <op>...</op>，支持跨行内容
+    const ops = Array.from(optionsBlock[1].matchAll(/<op>([\s\S]*?)<\/op>/g), m => m[1].trim());
     return ops.length ? ops : [];
   } catch (error) {
     console.error("解析选项时出错:", error);
