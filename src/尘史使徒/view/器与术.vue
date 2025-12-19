@@ -29,7 +29,8 @@
           <!-- A2. 术的详情面板 -->
           <div class="panel-display-area">
             <transition name="fade-main" mode="out-in">
-              <div v-if="currentArt" :key="currentArt.name"
+              <div
+v-if="currentArt" :key="currentArt.name"
                    class="art-panel" :class="artPrinciples[currentArt.name]?.themeClass">
 
                 <!-- 特效背景 -->
@@ -171,9 +172,9 @@ const currentArt = computed(() => userArts.value[currentArtIndex.value]);
 const maxLevelText = computed(() => {
   if (!currentArt.value || currentArt.value.data.下一级需求经验 !== -1) return '';
   const level = currentArt.value.data.当前等级;
-  if (level === 0) return "此道初开，然前路已尽。";
-  if (level >= 14 && level <= 18) return "已臻化境，此道再无寸进。";
-  if (level >= 19) return "此道已穷尽，汝即是准则本身。";
+  if (level === 0) return "我不具备此术的适应，或许还有其他办法...";
+  if (level >= 14 && level <= 18) return "我需要仪式或者秘密来精进此术...";
+  if (level >= 19) return "唯有更靠近准则本质方有精进的可能...";
   return "前路已断，无法再精进。";
 });
 
@@ -191,8 +192,9 @@ const currentArtLevelDescriptions = computed(() => {
   for (const threshold of levelThresholds) {
     if (threshold > 0 && threshold <= currentLevel) {
       const descriptions = descriptionsMap[String(threshold)];
-      if (descriptions && Array.isArray(descriptions)) {
-        unlockedDescriptions.push(...descriptions);
+      // 修改：现在descriptions是一个字符串而不是数组
+      if (descriptions && typeof descriptions === 'string') {
+        unlockedDescriptions.push(descriptions);
       }
     }
   }

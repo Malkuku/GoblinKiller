@@ -75,14 +75,10 @@ const currentCharacter = computed(() => statStore.stat_data?.世界?.当前人�
 
 .world-status-grid {
   display: grid;
-  /*
-    响应式网格：
-    - 在大屏上，每行最多4列。
-    - 在小屏上，列会自动减少，甚至变为单列。
-    - minmax(220px, 1fr) 表示列的最小宽度为 220px，最大为1个弹性单位。
-  */
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem; /* 网格项之间的间距 */
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  max-width: 650px;
+  margin: 0 auto;
 }
 
 .status-item {

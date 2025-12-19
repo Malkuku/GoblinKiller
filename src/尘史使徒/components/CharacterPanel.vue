@@ -18,6 +18,12 @@
     <div class="paginated-content">
       <!-- Page: 生命状态 -->
       <div v-if="currentPage === '生命状态'" class="data-section">
+        <!-- Current Identity -->
+        <div class="identity-section">
+          <h3 class="section-title">当前身份</h3>
+          <p class="current-identity">{{ characterData.当前身份 }}</p>
+        </div>
+
         <!-- Detailed View (for self or omniscient) -->
         <div v-if="isOmniscient || isCurrentUser" class="stat-grid-percentage">
           <!-- 生命力 -->
@@ -349,6 +355,19 @@ const visibleRelations = computed(() => {
   color: var(--text-secondary);
   background: var(--bg-primary);
   padding: 1rem;
+  border-radius: 4px;
+  border-left: 3px solid var(--accent-primary);
+}
+
+.identity-section {
+  margin-bottom: 1.5rem;
+}
+
+.current-identity {
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  background: var(--bg-primary);
+  padding: 0.75rem 1rem;
   border-radius: 4px;
   border-left: 3px solid var(--accent-primary);
 }

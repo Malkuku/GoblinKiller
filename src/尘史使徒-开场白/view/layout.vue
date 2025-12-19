@@ -75,7 +75,7 @@ const prevPage = () => {
   top: 0;
   left: 0;
   width: 100vw;
-  min-height: 400px;
+  min-height: 600px;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'EB Garamond', serif;

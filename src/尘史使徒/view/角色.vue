@@ -2,16 +2,8 @@
   <div class="characters-view-container">
     <!-- 1. 顶层选项卡 -->
     <div class="tabs">
-      <button
-        class="tab-button"
-        :class="{ active: activeTab === 'main' }"
-        @click="selectTab('main')">
-        主要角色
-      </button>
-      <button
-        class="tab-button"
-        :class="{ active: activeTab === 'minor' }"
-        @click="selectTab('minor')">
+      <button class="tab-button" :class="{ active: activeTab === 'main' }" @click="selectTab('main')">主要角色</button>
+      <button class="tab-button" :class="{ active: activeTab === 'minor' }" @click="selectTab('minor')">
         次要角色
       </button>
     </div>
@@ -21,12 +13,9 @@
       <nav class="pagination-nav">
         <ul>
           <li v-for="(char, index) in activeList" :key="char.name">
-            <button
-              class="char-button"
-              :class="{ active: index === currentIndex }"
-              @click="selectCharacter(index)">
-              <!-- 修改：当角色名为'user'时，进行宏替换 -->
-              {{ (activeTab === 'minor' && char.data.隐藏) ? '未知' : (char.name === 'user' ? substitudeMacros('{{user}}') : char.name) }}
+            <button class="char-button" :class="{ active: index === currentIndex }" @click="selectCharacter(index)">
+              <!-- 核心逻辑：如果角色隐藏，则显示'未知' -->
+              {{ getDisplayName(char) }}
             </button>
           </li>
         </ul>
@@ -63,9 +52,7 @@
       </div>
     </div>
 
-    <div v-else class="loading-state">
-      该分类下暂无角色数据...
-    </div>
+    <div v-else class="loading-state">该分类下暂无角色数据...</div>
   </div>
 </template>
 
@@ -120,6 +107,15 @@ const currentIndex = computed(() => activeTab.value === 'main' ? mainCharCurrent
 
 // 获取当前需要展示的角色数据
 const currentCharacterData = computed(() => activeList.value[currentIndex.value]);
+
+const getDisplayName = (char) => {
+  if(activeTab.value === 'minor' && char.data.隐藏){
+    return '未知';
+  }else if(activeTab.value === 'main' && char.name === 'user'){
+    return substitudeMacros('{{user}}');
+  }
+  return char.name
+};
 
 // --- 方法 ---
 function selectTab(tabName) {

@@ -7,7 +7,7 @@
  */
 interface ArtLevelDescriptions {
   [artName: string]: {
-    [level: string]: string[];
+    [level: string]: string;
   };
 }
 
@@ -15,6 +15,7 @@ interface ArtLevelDescriptions {
  * 辅助 Interface：定义一个主要角色的完整数据结构
  */
 interface MainCharacter {
+  "当前身份": string;
   "生命状态": {
     "生命力": number;
     "体力": number;
