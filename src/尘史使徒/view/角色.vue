@@ -25,8 +25,8 @@
               class="char-button"
               :class="{ active: index === currentIndex }"
               @click="selectCharacter(index)">
-              <!-- 核心逻辑：如果角色隐藏，则显示'未知' -->
-              {{ (activeTab === 'minor' && char.data.隐藏) ? '未知' : char.name }}
+              <!-- 修改：当角色名为'user'时，进行宏替换 -->
+              {{ (activeTab === 'minor' && char.data.隐藏) ? '未知' : (char.name === 'user' ? substitudeMacros('{{user}}') : char.name) }}
             </button>
           </li>
         </ul>

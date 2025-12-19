@@ -1,6 +1,6 @@
 <template>
   <div class="character-panel">
-    <h2 class="character-name">{{ characterName }}</h2>
+    <h2 class="character-name">{{ displayName }}</h2>
 
     <!-- Pagination Controls -->
     <div class="pagination-controls">
@@ -113,7 +113,7 @@
         <ul v-if="Object.keys(visibleRelations).length > 0" class="relation-list">
           <li v-for="(relation, targetName) in visibleRelations" :key="targetName">
             <div class="relation-summary">
-              对 <strong class="relation-target">{{ targetName }}</strong>: {{ relation.关系总结 }}
+              对 <strong class="relation-target">{{ getDisplayName(targetName) }}</strong>: {{ relation.关系总结 }}
             </div>
             <div v-if="isOmniscient" class="relation-details">
               <div class="detail-group">情感纽带: 信任{{ relation.情感纽带.信任度 }} 好感{{ relation.情感纽带.好感度 }} 情欲{{ relation.情感纽带.情欲 }} 依赖{{ relation.情感纽带.依赖度 }}</div>
@@ -145,6 +145,18 @@ const props = defineProps({
   isOmniscient: { type: Boolean, default: false },
   isCurrentUser: { type: Boolean, default: false },
 });
+
+// 用于解析任何传入的名称
+function getDisplayName(name) {
+  if (name === 'user') {
+    return substitudeMacros('{{user}}');
+  }
+  return name;
+}
+
+// 用于面板主标题的计算属性
+const displayName = computed(() => getDisplayName(props.characterName));
+
 
 // --- Pagination Logic ---
 const pages = ['生命状态', '特殊状态', '术之等级','人物关系'];
