@@ -49,7 +49,7 @@
               <!-- B1. 如果角色隐藏，显示未知提示 -->
               <div v-if="currentCharacterData.data.隐藏" class="unknown-character-notice">
                 <h2 class="unknown-title">身份不明</h2>
-                <p>关于此人的信息被某种力量遮蔽了，无法探知。</p>
+                <p>此人潜藏于阴影之中，目的不明。</p>
               </div>
               <!-- B2. 否则，正常显示次要角色面板 -->
               <MinorCharacterPanel
@@ -70,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useStatStore } from '@/尘史使徒/store/StatStore';
 import MinorCharacterPanel from '@/尘史使徒/components/MinorCharacterPanel.vue';
 import CharacterPanel from '@/尘史使徒/components/CharacterPanel.vue';
@@ -86,12 +86,23 @@ const minorCharCurrentIndex = ref(0);
 const isOmniscient = computed(() => statStore.stat_data?.全知视角 === true);
 const currentUserKey = "user";
 
-// 将角色对象转换为数组，便于索引和循环
-const mainCharactersList = computed(() =>
-  statStore.stat_data?.角色?.主要角色
-    ? Object.entries(statStore.stat_data.角色.主要角色).map(([name, data]) => ({ name, data }))
-    : []
-);
+// 将角色对象转换为数组，并根据“已出场”状态进行过滤
+const mainCharactersList = computed(() => {
+  const mainChars = statStore.stat_data?.角色?.主要角色;
+  const appearedChars = statStore.stat_data?.角色?.已出场角色;
+
+  if (!mainChars) {
+    return [];
+  }
+
+  return Object.entries(mainChars)
+    .filter(([name]) => {
+      // 如果是全知视角，则显示所有主要角色
+      // 否则，只显示在“已出场角色”中为 true 的角色
+      return isOmniscient.value || (appearedChars && appearedChars[name] === true);
+    })
+    .map(([name, data]) => ({ name, data }));
+});
 
 const minorCharactersList = computed(() =>
   statStore.stat_data?.角色?.次要角色
@@ -122,6 +133,15 @@ function selectCharacter(index) {
     minorCharCurrentIndex.value = index;
   }
 }
+
+// --- 侦听器 ---
+// 当过滤后的主角色列表变化时，检查当前索引是否越界，如果是则重置为0
+// 这可以防止因列表项减少而导致访问不存在的索引而出错
+watch(mainCharactersList, (newList) => {
+  if (mainCharCurrentIndex.value >= newList.length) {
+    mainCharCurrentIndex.value = 0;
+  }
+});
 </script>
 
 <style scoped>

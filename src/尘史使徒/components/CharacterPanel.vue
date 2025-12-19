@@ -17,8 +17,9 @@
     <!-- Paginated Content -->
     <div class="paginated-content">
       <!-- Page: 生命状态 -->
-      <div v-if="currentPage === '生命状态' && (isOmniscient || isCurrentUser)" class="data-section">
-        <div class="stat-grid-percentage">
+      <div v-if="currentPage === '生命状态'" class="data-section">
+        <!-- Detailed View (for self or omniscient) -->
+        <div v-if="isOmniscient || isCurrentUser" class="stat-grid-percentage">
           <!-- 生命力 -->
           <div class="progress-bar-block">
             <div class="progress-label-container">
@@ -50,9 +51,27 @@
             </div>
           </div>
         </div>
+
+        <!-- Fuzzy View (for others) -->
+        <div v-else class="stat-grid-fuzzy">
+          <div class="fuzzy-stat-item">
+            <span class="label">生命力</span>
+            <span class="value">{{ vitalityText }}</span>
+          </div>
+          <div class="fuzzy-stat-item">
+            <span class="label">体力</span>
+            <span class="value">{{ staminaText }}</span>
+          </div>
+          <div class="fuzzy-stat-item">
+            <span class="label">精神力</span>
+            <span class="value">{{ mentalText }}</span>
+          </div>
+        </div>
+
         <br>
-        <!-- Section: 当前想法 (保持不变) -->
-        <div v-if="isOmniscient || isCurrentUser" class="data-section">
+
+        <!-- Section: 当前想法 -->
+        <div v-if="canSeeThoughts" class="data-section">
           <h3 class="section-title">当前想法</h3>
           <p class="current-thought">"{{ characterData.当前想法 }}"</p>
         </div>
@@ -113,13 +132,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 
 const props = defineProps({
   characterName: { type: String, required: true },
   characterData: { type: Object, required: true },
   isOmniscient: { type: Boolean, default: false },
   isCurrentUser: { type: Boolean, default: false },
+  // 传入当前玩家的数据，用于判断“心”/“杯”等级
+  currentUserData: { type: Object, default: () => ({}) }
 });
 
 // --- Pagination Logic ---
@@ -131,11 +152,56 @@ function changePage(index) {
   currentPageIndex.value = index;
 }
 
-// 初始化时，如果“生命状态”不可见，则默认显示“特殊状态”
-onMounted(() => {
-  if (!(props.isOmniscient || props.isCurrentUser)) {
-    currentPageIndex.value = 1; // '特殊状态' is at index 1
+// --- Computed Properties for Fuzzy Status Text ---
+const getVitalityText = (value) => {
+  if (value >= 80) return '健康';
+  if (value >= 50) return '轻伤/不适';
+  if (value >= 10) return '重伤/衰弱';
+  if (value >= 1) return '濒死';
+  return '死亡';
+};
+
+const getStaminaText = (value) => {
+  if (value >= 80) return '充沛';
+  if (value >= 50) return '正常';
+  if (value >= 10) return '疲劳';
+  if (value >= 1) return '力竭';
+  return '虚脱';
+};
+
+const getMentalText = (value) => {
+  if (value >= 80) return '清醒';
+  if (value >= 50) return '恍惚';
+  if (value >= 10) return '失常';
+  if (value >= 1) return '崩溃';
+  return '心智破碎';
+};
+
+const vitalityText = computed(() => getVitalityText(props.characterData.生命状态.生命力));
+const staminaText = computed(() => getStaminaText(props.characterData.生命状态.体力));
+const mentalText = computed(() => getMentalText(props.characterData.生命状态.精神力));
+
+// --- Computed Property for Thought Visibility ---
+const canSeeThoughts = computed(() => {
+  // 规则1: 全知视角
+  if (props.isOmniscient) {
+    return true;
   }
+  // 规则2: 查看自己的面板
+  if (props.isCurrentUser) {
+    return true;
+  }
+  // 规则3: 当前玩家的“心”或“杯”等级 >= 12
+  if (props.currentUserData && props.currentUserData.术之等级) {
+    // 使用可选链和空值合并运算符确保安全访问
+    const heartLevel = props.currentUserData.术之等级['心']?.当前等级 || 0;
+    const chaliceLevel = props.currentUserData.术之等级['杯']?.当前等级 || 0;
+    const lightLevel = props.currentUserData.术之等级['灯']?.当前等级 || 0;
+    if (heartLevel >= 12 || chaliceLevel >= 12 || lightLevel >= 12) {
+      return true;
+    }
+  }
+  return false;
 });
 
 </script>
@@ -327,6 +393,30 @@ onMounted(() => {
 .progress-bar-fill.vitality { background-color: #4CAF50; } /* 绿色 */
 .progress-bar-fill.stamina { background-color: #2196F3; } /* 蓝色 */
 .progress-bar-fill.mental { background-color: #9C27B0; } /* 紫色 */
+
+/* Fuzzy Text Styles for Life Status */
+.stat-grid-fuzzy {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 0.5rem;
+}
+.fuzzy-stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-primary);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+}
+.fuzzy-stat-item .label {
+  font-size: 0.9rem;
+}
+.fuzzy-stat-item .value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
 
 /* Empty state for status list */
 .empty-state {
