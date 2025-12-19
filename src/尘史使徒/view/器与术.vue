@@ -103,7 +103,13 @@
           <h2 class="items-title">持有器具</h2>
           <ul class="items-list">
             <li v-for="item in userItems" :key="item.name" class="item-entry">
-              <strong>{{ item.name }}</strong>: {{ item.description }}
+              <strong>{{ item.name }}</strong>
+              <p class="item-detail">
+                <span class="detail-label">描述：</span>{{ item.description }}
+              </p>
+              <p v-if="item.effect && item.effect !== '作用未知'" class="item-detail">
+                <span class="detail-label">作用：</span>{{ item.effect }}
+              </p>
             </li>
           </ul>
         </div>
@@ -149,10 +155,15 @@ const userArts = computed(() => {
 const userItems = computed(() => {
   const itemsData = statStore.stat_data?.器具;
   if (!itemsData) return [];
-  return Object.entries(itemsData).map(([itemName, itemDetails]) => ({
-    name: itemName,
-    description: itemDetails?.描述 || '描述缺失'
-  }));
+  return Object.entries(itemsData)
+    // 新增：在映射前，先过滤掉所有键名为 "$template" 的条目
+    .filter(([itemName]) => itemName !== '$template')
+    // 过滤后，再进行映射，创建我们需要的对象数组
+    .map(([itemName, itemDetails]) => ({
+      name: itemName,
+      description: itemDetails?.描述 || '描述缺失',
+      effect: itemDetails?.作用 || '作用未知'
+    }));
 });
 
 const currentArt = computed(() => userArts.value[currentArtIndex.value]);
@@ -327,8 +338,36 @@ function nextDescriptionPage() {
 .items-list-container { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 2rem; }
 .items-title { font-family: 'Cinzel', serif; font-size: 1.5rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
 .items-list { list-style-type: none; padding-left: 0; }
-.item-entry { font-family: 'EB Garamond', serif; font-size: 1.1rem; color: var(--text-primary); margin-bottom: 1rem; line-height: 1.5; }
-.item-entry strong { color: var(--accent-primary); display: block; margin-bottom: 0.25rem; }
+
+/* --- [修改点 3] --- */
+.item-entry {
+  font-family: 'EB Garamond', serif;
+  font-size: 1.1rem;
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  line-height: 1.6;
+}
+.items-list li:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+.item-entry strong {
+  color: var(--accent-primary);
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1.2rem;
+}
+.item-detail {
+  margin: 0.5rem 0 0 0;
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+.detail-label {
+  font-weight: bold;
+  color: var(--text-primary);
+}
 
 /* --- 动态主题与特效 (省略未修改部分) --- */
 .theme-lamp { --theme-color: #FFD700; }

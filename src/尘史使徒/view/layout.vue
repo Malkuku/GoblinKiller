@@ -92,7 +92,6 @@ const toggleTheme = () => {
   grid-template-rows: 55px 1fr;
   width: 100vw;
   min-height: 600px;
-  max-height: 1000px;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'EB Garamond', serif;
