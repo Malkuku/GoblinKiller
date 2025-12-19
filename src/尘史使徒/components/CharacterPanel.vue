@@ -82,7 +82,7 @@
         <ul class="status-list">
           <template v-if="Object.keys(characterData.特殊状态).length > 0">
             <template v-for="(status, name) in characterData.特殊状态" :key="name">
-              <li v-if="isOmniscient || isCurrentUser || name.toString().includes('魂质')">
+              <li>
                 <strong class="status-name" :class="{ 'soul-quality': name.toString().includes('魂质') }">
                   {{ name }}
                   <span v-if="status.不可移除" class="unremovable-tag" title="此状态不可移除">[不可移除]</span>
@@ -107,36 +107,43 @@
           </div>
         </div>
       </div>
+
+      <!-- Page: 人物关系 (已移入 paginated-content) -->
+      <div v-if="currentPage === '人物关系'" class="data-section">
+        <ul v-if="Object.keys(visibleRelations).length > 0" class="relation-list">
+          <li v-for="(relation, targetName) in visibleRelations" :key="targetName">
+            <div class="relation-summary">
+              对 <strong class="relation-target">{{ targetName }}</strong>: {{ relation.关系总结 }}
+            </div>
+            <div v-if="isOmniscient" class="relation-details">
+              <div class="detail-group">情感纽带: 信任{{ relation.情感纽带.信任度 }} 好感{{ relation.情感纽带.好感度 }} 情欲{{ relation.情感纽带.情欲 }} 依赖{{ relation.情感纽带.依赖度 }}</div>
+              <div class="detail-group">认知了解: 熟悉{{ relation.认知与了解.熟悉度 }} 洞察{{ relation.认知与了解.洞察度 }} 预测{{ relation.认知与了解.可预测度 }}</div>
+              <div class="detail-group">社交功利: 影响{{ relation.社交与功利链接.影响力 }} 责任{{ relation.社交与功利链接.责任义务 }} 功利{{ relation.社交与功利链接.利用价值 }}</div>
+            </div>
+          </li>
+        </ul>
+        <div v-else class="empty-state">
+          <p>无可见的人物关系</p>
+        </div>
+      </div>
     </div>
 
-    <!-- Section: 人物关系  -->
-    <div v-if="currentPage === '人物关系'" class="data-section">
-      <ul class="relation-list">
-        <li v-for="(relation, targetName) in characterData.人物关系" :key="targetName">
-          <div class="relation-summary">
-            对 <strong class="relation-target">{{ targetName }}</strong>: {{ relation.关系总结 }}
-          </div>
-          <div v-if="isOmniscient" class="relation-details">
-            <div class="detail-group">情感纽带: 信任{{ relation.情感纽带.信任度 }} 好感{{ relation.情感纽带.好感度 }} 情欲{{ relation.情感纽带.情欲 }} 依赖{{ relation.情感纽带.依赖度 }}</div>
-            <div class="detail-group">认知了解: 熟悉{{ relation.认知与了解.熟悉度 }} 洞察{{ relation.认知与了解.洞察度 }} 预测{{ relation.认知与了解.可预测度 }}</div>
-            <div class="detail-group">社交功利: 影响{{ relation.社交与功利链接.影响力 }} 责任{{ relation.社交与功利链接.责任义务 }} 功利{{ relation.社交与功利链接.利用价值 }}</div>
-          </div>
-        </li>
-      </ul>
-    </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue';
+// 1. 引入 store
+import { useStatStore } from '@/尘史使徒/store/StatStore';
+
+// 2. 初始化 store
+const statStore = useStatStore();
 
 const props = defineProps({
   characterName: { type: String, required: true },
   characterData: { type: Object, required: true },
   isOmniscient: { type: Boolean, default: false },
   isCurrentUser: { type: Boolean, default: false },
-  // 传入当前玩家的数据，用于判断“心”/“杯”等级
-  currentUserData: { type: Object, default: () => ({}) }
 });
 
 // --- Pagination Logic ---
@@ -179,31 +186,53 @@ const mentalText = computed(() => getMentalText(props.characterData.生命状态
 
 // --- Computed Property for Thought Visibility ---
 const canSeeThoughts = computed(() => {
-  // 规则1: 全知视角
-  if (props.isOmniscient) {
+  if (props.isOmniscient || props.isCurrentUser) {
     return true;
   }
-  // 规则2: 查看自己的面板
-  if (props.isCurrentUser) {
-    return true;
-  }
-  // 规则3: 当前玩家的“心”或“杯”等级 >= 12
-  if (props.currentUserData && props.currentUserData.术之等级) {
-    // 使用可选链和空值合并运算符确保安全访问
-    const heartLevel = props.currentUserData.术之等级['心']?.当前等级 || 0;
-    const chaliceLevel = props.currentUserData.术之等级['杯']?.当前等级 || 0;
-    const lightLevel = props.currentUserData.术之等级['灯']?.当前等级 || 0;
-    if (heartLevel >= 12 || chaliceLevel >= 12 || lightLevel >= 12) {
+
+  // 3. 直接从 store 获取当前用户数据
+  const currentUserData = statStore.stat_data?.角色?.主要角色?.['user'];
+  if (currentUserData && currentUserData.术之等级) {
+    const heartLevel = currentUserData.术之等级['心']?.当前等级 || 0;
+    const chaliceLevel = currentUserData.术之等级['杯']?.当前等级 || 0;
+    const lightLevel = currentUserData.术之等级['灯']?.当前等级 || 0;
+    if (heartLevel >= 10 || chaliceLevel >= 10 || lightLevel >= 10) {
       return true;
     }
   }
   return false;
 });
 
+// --- 计算可见的人物关系 ---
+const visibleRelations = computed(() => {
+  const allRelations = props.characterData.人物关系;
+  if (!allRelations) {
+    return {};
+  }
+
+  if (props.isOmniscient) {
+    return allRelations;
+  }
+
+  // 4. 直接从 store 获取已出场角色列表
+  const appearedCharacters = statStore.stat_data?.角色?.已出场角色;
+  if (!appearedCharacters) {
+    return {};
+  }
+
+  const filteredRelations = {};
+  for (const targetName in allRelations) {
+    if (appearedCharacters[targetName]) {
+      filteredRelations[targetName] = allRelations[targetName];
+    }
+  }
+  return filteredRelations;
+});
+
 </script>
 
 <style scoped>
-/* --- 现有样式 (保持不变) --- */
+/* --- 样式部分保持不变 --- */
 .character-panel {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
