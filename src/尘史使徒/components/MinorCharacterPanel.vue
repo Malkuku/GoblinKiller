@@ -60,14 +60,25 @@
       <!-- Page: 特殊状态 -->
       <div v-if="currentPage === '特殊状态'" class="data-section">
         <ul class="status-list">
-          <template v-if="Object.keys(characterData.特殊状态).length > 0">
-            <li v-for="(status, name) in characterData.特殊状态" :key="name">
-              <strong class="status-name">{{ name }}</strong>
+          <template v-for="(status, name) in characterData.特殊状态" :key="name">
+            <li>
+              <strong 
+                :class="{
+                  'status-name': true,
+                  'status-soul-quality': name.toString().includes('魂质'),
+                  'status-pact': name.toString().includes('印记') || name.toString().includes('契约'),
+                  'status-blessing': name.toString().includes('祝福'),
+                  'status-curse': name.toString().includes('诅咒') || name.toString().includes('侵染'),
+                  'status-injury': name.toString().includes('伤病')
+                }"
+              >
+                {{ name }}
+                <span v-if="status.不可移除" class="unremovable-tag" title="此状态不可移除">[不可移除]</span>
+              </strong>
+              <p class="status-description">{{ status.描述 }}</p>
+              <p class="status-effect">效果：{{ status.效果 }}</p>
             </li>
           </template>
-          <li v-else class="empty-state">
-            <p>无特殊状态</p>
-          </li>
         </ul>
       </div>
 
@@ -253,5 +264,61 @@ function changePage(index) {
   border: 1px dashed var(--border-color);
   border-radius: 4px;
   background: var(--bg-primary);
+}
+
+/* [ADDED] Special Status Effects */
+@keyframes streaming-light {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* 魂质 - 蓝色流光 */
+.status-soul-quality {
+  color: #0096FF;
+  border-left-color: #0096FF;
+  background-image: linear-gradient(90deg, transparent, rgba(0, 150, 255, 0.3), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 4s ease-in-out infinite;
+}
+
+/* 印记, 契约 - 金色流光 */
+.status-pact {
+  color: #FFD700;
+  border-left-color: #FFD700;
+  background-image: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.3), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 3.5s linear infinite;
+}
+
+/* 祝福 - 绿色 */
+.status-blessing {
+  color: #4CAF50;
+  border-left-color: #4CAF50;
+  background-image: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.25), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 6s ease-in-out infinite;
+}
+
+/* 诅咒, 侵染 - 黑紫色 */
+.status-curse {
+  color: #673AB7;
+  border-left-color: #673AB7;
+  background-image: linear-gradient(90deg, transparent, rgba(103, 58, 183, 0.35), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 5s ease-in infinite;
+}
+
+/* 伤病 - 深绿色 */
+.status-injury {
+  color: #144a16;
+  border-left-color: #144a16;
+  background-image: linear-gradient(90deg, transparent, rgba(46, 125, 50, 0.3), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 4.5s linear infinite;
 }
 </style>

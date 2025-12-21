@@ -20,26 +20,28 @@
             <h2 class="art-name">{{ currentPrinciple.name }}</h2>
             <p class="principle-title">{{ currentPrinciple.title }}</p>
             <p v-if="currentPrinciple.symbol" class="principle-symbols">象征: {{ currentPrinciple.symbol }}</p>
+            <p v-if="currentPrinciple.power" class="principle-power">{{ currentPrinciple.power }}</p>
           </div>
         </transition>
       </div>
 
-      <!-- 准则选择器 -->
-      <div class="principle-selector">
-        <ul>
-          <li
-v-for="(principle, index) in principles"
-              :key="principle.name"
-              :class="{ 'active': index === selectedPrincipleIndex }"
-              @click="selectPrinciple(index)">
-            <div class="selector-name">{{ principle.name }}</div>
-            <!-- 这个div用来展示从 .xp-fill 继承来的样式 -->
-            <div class="active-indicator xp-fill"></div>
-          </li>
-        </ul>
-      </div>
-
     </div>
+
+    <!-- 准则选择器 -->
+    <div class="principle-selector">
+      <ul>
+        <li
+v-for="(principle, index) in principles"
+            :key="principle.name"
+            :class="{ 'active': index === selectedPrincipleIndex }"
+            @click="selectPrinciple(index)">
+          <div class="selector-name">{{ principle.name }}</div>
+          <!-- 这个div用来展示从 .xp-fill 继承来的样式 -->
+          <div class="active-indicator xp-fill"></div>
+        </li>
+      </ul>
+    </div>
+
   </div>
 </template>
 
@@ -48,15 +50,15 @@ import { ref, computed } from 'vue';
 
 // 1. 定义八大准则的数据
 const principles = ref([
-  {name: '准则', title: '自现实世界的表皮“漫宿”所剥落的碎片,逸散成能使人为之引动的力量', themeClass: ''},
-  { name: '灯', title: '理性、求知与启明的准则', symbol: '知识、光芒', themeClass: 'theme-lamp' },
-  { name: '铸', title: '毁灭、塑形与技巧的准则', symbol: '锻造、工艺、力量、火', themeClass: 'theme-forge' },
-  { name: '刃', title: '斗争与征服的准则', symbol: '武器、战斗技巧、暗杀',  themeClass: 'theme-blade' },
-  { name: '冬', title: '静默、消逝、铭记的准则', symbol: '雪、寒冷、记忆、亡者',  themeClass: 'theme-winter' },
-  { name: '心', title: '生命、存续、不息的准则', symbol: '运动、生者、心灵、治疗', themeClass: 'theme-heart' },
-  { name: '杯', title: '欲望、生育、诱惑的准则', symbol: '血肉、性、欲望',  themeClass: 'theme-cup' },
-  { name: '蛾', title: '变化、混沌、未知的准则', symbol: '奇想、幻觉、欺骗、混乱', themeClass: 'theme-moth' },
-  { name: '启', title: '揭示、洞开、拆解的准则', symbol: '门与钥匙、伤口、揭密',  themeClass: 'theme-key' },
+  {name: '准则', title: '自现实世界的表皮"漫宿"所剥落的碎片,逸散成能使人为之引动的力量', power: '人们总结规律，最终领悟了八大准则，它们具备独特而危险的力量'},
+  { name: '灯', title: '理性、求知与启明的准则', symbol: '知识、光芒', themeClass: 'theme-lamp', power: '其力量旨在照亮心智、揭示真相、操控光与知识的本质。' },
+  { name: '铸', title: '毁灭、塑形与技巧的准则', symbol: '锻造、工艺、力量、火', themeClass: 'theme-forge', power: '其力量专注于力量的精妙运用、物质的彻底改造，以及火焰与毁灭的终极掌控。' },
+  { name: '刃', title: '斗争与征服的准则', symbol: '武器、战斗技巧、暗杀',  themeClass: 'theme-blade', power: '其力量专注于提升战斗技巧、强化征服意志、以及暗杀与隐匿的艺术。' },
+  { name: '冬', title: '静默、消逝、铭记的准则', symbol: '雪、寒冷、记忆、亡者',  themeClass: 'theme-winter', power: '其力量冻结时间、沉寂生命、触碰亡者，并最终定义存在的终末。' },
+  { name: '心', title: '生命、存续、不息的准则', symbol: '运动、生者、心灵、治疗', themeClass: 'theme-heart', power: '其力量主宰生命洪流、塑造群体意志、并维系存在的本质，并能从根本上强化施术者自身的生命活力与体魄。' },
+  { name: '杯', title: '欲望、生育、诱惑的准则', symbol: '血肉、性、欲望',  themeClass: 'theme-cup', power: '其力量旨在改造肉体、塑造形态、激发欲望、并最终掌控生命的本质。' },
+  { name: '蛾', title: '变化、混沌、未知的准则', symbol: '奇想、幻觉、欺骗、混乱', themeClass: 'theme-moth', power: '其力量编织幻觉、引导偶然、篡改形态，最终模糊现实与可能性的边界。' },
+  { name: '启', title: '揭示、洞开、拆解的准则', symbol: '门与钥匙、伤口、揭密',  themeClass: 'theme-key' , power: '其力量破除障碍、揭露秘密、运用"门"与"钥匙"的本质。'},
 ]);
 
 // 2. 状态管理
@@ -78,10 +80,10 @@ const selectPrinciple = (index) => {
   position: relative;
   width: 100%;
   height: 100%;
+  min-height: 300px;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
   transition: background-color 0.5s ease; /* 背景色平滑过渡 */
 }
 
@@ -100,9 +102,11 @@ const selectPrinciple = (index) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* 上下分布 */
+  justify-content: center;
   padding: 5vh 2rem;
   box-sizing: border-box;
+  /* 移除了 margin-left，改为使用左右对称的 margin */
+  margin: 0 auto;
 }
 
 /* --- 准则详情显示区 --- */
@@ -134,6 +138,13 @@ const selectPrinciple = (index) => {
   font-style: italic;
 }
 
+.principle-power {
+  font-size: 1rem;
+  color: var(--text-primary);
+  margin-top: 1rem;
+  line-height: 1.6;
+}
+
 /* 详情文字切换动画 */
 .fade-description-enter-active,
 .fade-description-leave-active {
@@ -145,12 +156,19 @@ const selectPrinciple = (index) => {
 }
 
 /* --- 准则选择器 --- */
+.principle-selector {
+  position: absolute;
+  left: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
 .principle-selector ul {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   gap: 6px;
   list-style: none;
-  padding: 0;
   margin: 0;
   background: rgba(0,0,0,0.2);
   padding: 8px;
@@ -216,76 +234,32 @@ const selectPrinciple = (index) => {
 /* 灯 */
 .theme-lamp { --theme-color: #FFD700; }
 .theme-lamp .art-name { color: var(--theme-color); text-shadow: 0 0 10px var(--theme-color); }
-.theme-lamp .xp-fill { background: var(--theme-color); }
-.theme-lamp .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 70%); opacity: 0.15; }
-
 
 /* 铸 */
 .theme-forge { --theme-color: #FF4500; --flame-color-2: #FF8C00; }
 .theme-forge .art-name { color: var(--theme-color); text-shadow: 0 0 5px #fff, 0 0 10px var(--theme-color), 0 0 15px var(--flame-color-2); }
-.theme-forge .xp-fill { background: linear-gradient(90deg, var(--theme-color), var(--flame-color-2)); }
-.theme-forge .art-bg-effect { overflow: hidden; }
-@keyframes art-forge-seamless-rise {
-  from { transform: translateY(0); }
-  to { transform: translateY(-50%); }
-}
-.theme-forge .art-bg-effect::before,
-.theme-forge .art-bg-effect::after {
-  content: ''; position: absolute; left: 0; width: 100%; height: 200%;
-  background-image: radial-gradient(circle, var(--theme-color) 1px, transparent 1px);
-  background-repeat: repeat; animation-name: art-forge-seamless-rise;
-  animation-timing-function: linear; animation-iteration-count: infinite;
-}
-.theme-forge .art-bg-effect::before { top: 0; background-size: 70px 70px; animation-duration: 6s; opacity: 0.7; }
-.theme-forge .art-bg-effect::after { top: 0; background-size: 110px 110px; animation-duration: 10s; opacity: 0.6; animation-delay: -3s; }
 
 /* 刃 */
 .theme-blade { --theme-color: #C0C0C0; --metal-dark: #888; --metal-light: #F0F0F0; }
 .theme-blade .art-name { background: linear-gradient(180deg, var(--metal-light), var(--theme-color) 50%, var(--metal-dark) 51%, var(--theme-color) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); -webkit-text-fill-color: transparent; }
-.theme-blade .xp-fill { background: linear-gradient(45deg, var(--metal-dark), var(--metal-light)); }
-.theme-blade .art-bg-effect { background: linear-gradient(0deg, rgba(255,255,255,0.05), rgba(0,0,0,0.05)), repeating-linear-gradient(90deg, #ccc, #ccc 1px, #bbb 1px, #bbb 2px); opacity: 0.3; }
 
 /* 冬 */
 .theme-winter { --theme-color: #A3D5D5; }
 .theme-winter .art-name { color: var(--theme-color); text-shadow: 0 0 10px #fff; }
-.theme-winter .xp-fill { background: var(--theme-color); }
-.theme-winter .art-bg-effect { background: radial-gradient(circle, #fff 5%, transparent 6%), radial-gradient(circle, #fff 3%, transparent 4%); background-size: 30px 30px, 50px 50px; background-position: 0 0, 25px 25px; animation: snow 10s linear infinite; }
-@keyframes snow { 100% {background-position: 0 300px, 25px 325px;} }
 
 /* 心 */
 .theme-heart { --theme-color: #FF69B4; }
 .theme-heart .art-name { color: var(--theme-color); text-shadow: 0 0 8px var(--theme-color); }
-.theme-heart .xp-fill { background: var(--theme-color); }
-.theme-heart .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 50%) no-repeat center; animation: art-heart-pulse-gradient 2s infinite ease-in-out; opacity: 0.15; }
-@keyframes art-heart-pulse-gradient { 0%, 100% { background-size: 100% 100%; opacity: 0.1; } 50% { background-size: 150% 150%; opacity: 0.2; } }
 
 /* 杯 */
 .theme-cup { --theme-color: #8B0000; }
 .theme-cup .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.5); }
-.theme-cup .xp-fill { background: var(--theme-color); }
-.theme-cup .art-bg-effect {
-  background-image: linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%);
-  background-repeat: no-repeat; background-size: 2px 150%, 3px 200%, 1px 220%, 2px 180%, 3px 250%, 1px 160%;
-  background-position: 10% 0, 25% 0, 40% 0, 60% 0, 75% 0, 90% 0;
-  animation: art-cup-drip-y 4s linear 0s infinite, art-cup-drip-y 6s linear 1.5s infinite, art-cup-drip-y 5s linear 3.5s infinite, art-cup-drip-y 7s linear 2s infinite, art-cup-drip-y 4.5s linear 5s infinite, art-cup-drip-y 5.5s linear 0.5s infinite;
-  opacity: 0.5;
-}
-@keyframes art-cup-drip-y { from { background-position-y: -250%; } to { background-position-y: 100%; } }
 
 /* 蛾 */
 .theme-moth { --theme-color: #888888; }
 .theme-moth .art-name { color: var(--theme-color); text-shadow: 1px 1px 1px rgba(0,0,0,0.5); animation: art-moth-glitch-strong 1.5s infinite steps(1); }
-.theme-moth .xp-fill { background: linear-gradient(90deg, #333, #888, #555); }
-.theme-moth .art-bg-effect { background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px); opacity: 0.15; }
-@keyframes art-moth-glitch-strong { 0% { transform: translate(0, 0) skew(0); } 10% { transform: translate(-5px, 3px) skew(-5deg); } 20% { transform: translate(5px, -3px) skew(5deg); } 30% { transform: translate(-8px, 5px) skew(-2deg); } 40% { transform: translate(8px, -5px) skew(2deg); } 50% { transform: translate(-5px, 3px) skew(-5deg); } 60% { transform: translate(5px, -3px) skew(5deg); } 70% { transform: translate(-8px, 5px) skew(-2deg); } 80% { transform: translate(0, 0) skew(0); } 100% { transform: translate(0, 0) skew(0); } }
 
 /* 启 */
 .theme-key { --theme-color: #9400D3; }
 .theme-key .art-name { color: var(--theme-color); text-shadow: 0 0 8px var(--theme-color); }
-.theme-key .xp-fill { background: var(--theme-color); }
-.theme-key .art-bg-effect {
-  background: radial-gradient(ellipse at center, var(--theme-color) 0%, rgba(148, 0, 211, 0.5) 30%, rgba(148, 0, 211, 0.1) 60%, transparent 80%);
-  transform-origin: center; animation: art-key-slow-spin 30s linear infinite; opacity: 0.4;
-}
-@keyframes art-key-slow-spin { from { transform: scale(1.5) rotate(0deg); } to { transform: scale(1.5) rotate(360deg); } }
 </style>

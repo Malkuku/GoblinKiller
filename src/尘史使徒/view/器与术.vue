@@ -86,7 +86,7 @@ v-if="currentArt" :key="currentArt.name"
                         </div>
                       </div>
                       <div v-else class="loading-state" style="padding: 2rem 0;">
-                        尚未解锁任何等级能力。
+                        此项准则的大门尚未向我敞开...
                       </div>
                     </div>
                   </transition>
@@ -172,7 +172,7 @@ const currentArt = computed(() => userArts.value[currentArtIndex.value]);
 const maxLevelText = computed(() => {
   if (!currentArt.value || currentArt.value.data.下一级需求经验 !== -1) return '';
   const level = currentArt.value.data.当前等级;
-  if (level === 0) return "我不具备此术的适应，或许还有其他办法...";
+  if (level === 0) return "我不具备此术的适性，或许还有其他办法...";
   if (level >= 14 && level <= 18) return "我需要仪式或者秘密来精进此术...";
   if (level >= 19) return "唯有更靠近准则本质方有精进的可能...";
   return "前路已断，无法再精进。";

@@ -87,9 +87,19 @@
       <div v-if="currentPage === '特殊状态'" class="data-section">
         <ul class="status-list">
           <template v-if="Object.keys(characterData.特殊状态).length > 0">
+            <!-- [MODIFIED] Changed class binding logic -->
             <template v-for="(status, name) in characterData.特殊状态" :key="name">
               <li>
-                <strong class="status-name" :class="{ 'soul-quality': name.toString().includes('魂质') }">
+                <strong 
+                  :class="{
+                    'status-name': true,
+                    'status-soul-quality': name.toString().includes('魂质'),
+                    'status-pact': name.toString().includes('印记') || name.toString().includes('契约'),
+                    'status-blessing': name.toString().includes('祝福'),
+                    'status-curse': name.toString().includes('诅咒') || name.toString().includes('侵染'),
+                    'status-injury': name.toString().includes('伤病')
+                  }"
+                >
                   {{ name }}
                   <span v-if="status.不可移除" class="unremovable-tag" title="此状态不可移除">[不可移除]</span>
                 </strong>
@@ -114,12 +124,15 @@
         </div>
       </div>
 
-      <!-- Page: 人物关系 (已移入 paginated-content) -->
+      <!-- Page: 人物关系 -->
       <div v-if="currentPage === '人物关系'" class="data-section">
         <ul v-if="Object.keys(visibleRelations).length > 0" class="relation-list">
           <li v-for="(relation, targetName) in visibleRelations" :key="targetName">
-            <div class="relation-summary">
+            <div v-if="isOmniscient || isCurrentUser || canSeeThoughts" class="relation-summary">
               对 <strong class="relation-target">{{ getDisplayName(targetName) }}</strong>: {{ relation.关系总结 }}
+            </div>
+            <div v-else class="relation-summary">
+              我需要更高的术法等级才有可能察觉到别人对我的真实态度...
             </div>
             <div v-if="isOmniscient" class="relation-details">
               <div class="detail-group">情感纽带: 信任{{ relation.情感纽带.信任度 }} 好感{{ relation.情感纽带.好感度 }} 情欲{{ relation.情感纽带.情欲 }} 依赖{{ relation.情感纽带.依赖度 }}</div>
@@ -214,7 +227,7 @@ const canSeeThoughts = computed(() => {
     const heartLevel = currentUserData.术之等级['心']?.当前等级 || 0;
     const chaliceLevel = currentUserData.术之等级['杯']?.当前等级 || 0;
     const lightLevel = currentUserData.术之等级['灯']?.当前等级 || 0;
-    if (heartLevel >= 10 || chaliceLevel >= 10 || lightLevel >= 10) {
+    if (heartLevel >= 7 || chaliceLevel >= 10 || lightLevel >= 8) {
       return true;
     }
   }
@@ -330,9 +343,11 @@ const visibleRelations = computed(() => {
   padding: 0.75rem 1rem;
   border-radius: 4px;
   border-left: 3px solid var(--border-color);
+  background-repeat: no-repeat; /* Ensure gradient doesn't tile */
+  transition: box-shadow 0.3s ease;
 }
 .status-name { color: var(--accent-primary); }
-.soul-quality { color: var(--accent-danger); }
+/* [REMOVED] .soul-quality class is no longer needed here */
 .unremovable-tag { font-size: 0.8rem; color: var(--text-secondary); cursor: help; }
 .status-description { font-size: 0.9rem; color: var(--text-primary); margin: 0.5rem 0 0 0; }
 .status-effect { font-size: 0.8rem; font-style: italic; color: var(--text-secondary); margin: 0.25rem 0 0 0; }
@@ -480,5 +495,61 @@ const visibleRelations = computed(() => {
   color: var(--text-secondary);
   padding: 1rem;
   border-style: dashed;
+}
+
+/* [ADDED] Special Status Effects */
+@keyframes streaming-light {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* 魂质 - 蓝色流光 */
+.status-soul-quality {
+  color: #0096FF;
+  border-left-color: #0096FF;
+  background-image: linear-gradient(90deg, transparent, rgba(0, 150, 255, 0.3), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 4s ease-in-out infinite;
+}
+
+/* 印记, 契约 - 金色流光 */
+.status-pact {
+  color: #FFD700;
+  border-left-color: #FFD700;
+  background-image: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.3), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 3.5s linear infinite;
+}
+
+/* 祝福 - 绿色 */
+.status-blessing {
+  color: #4CAF50;
+  border-left-color: #4CAF50;
+  background-image: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.25), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 6s ease-in-out infinite;
+}
+
+/* 诅咒, 侵染 - 黑紫色 */
+.status-curse {
+  color: #673AB7;
+  border-left-color: #673AB7;
+  background-image: linear-gradient(90deg, transparent, rgba(103, 58, 183, 0.35), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 5s ease-in infinite;
+}
+
+/* 伤病 - 深绿色 */
+.status-injury {
+  color: #2E7D32;
+  border-left-color: #2E7D32;
+  background-image: linear-gradient(90deg, transparent, rgba(46, 125, 50, 0.3), transparent);
+  background-size: 200% 100%;
+  background-position: 0 0;
+  animation: streaming-light 4.5s linear infinite;
 }
 </style>

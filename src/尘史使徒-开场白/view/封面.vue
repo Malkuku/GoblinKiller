@@ -5,12 +5,12 @@
   -->
   <div class="title-screen-container"  @click="proceed">
     <div class="content-wrapper">
-      <h1 class="main-title">于第九重历史？</h1>
-
+      <h1 class="main-title">
+        <span class="title-text">于第九重历史？</span>
+      </h1>
 
       <p class="prompt-text">点击任意处继续</p>
     </div>
-
   </div>
 </template>
 
@@ -66,7 +66,6 @@ const proceed = () => {
   to { transform: translate(-50%, -50%); }
 }
 
-
 .content-wrapper {
   text-align: center;
   z-index: 1;
@@ -80,13 +79,41 @@ const proceed = () => {
   color: var(--text-primary);
   letter-spacing: 0.2em;
   text-shadow: 0 0 15px var(--accent-primary-faded);
-
   margin-bottom: 200px;
-
+  
+  /* 流光特效相关样式 */
+  position: relative;
+  display: inline-block;
+  
   /* 动画设置 */
   opacity: 0;
   filter: blur(8px);
-  animation: materialize 3s cubic-bezier(0.19, 1, 0.22, 1) 0.5s forwards;
+  animation: 
+    materialize 3s cubic-bezier(0.19, 1, 0.22, 1) 0.5s forwards;
+}
+
+.title-text {
+  position: relative;
+  background: linear-gradient(
+    90deg,
+    var(--accent-primary),
+    var(--text-primary),
+    var(--accent-primary)
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shine 3s ease-in-out 2s infinite;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 @keyframes materialize {

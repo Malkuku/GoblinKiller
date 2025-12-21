@@ -68,7 +68,7 @@
 
     <!-- 内部翻页按钮 (最后一页不显示) -->
     <button v-if="!isLastSubPage" class="internal-next-btn" @click="showNextSubPage">
-      继续了解
+      下一篇章
     </button>
   </div>
 </template>
@@ -125,8 +125,6 @@ const showNextSubPage = () => {
   margin-bottom: 2rem;
 }
 .internal-next-btn {
-  position: absolute;
-  bottom: -40px;
   background: none;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
@@ -134,7 +132,10 @@ const showNextSubPage = () => {
   font-family: 'Cinzel', serif;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-top: 30px;
   margin-bottom: 40px;
+  position: relative;
+  bottom: auto;
 }
 .internal-next-btn:hover {
   color: var(--accent-primary);
@@ -163,7 +164,7 @@ const showNextSubPage = () => {
 }
 .animate-unroll {
   animation: unroll 1s ease-out forwards;
-  transform-origin: top;
+  transform-origin: left;
 }
 @keyframes unroll {
   from { transform: scaleY(0); opacity: 0; }

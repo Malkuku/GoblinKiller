@@ -126,9 +126,9 @@ const prevPage = () => {
   border: none;
   color: var(--text-secondary);
   font-family: 'Cinzel', serif;
-  font-size: 1.1rem;
+  font-size: 0.9rem; /* 减小字体大小 */
   cursor: pointer;
-  padding: 0.5rem 1rem;
+  padding: 0.3rem 0.8rem; /* 减小内边距 */
   transition: color 0.3s ease;
 }
 

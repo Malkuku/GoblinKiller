@@ -241,3 +241,4 @@ function selectOption(option: string) {
 .options-panel.dark ::-webkit-scrollbar-thumb:hover {
   background: var(--text-tertiary);
 }
+</style>

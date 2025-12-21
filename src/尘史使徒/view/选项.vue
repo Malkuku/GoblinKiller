@@ -73,9 +73,6 @@ function handleSelectOption(option: string) {
     // 将焦点设置回输入框，方便用户继续输入或直接发送
     input.focus();
 
-    // 选择后清空选项列表，避免重复选择
-    optionsList.value = [];
-
   } catch (error) {
     console.error("与父窗口交互时出错:", error);
     alert("无法将选项发送到输入框。请检查是否在 iframe 中正常运行。");

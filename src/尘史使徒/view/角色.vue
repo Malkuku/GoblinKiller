@@ -2,9 +2,9 @@
   <div class="characters-view-container">
     <!-- 1. 顶层选项卡 -->
     <div class="tabs">
-      <button class="tab-button" :class="{ active: activeTab === 'main' }" @click="selectTab('main')">主要角色</button>
+      <button class="tab-button" :class="{ active: activeTab === 'main' }" @click="selectTab('main')">命运之人</button>
       <button class="tab-button" :class="{ active: activeTab === 'minor' }" @click="selectTab('minor')">
-        次要角色
+        独特之人
       </button>
     </div>
 
@@ -52,7 +52,7 @@
       </div>
     </div>
 
-    <div v-else class="loading-state">该分类下暂无角色数据...</div>
+    <div v-else class="loading-state">没有值得我留意的独特之人，机遇如同蛾般难以捉摸...</div>
   </div>
 </template>
 
