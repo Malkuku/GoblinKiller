@@ -127,6 +127,7 @@ export interface StatData {
     [key: string]: {
       "描述": string;
       "作用": string;
+      "耐久":number;
     };
   };
   "主线": {

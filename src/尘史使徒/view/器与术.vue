@@ -105,12 +105,26 @@ v-if="currentArt" :key="currentArt.name"
           <ul class="items-list">
             <li v-for="item in userItems" :key="item.name" class="item-entry">
               <strong>{{ item.name }}</strong>
-              <p class="item-detail">
-                <span class="detail-label">描述：</span>{{ item.description }}
-              </p>
-              <p v-if="item.effect && item.effect !== '作用未知'" class="item-detail">
-                <span class="detail-label">作用：</span>{{ item.effect }}
-              </p>
+              <div class="item-details">
+                <p class="item-detail">
+                  <span class="detail-label">描述：</span>{{ item.description }}
+                </p>
+                <p v-if="item.effect && item.effect !== '作用未知'" class="item-detail">
+                  <span class="detail-label">作用：</span>{{ item.effect }}
+                </p>
+                <p v-if="item.durability !== null" class="item-detail">
+                  <span class="detail-label">耐久：</span>
+                  <span
+                    class="durability-value"
+                    :class="{
+                      'durability-low': item.durability < 30,
+                      'durability-critical': item.durability < 10
+                    }"
+                  >
+                    {{ item.durability }}
+                  </span>
+                </p>
+              </div>
             </li>
           </ul>
         </div>
@@ -163,7 +177,8 @@ const userItems = computed(() => {
     .map(([itemName, itemDetails]) => ({
       name: itemName,
       description: itemDetails?.描述 || '描述缺失',
-      effect: itemDetails?.作用 || '作用未知'
+      effect: itemDetails?.作用 || '作用未知',
+      durability: itemDetails?.耐久 !== undefined ? itemDetails.耐久 : null
     }));
 });
 
@@ -245,7 +260,7 @@ function nextDescriptionPage() {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 /* --- 基础布局与通用样式 --- */
 .arts-items-view-container { display: flex; flex-direction: column; height: 100%; }
 .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
@@ -337,9 +352,90 @@ function nextDescriptionPage() {
 .page-indicator { font-family: 'EB Garamond', serif; font-size: 0.9rem; color: var(--text-secondary); min-width: 4ch; text-align: center; }
 
 /* --- "器" 模块样式 --- */
-.items-list-container { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 2rem; }
-.items-title { font-family: 'Cinzel', serif; font-size: 1.5rem; margin: 0 0 1.5rem 0; border-bottom: 1px solid var(--border-color); padding-bottom: 1rem; }
-.items-list { list-style-type: none; padding-left: 0; }
+.items-list-container {
+  background: rgba(40, 40, 40, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 1.1rem;
+}
+.items-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.2rem;
+  margin: 0 0 0.7rem 0;
+  text-align: center;
+  color: var(--accent-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+}
+.items-list {
+  list-style-type: none;
+  padding-left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item-entry {
+  background: rgba(30, 30, 30, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0.5rem 0.7rem;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.item-entry:hover {
+  border-color: var(--accent-primary);
+}
+
+.item-entry strong {
+  font-family: 'Cinzel', serif;
+  font-size: 0.90rem;
+  color: var(--accent-primary);
+  min-width: 90px;
+  text-align: right;
+  margin-right: 0.5rem;
+  padding-right: 0.5rem;
+  border-right: 1px dashed var(--border-color);
+}
+
+.item-detail {
+  margin: 0.2rem 0;
+  font-family: 'EB Garamond', serif;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.detail-label {
+  font-weight: bold;
+  color: var(--text-primary);
+  display: inline-block;
+  width: 2.7rem;
+  font-size: 0.7rem;
+}
+
+.durability-value {
+  font-weight: bold;
+  color: var(--success-color, #4ade80);
+  font-size: 0.8rem;
+}
+
+.durability-low {
+  color: var(--warning-color, #fbbf24);
+  animation: pulse 2s infinite;
+}
+
+.durability-critical {
+  color: var(--danger-color, #f87171);
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.6; }
+  100% { opacity: 1; }
+}
 
 /* --- 动态主题与特效 --- */
 /* 灯 */
