@@ -148,6 +148,11 @@ export interface StatData {
     };
   };
   "术": ArtLevelDescriptions;
+  "金钱":{
+    "金索尔": number,
+    "银里弗": number,
+    "铜便士": number,
+  }
   "全知视角":boolean,
   "theme": string;
 }

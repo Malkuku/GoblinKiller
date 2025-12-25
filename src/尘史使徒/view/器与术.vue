@@ -2,6 +2,9 @@
   <div class="arts-items-view-container">
     <!-- 1. 顶层选项卡 -->
     <div class="tabs">
+      <button class="tab-button" :class="{ active: activeTab === 'money' }" @click="selectTab('money')">
+        金钱
+      </button>
       <button class="tab-button" :class="{ active: activeTab === 'arts' }" @click="selectTab('arts')">
         术
       </button>
@@ -130,6 +133,35 @@ v-if="currentArt" :key="currentArt.name"
         </div>
         <div v-else class="loading-state">身无长物...</div>
       </template>
+
+      <!-- C. "金钱" 的内容区 -->
+      <template v-else-if="activeTab === 'money'">
+        <div v-if="userMoney" class="money-container">
+          <h2 class="money-title">当前资产</h2>
+          <div class="money-display">
+            <div class="money-item">
+              <span class="money-icon">🪙</span>
+              <span class="money-label">金索尔</span>
+              <span class="money-value">{{ userMoney.金索尔 }}</span>
+            </div>
+            <div class="money-item">
+              <span class="money-icon">🪩</span>
+              <span class="money-label">银里弗</span>
+              <span class="money-value">{{ userMoney.银里弗 }}</span>
+            </div>
+            <div class="money-item">
+              <span class="money-icon">⚖️</span>
+              <span class="money-label">铜便士</span>
+              <span class="money-value">{{ userMoney.铜便士 }}</span>
+            </div>
+          </div>
+          <div class="money-info">
+            <p></p>
+            <p>我可以通过学院委托、社会打工、狩猎魔物等方式来获取金钱(迷茫之时，请叩问自己的内心)</p>
+          </div>
+        </div>
+        <div v-else class="loading-state">财务状况未知...</div>
+      </template>
     </div>
   </div>
 </template>
@@ -153,7 +185,7 @@ const artPrinciples = {
 const statStore = useStatStore();
 
 // --- 状态管理 ---
-const activeTab = ref('arts');
+const activeTab = ref('money');
 const currentArtIndex = ref(0);
 const artDetailTab = ref('description'); // 新增：控制术详情内部的选项卡 ('description' 或 'levels')
 const descriptionPage = ref(1);
@@ -180,6 +212,16 @@ const userItems = computed(() => {
       effect: itemDetails?.作用 || '作用未知',
       durability: itemDetails?.耐久 !== undefined ? itemDetails.耐久 : null
     }));
+});
+
+const userMoney = computed(() => {
+  const moneyData = statStore.stat_data?.金钱;
+  if (!moneyData) return null;
+  return {
+    金索尔: moneyData.金索尔 || 0,
+    银里弗: moneyData.银里弗 || 0,
+    铜便士: moneyData.铜便士 || 0
+  };
 });
 
 const currentArt = computed(() => userArts.value[currentArtIndex.value]);
@@ -435,6 +477,85 @@ function nextDescriptionPage() {
   0% { opacity: 1; }
   50% { opacity: 0.6; }
   100% { opacity: 1; }
+}
+
+/* --- "金钱" 模块样式 --- */
+.money-container {
+  background: rgba(40, 40, 40, 0.7);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.money-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.2rem;
+  margin: 0 0 0.7rem 0;
+  text-align: center;
+  color: var(--accent-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.5rem;
+  width: 100%;
+}
+
+.money-display {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.money-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(30, 30, 30, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  padding: 0.5rem 0.7rem;
+}
+
+.money-item:hover {
+  border-color: var(--accent-primary);
+}
+
+.money-icon {
+  font-size: 1.2rem;
+  margin-right: 0.5rem;
+  width: 2rem;
+  text-align: center;
+}
+
+.money-label {
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  flex-grow: 1;
+  text-align: left;
+}
+
+.money-value {
+  font-family: 'EB Garamond', serif;
+  font-size: 1rem;
+  font-weight: bold;
+  color: var(--accent-primary);
+  min-width: 40px;
+  text-align: right;
+}
+
+.money-info {
+  font-family: 'EB Garamond', serif;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  width: 100%;
+  margin-top: 0.5rem;
 }
 
 /* --- 动态主题与特效 --- */
