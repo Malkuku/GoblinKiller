@@ -16,6 +16,13 @@ const UpdateByObject = async (object: any) => {
 }
 
 /**
+ * 发送插入ERA对象的事件
+ */
+const InsertByObject = async (object: any) => {
+  await eventEmit(ERAEvents.INSERT_BY_OBJECT, object);
+}
+
+/**
  * 发送获取ERA快照的事件
  */
 const EmitEraSnapshot = async () => {
@@ -34,5 +41,6 @@ const EmitEraSnapshot = async () => {
 export const ERAUtil = {
   DeleteByObject,
   UpdateByObject,
+  InsertByObject,
   EmitEraSnapshot
 }

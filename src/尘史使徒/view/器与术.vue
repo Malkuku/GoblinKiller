@@ -15,7 +15,8 @@
 
     <!-- 2. 内容展示区 -->
     <div class="content-wrapper">
-      <!-- A. "术" 的内容区 -->
+
+      <!-- A. "术" 的内容区 (保持原样，略微调整以适应新结构) -->
       <template v-if="activeTab === 'arts'">
         <div v-if="userArts.length > 0" class="arts-layout">
           <!-- A1. 术的选择列表 -->
@@ -32,47 +33,30 @@
           <!-- A2. 术的详情面板 -->
           <div class="panel-display-area">
             <transition name="fade-main" mode="out-in">
-              <div
-v-if="currentArt" :key="currentArt.name"
-                   class="art-panel" :class="artPrinciples[currentArt.name]?.themeClass">
-
-                <!-- 特效背景 -->
+              <div v-if="currentArt" :key="currentArt.name" class="art-panel" :class="artPrinciples[currentArt.name]?.themeClass">
                 <div class="art-bg-effect"></div>
-
                 <div class="art-content">
                   <h2 class="art-name">{{ currentArt.name }}</h2>
-
-                  <!-- 新增：内部选项卡，用于切换“描述”和“等级” -->
                   <div class="art-detail-tabs">
                     <button @click="selectArtDetailTab('description')" :class="{ active: artDetailTab === 'description' }">描述</button>
                     <button @click="selectArtDetailTab('levels')" :class="{ active: artDetailTab === 'levels' }">能力</button>
                   </div>
-
-                  <!-- 内部选项卡内容区域 -->
                   <transition name="fade-main" mode="out-in">
-                    <!-- 视图一：描述页 (基本信息) -->
                     <div v-if="artDetailTab === 'description'" class="art-detail-page">
                       <p class="art-description">{{ artPrinciples[currentArt.name]?.description }}</p>
-
                       <div class="level-info">
                         <div class="level-display">
                           <span class="label">等级</span>
                           <span class="value">{{ currentArt.data.当前等级 }}</span>
                         </div>
-
-                        <!-- 修改：经验值显示为数字条 -->
                         <div v-if="currentArt.data.下一级需求经验 !== -1" class="xp-display-text">
                           <span>{{ currentArt.data.累计经验值 }} / {{ currentArt.data.下一级需求经验 }}</span>
                         </div>
-
-                        <!-- 满级文本 -->
                         <div v-if="currentArt.data.下一级需求经验 === -1" class="max-level-notice">
                           {{ maxLevelText }}
                         </div>
                       </div>
                     </div>
-
-                    <!-- 视图二：等级页 (已解锁能力列表) -->
                     <div v-else-if="artDetailTab === 'levels'" class="art-detail-page">
                       <div v-if="currentArtLevelDescriptions.length > 0" class="level-descriptions-container">
                         <transition-group name="fade-list" tag="div" class="descriptions-list">
@@ -80,8 +64,6 @@ v-if="currentArt" :key="currentArt.name"
                             {{ desc }}
                           </p>
                         </transition-group>
-
-                        <!-- 分页控件 -->
                         <div v-if="totalDescriptionPages > 1" class="description-pagination">
                           <button @click="prevDescriptionPage" :disabled="descriptionPage === 1" class="pagination-btn">‹</button>
                           <span class="page-indicator">{{ descriptionPage }} / {{ totalDescriptionPages }}</span>
@@ -101,43 +83,97 @@ v-if="currentArt" :key="currentArt.name"
         <div v-else class="loading-state">尚未习得任何“术”...</div>
       </template>
 
-      <!-- B. "器" 的内容区 -->
+      <!-- B. "器 & 仓" 的内容区 (重构) -->
       <template v-else-if="activeTab === 'items'">
-        <div v-if="userItems.length > 0" class="items-list-container">
-          <h2 class="items-title">持有器具</h2>
-          <ul class="items-list">
-            <li v-for="item in userItems" :key="item.name" class="item-entry">
-              <strong>{{ item.name }}</strong>
-              <div class="item-details">
-                <p class="item-detail">
-                  <span class="detail-label">描述：</span>{{ item.description }}
-                </p>
-                <p v-if="item.effect && item.effect !== '作用未知'" class="item-detail">
-                  <span class="detail-label">作用：</span>{{ item.effect }}
-                </p>
-                <p v-if="item.quantity !== null" class="item-detail">
-                  <span class="detail-label">数量：</span>
-                  <span class="quantity-value">
-                    {{ item.quantity }}
-                  </span>
-                </p>
-                <p v-if="item.durability !== null" class="item-detail">
-                  <span class="detail-label">耐久：</span>
-                  <span
-                    class="durability-value"
-                    :class="{
-                      'durability-low': item.durability < 30,
-                      'durability-critical': item.durability < 10
-                    }"
-                  >
-                    {{ item.durability }}
-                  </span>
-                </p>
+        <div class="inventory-layout">
+          <!-- 搜索栏 -->
+          <div class="inventory-search">
+            <input
+              v-model="itemSearchQuery"
+              placeholder="搜索器具名称..."
+              class="search-input"
+            />
+            <span class="danger-indicator" :class="{ 'is-danger': isDanger }">
+              {{ isDanger ? '⚠ 危险场景：无法交换' : '✓ 安全区域：可以交换' }}
+            </span>
+          </div>
+
+          <div class="inventory-columns">
+            <!-- 左侧：背包 -->
+            <div class="inventory-column">
+              <h3 class="column-title">随身行囊</h3>
+              <div class="items-list-wrapper">
+                <ul class="items-list compact">
+                  <li v-for="item in paginatedBackpackItems" :key="item.name" class="item-entry compact-entry">
+                    <div class="item-header">
+                      <span class="item-name" :title="item.description">{{ item.name }}</span>
+                      <div class="item-meta">
+                        <span class="item-qty">x{{ item.quantity }}</span>
+                        <span class="item-durability" :class="getDurabilityClass(item.durability)">D:{{ item.durability }}</span>
+                      </div>
+                      <button
+                        class="action-btn store-btn"
+                        @click="transferItem(item, 'toWarehouse')"
+                        :disabled="isDanger"
+                        title="存入仓库"
+                      >
+                        ➜
+                      </button>
+                    </div>
+                    <div class="item-tooltip">
+                      <p><strong>描述:</strong> {{ item.description }}</p>
+                      <p><strong>作用:</strong> {{ item.effect }}</p>
+                    </div>
+                  </li>
+                  <li v-if="paginatedBackpackItems.length === 0" class="empty-hint">无匹配物品</li>
+                </ul>
               </div>
-            </li>
-          </ul>
+              <!-- 背包分页 -->
+              <div class="pagination-controls" v-if="totalBackpackPages > 1">
+                <button @click="backpackPage--" :disabled="backpackPage === 1">‹</button>
+                <span>{{ backpackPage }} / {{ totalBackpackPages }}</span>
+                <button @click="backpackPage++" :disabled="backpackPage === totalBackpackPages">›</button>
+              </div>
+            </div>
+
+            <!-- 右侧：仓库 -->
+            <div class="inventory-column warehouse-column">
+              <h3 class="column-title">秘密仓库</h3>
+              <div class="items-list-wrapper">
+                <ul class="items-list compact">
+                  <li v-for="item in paginatedWarehouseItems" :key="item.name" class="item-entry compact-entry">
+                    <div class="item-header">
+                      <button
+                        class="action-btn retrieve-btn"
+                        @click="transferItem(item, 'toBackpack')"
+                        :disabled="isDanger"
+                        title="取出物品"
+                      >
+                        ➜
+                      </button>
+                      <span class="item-name" :title="item.description">{{ item.name }}</span>
+                      <div class="item-meta">
+                        <span class="item-qty">x{{ item.quantity }}</span>
+                        <span class="item-durability" :class="getDurabilityClass(item.durability)">D:{{ item.durability }}</span>
+                      </div>
+                    </div>
+                    <div class="item-tooltip right-tooltip">
+                      <p><strong>描述:</strong> {{ item.description }}</p>
+                      <p><strong>作用:</strong> {{ item.effect }}</p>
+                    </div>
+                  </li>
+                  <li v-if="paginatedWarehouseItems.length === 0" class="empty-hint">无匹配物品</li>
+                </ul>
+              </div>
+              <!-- 仓库分页 -->
+              <div class="pagination-controls" v-if="totalWarehousePages > 1">
+                <button @click="warehousePage--" :disabled="warehousePage === 1">‹</button>
+                <span>{{ warehousePage }} / {{ totalWarehousePages }}</span>
+                <button @click="warehousePage++" :disabled="warehousePage === totalWarehousePages">›</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div v-else class="loading-state">身无长物...</div>
       </template>
 
       <!-- C. "金钱" 的内容区 -->
@@ -162,7 +198,6 @@ v-if="currentArt" :key="currentArt.name"
             </div>
           </div>
           <div class="money-info">
-            <p></p>
             <p>我可以通过学院委托、社会打工、狩猎魔物等方式来获取金钱(迷茫之时，请叩问自己的内心)</p>
           </div>
         </div>
@@ -175,6 +210,8 @@ v-if="currentArt" :key="currentArt.name"
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useStatStore } from '@/尘史使徒/store/StatStore';
+import { ERAUtil } from '@/Utils/ERAUtil';
+import { MessageUtil } from '@/Utils/MessageUtil';
 
 // --- 静态数据：术的原则与主题 ---
 const artPrinciples = {
@@ -193,32 +230,26 @@ const statStore = useStatStore();
 // --- 状态管理 ---
 const activeTab = ref('money');
 const currentArtIndex = ref(0);
-const artDetailTab = ref('description'); // 新增：控制术详情内部的选项卡 ('description' 或 'levels')
+const artDetailTab = ref('description');
 const descriptionPage = ref(1);
 const DESCRIPTIONS_PER_PAGE = 4;
 
+// 仓库/背包 状态
+const itemSearchQuery = ref('');
+const backpackPage = ref(1);
+const warehousePage = ref(1);
+const ITEMS_PER_PAGE = 10;
+
 // --- 计算属性 ---
+
+// 1. 基础数据获取
+const isDanger = computed(() => statStore.stat_data?.危险场景 === true);
+
 const artLevelDescriptionsData = computed(() => statStore.stat_data?.术);
 
 const userArts = computed(() => {
   const artsData = statStore.stat_data?.角色?.主要角色?.['user']?.术之等级;
   return artsData ? Object.entries(artsData).map(([name, data]) => ({ name, data })) : [];
-});
-
-const userItems = computed(() => {
-  const itemsData = statStore.stat_data?.器具;
-  if (!itemsData) return [];
-  return Object.entries(itemsData)
-    // 新增：在映射前，先过滤掉所有键名为 "$template" 的条目
-    .filter(([itemName]) => itemName !== '$template')
-    // 过滤后，再进行映射，创建我们需要的对象数组
-    .map(([itemName, itemDetails]) => ({
-      name: itemName,
-      description: itemDetails?.描述 || '描述缺失',
-      effect: itemDetails?.作用 || '作用未知',
-      quantity: itemDetails?.数量 !== undefined ? itemDetails.数量 : null,
-      durability: itemDetails?.耐久 !== undefined ? itemDetails.耐久 : null
-    }));
 });
 
 const userMoney = computed(() => {
@@ -231,6 +262,48 @@ const userMoney = computed(() => {
   };
 });
 
+// 2. 物品处理 (通用函数)
+const processItems = (itemsData) => {
+  if (!itemsData) return [];
+  return Object.entries(itemsData)
+    .filter(([itemName]) => itemName !== '$template')
+    .map(([itemName, itemDetails]) => ({
+      name: itemName,
+      description: itemDetails?.描述 || '描述缺失',
+      effect: itemDetails?.作用 || '作用未知',
+      quantity: itemDetails?.数量 !== undefined ? itemDetails.数量 : 0,
+      durability: itemDetails?.耐久 !== undefined ? itemDetails.耐久 : 0,
+      // 保留原始引用以便更新
+      raw: itemDetails
+    }));
+};
+
+const rawBackpackItems = computed(() => processItems(statStore.stat_data?.器具));
+const rawWarehouseItems = computed(() => processItems(statStore.stat_data?.仓库));
+
+// 3. 搜索过滤
+const filterItems = (items) => {
+  if (!itemSearchQuery.value) return items;
+  const query = itemSearchQuery.value.toLowerCase();
+  return items.filter(item => item.name.toLowerCase().includes(query));
+};
+
+const filteredBackpackItems = computed(() => filterItems(rawBackpackItems.value));
+const filteredWarehouseItems = computed(() => filterItems(rawWarehouseItems.value));
+
+// 4. 分页
+const paginate = (items, page) => {
+  const start = (page - 1) * ITEMS_PER_PAGE;
+  return items.slice(start, start + ITEMS_PER_PAGE);
+};
+
+const paginatedBackpackItems = computed(() => paginate(filteredBackpackItems.value, backpackPage.value));
+const paginatedWarehouseItems = computed(() => paginate(filteredWarehouseItems.value, warehousePage.value));
+
+const totalBackpackPages = computed(() => Math.ceil(filteredBackpackItems.value.length / ITEMS_PER_PAGE));
+const totalWarehousePages = computed(() => Math.ceil(filteredWarehouseItems.value.length / ITEMS_PER_PAGE));
+
+// 5. 术相关计算
 const currentArt = computed(() => userArts.value[currentArtIndex.value]);
 
 const maxLevelText = computed(() => {
@@ -242,7 +315,6 @@ const maxLevelText = computed(() => {
   return "前路已断，无法再精进。";
 });
 
-// 计算当前术的所有已解锁等级描述 (作为分页的数据源)
 const currentArtLevelDescriptions = computed(() => {
   if (!currentArt.value) return [];
   const artName = currentArt.value.name;
@@ -256,7 +328,6 @@ const currentArtLevelDescriptions = computed(() => {
   for (const threshold of levelThresholds) {
     if (threshold > 0 && threshold <= currentLevel) {
       const descriptions = descriptionsMap[String(threshold)];
-      // 修改：现在descriptions是一个字符串而不是数组
       if (descriptions && typeof descriptions === 'string') {
         unlockedDescriptions.push(descriptions);
       }
@@ -265,133 +336,149 @@ const currentArtLevelDescriptions = computed(() => {
   return unlockedDescriptions;
 });
 
-// 用于等级描述分页的计算属性
-const totalDescriptionPages = computed(() => {
-  return Math.ceil(currentArtLevelDescriptions.value.length / DESCRIPTIONS_PER_PAGE);
-});
-
+const totalDescriptionPages = computed(() => Math.ceil(currentArtLevelDescriptions.value.length / DESCRIPTIONS_PER_PAGE));
 const paginatedDescriptions = computed(() => {
   const startIndex = (descriptionPage.value - 1) * DESCRIPTIONS_PER_PAGE;
-  const endIndex = startIndex + DESCRIPTIONS_PER_PAGE;
-  return currentArtLevelDescriptions.value.slice(startIndex, endIndex);
+  return currentArtLevelDescriptions.value.slice(startIndex, startIndex + DESCRIPTIONS_PER_PAGE);
 });
 
 // --- 监听器 ---
-// 当切换不同的“术”时，重置内部选项卡和分页
 watch(currentArtIndex, () => {
   artDetailTab.value = 'description';
   descriptionPage.value = 1;
 });
 
+// 搜索时重置分页
+watch(itemSearchQuery, () => {
+  backpackPage.value = 1;
+  warehousePage.value = 1;
+});
+
 // --- 方法 ---
-function selectTab(tabName) {
-  activeTab.value = tabName;
+function selectTab(tabName) { activeTab.value = tabName; }
+function selectArt(index) { currentArtIndex.value = index; }
+function selectArtDetailTab(tabName) { artDetailTab.value = tabName; }
+function prevDescriptionPage() { if (descriptionPage.value > 1) descriptionPage.value--; }
+function nextDescriptionPage() { if (descriptionPage.value < totalDescriptionPages.value) descriptionPage.value++; }
+
+function getDurabilityClass(val) {
+  if (val < 10) return 'durability-critical';
+  if (val < 30) return 'durability-low';
+  return 'durability-normal';
 }
 
-function selectArt(index) {
-  currentArtIndex.value = index;
-}
+/**
+ * 物品交换核心逻辑
+ * @param {Object} item - 当前操作的物品对象
+ * @param {String} direction - 'toWarehouse' (存入) 或 'toBackpack' (取出)
+ */
+async function transferItem(item, direction) {
+  // 1. 检查危险场景
+  if (isDanger.value) {
+    console.warn("危险场景下无法交换物品");
+    return;
+  }
 
-function selectArtDetailTab(tabName) {
-  artDetailTab.value = tabName;
-}
+  const isStoring = direction === 'toWarehouse';
+  const sourceKey = isStoring ? '器具' : '仓库';
+  const targetKey = isStoring ? '仓库' : '器具';
 
-function prevDescriptionPage() {
-  if (descriptionPage.value > 1) {
-    descriptionPage.value--;
+  // 获取目标容器中是否已有同名物品
+  const targetContainer = statStore.stat_data?.[targetKey] || {};
+  const existingItem = targetContainer[item.name];
+
+  // 准备更新数据
+  const updatePayload = {};
+  const delPreUpdatePayload = {};
+  const deletePayload = {};
+
+  // 构造目标物品的新状态
+  let newQuantity = item.quantity;
+  let newDurability = item.durability;
+
+  if (existingItem) {
+    // 存在相同key：更新数量，计算耐久堆叠
+    newQuantity += existingItem.数量;
+    // 耐久度为两者之和/2向上取整
+    newDurability = Math.ceil((item.durability + existingItem.耐久) / 2);
+  }
+
+  // 设置目标数据 (UpdateByObject)
+  updatePayload[targetKey] = {
+    [item.name]: {
+      "描述": item.description,
+      "作用": item.effect,
+      "数量": newQuantity,
+      "耐久": newDurability
+    }
+  };
+  delPreUpdatePayload[targetKey] = {
+    [item.name]: {}
+  }
+
+  // 设置源数据删除 (DeleteByObject) - 假设每次移动都是全部移动
+  // 如果需要部分移动，这里需要修改逻辑为更新源数量
+  deletePayload[sourceKey] = {
+    [item.name]: {} // 空对象表示删除
+  };
+
+  try {
+    // 执行 API 调用
+    await ERAUtil.DeleteByObject(deletePayload);
+    await ERAUtil.DeleteByObject(delPreUpdatePayload);
+    await ERAUtil.InsertByObject(updatePayload);
+
+    // 3. 记录日志
+    const logItem = JSON.stringify([{ "道具名": item.name, "数量": item.quantity }]);
+    const logText = isStoring
+      ? `\n<user>将以下道具放入了仓库：\n${logItem}`
+      : `\n<user>从仓库中取出了以下道具：\n${logItem}`;
+
+    await MessageUtil.mergeContentToMessage(getCurrentMessageId(), logText,'none');
+
+  } catch (e) {
+    console.error("物品交换失败:", e);
   }
 }
 
-function nextDescriptionPage() {
-  if (descriptionPage.value < totalDescriptionPages.value) {
-    descriptionPage.value++;
-  }
-}
 </script>
 
 <style scoped lang="scss">
 /* --- 基础布局与通用样式 --- */
 .arts-items-view-container { display: flex; flex-direction: column; height: 100%; }
-.tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); }
-.tab-button { background: none; border: none; border-bottom: 3px solid transparent; padding: 0.75rem 1.5rem; font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--text-secondary); cursor: pointer; transition: all 0.3s ease; transform: translateY(1px); }
+.tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+.tab-button { background: none; border: none; border-bottom: 3px solid transparent; padding: 0.5rem 1.5rem; font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--text-secondary); cursor: pointer; transition: all 0.3s ease; }
 .tab-button:hover { color: var(--text-primary); }
 .tab-button.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
-.content-wrapper { flex-grow: 1; overflow: auto; }
+.content-wrapper { flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; } /* overflow hidden specifically for items tab scrolling */
 .loading-state { color: var(--text-secondary); font-style: italic; text-align: center; padding: 4rem 0; }
 
-/* --- "术" 模块布局 --- */
-.arts-layout { display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem; height: 100%; }
+/* --- "术" 模块布局 (保持原样) --- */
+.arts-layout { display: grid; grid-template-columns: 220px 1fr; gap: 1.5rem; height: 100%; overflow: auto; }
 .pagination-nav { background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; padding: 1rem 0; overflow-y: auto; }
 .pagination-nav ul { list-style: none; padding: 0; margin: 0; }
 .art-button { width: 100%; background: none; border: none; border-left: 3px solid transparent; padding: 0.8rem 1.5rem; text-align: left; font-family: 'EB Garamond', serif; font-size: 1rem; color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease; }
 .art-button:hover { background-color: var(--bg-primary); color: var(--text-primary); }
 .art-button.active { background-color: var(--bg-primary); color: var(--accent-primary); border-left-color: var(--accent-danger); font-weight: bold; }
-.panel-display-area { overflow: hidden; }
-
-/* --- "术" 面板通用样式 --- */
+.panel-display-area { overflow: hidden; height: 100%; }
 .art-panel { position: relative; background-color: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; height: 100%; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; }
 .art-bg-effect { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
 .art-content { position: relative; z-index: 1; padding: 2rem 3rem; text-align: center; max-width: 60ch; width: 100%; overflow-y: auto; height: 100%; display: flex; flex-direction: column; }
 .art-name { font-family: 'Cinzel', serif; font-size: 3rem; margin: 0; }
 .art-description { font-family: 'EB Garamond', serif; font-size: 1.1rem; line-height: 1.6; margin-top: 2rem; }
-
-/* --- 新增：内部选项卡样式 --- */
-.art-detail-tabs {
-  display: flex;
-  gap: 1.5rem;
-  justify-content: center;
-  margin-top: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-}
-.art-detail-tabs button {
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  padding: 0.5rem 0;
-  font-family: 'EB Garamond', serif;
-  font-size: 1rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  transform: translateY(1px);
-}
-.art-detail-tabs button:hover {
-  color: var(--text-primary);
-}
-.art-detail-tabs button.active {
-  color: var(--theme-color, var(--accent-primary));
-  border-bottom-color: var(--theme-color, var(--accent-primary));
-  font-weight: bold;
-}
-.art-detail-page {
-  flex-grow: 1;
-  padding-top: 0.5rem;
-}
-
-/* --- 等级与经验值样式 --- */
+.art-detail-tabs { display: flex; gap: 1.5rem; justify-content: center; margin-top: 1.5rem; border-bottom: 1px solid var(--border-color); }
+.art-detail-tabs button { background: none; border: none; border-bottom: 2px solid transparent; padding: 0.5rem 0; font-family: 'EB Garamond', serif; font-size: 1rem; color: var(--text-secondary); cursor: pointer; transition: all 0.2s ease; }
+.art-detail-tabs button:hover { color: var(--text-primary); }
+.art-detail-tabs button.active { color: var(--theme-color, var(--accent-primary)); border-bottom-color: var(--theme-color, var(--accent-primary)); font-weight: bold; }
+.art-detail-page { flex-grow: 1; padding-top: 0.5rem; }
 .level-info { margin-top: 2.5rem; }
 .level-display { margin-bottom: 1.5rem; }
 .level-display .label { font-size: 1rem; color: var(--text-secondary); margin-right: 1rem; }
 .level-display .value { font-size: 2.5rem; font-weight: bold; }
-
-/* --- 修改：经验值数字条样式 --- */
-.xp-display-text {
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  padding: 0.6rem 1rem;
-  text-align: center;
-  font-family: 'EB Garamond', serif;
-  font-size: 1rem;
-  color: var(--text-secondary);
-  letter-spacing: 1px;
-}
-
+.xp-display-text { background-color: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 4px; padding: 0.6rem 1rem; text-align: center; font-family: 'EB Garamond', serif; font-size: 1rem; color: var(--text-secondary); letter-spacing: 1px; }
 .max-level-notice { font-style: italic; color: var(--accent-primary); margin-top: 1.5rem; }
-
-/* --- 等级描述列表与分页样式 --- */
 .level-descriptions-container { text-align: left; }
-.descriptions-list { min-height: 120px; /* 防止翻页时布局跳动 */ }
+.descriptions-list { min-height: 120px; }
 .level-description-item { font-family: 'EB Garamond', serif; font-size: 1rem; line-height: 1.7; color: var(--text-secondary); margin-bottom: 0.75rem; padding-left: 1.2em; text-indent: -1.2em; }
 .level-description-item::before { content: '◈'; margin-right: 0.5em; color: var(--theme-color, var(--accent-primary)); font-size: 0.8em; vertical-align: middle; }
 .description-pagination { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(136, 136, 136, 0.15); }
@@ -400,311 +487,242 @@ function nextDescriptionPage() {
 .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .page-indicator { font-family: 'EB Garamond', serif; font-size: 0.9rem; color: var(--text-secondary); min-width: 4ch; text-align: center; }
 
-/* --- "器" 模块样式 --- */
-.items-list-container {
-  background: rgba(40, 40, 40, 0.7);
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  padding: 1.1rem;
-}
-.items-title {
-  font-family: 'Cinzel', serif;
-  font-size: 1.2rem;
-  margin: 0 0 0.7rem 0;
-  text-align: center;
-  color: var(--accent-primary);
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-}
-.items-list {
-  list-style-type: none;
-  padding-left: 0;
+/* --- "器 & 仓" 模块样式 (新) --- */
+.inventory-layout {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+
+.inventory-search {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  padding: 0 0.5rem;
+}
+
+.search-input {
+  flex-grow: 1;
+  background: rgba(30, 30, 30, 0.5);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-family: 'EB Garamond', serif;
+}
+
+.danger-indicator {
+  font-size: 0.8rem;
+  color: var(--success-color, #4ade80);
+  font-weight: bold;
+}
+.danger-indicator.is-danger {
+  color: var(--danger-color, #f87171);
+}
+
+.inventory-columns {
+  display: flex;
+  flex-grow: 1;
+  gap: 1rem;
+  overflow: hidden; /* Prevent outer scroll */
+}
+
+.inventory-column {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: rgba(40, 40, 40, 0.4);
+  border: 1px solid var(--border-color);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.warehouse-column {
+  background: rgba(20, 20, 30, 0.6); /* Slightly darker for warehouse */
+}
+
+.column-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  text-align: center;
+  margin: 0;
+  padding: 0.5rem;
+  background: rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--border-color);
+  color: var(--accent-primary);
+}
+
+.items-list-wrapper {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.items-list.compact {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.item-entry.compact-entry {
+  position: relative;
+  background: rgba(60, 60, 60, 0.3);
+  border: 1px solid transparent;
+  padding: 0.3rem 0.5rem;
+  border-radius: 3px;
+  transition: background 0.2s;
+}
+
+/* Tooltip Logic */
+.item-tooltip {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-primary);
+  padding: 0.5rem;
+  z-index: 10;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+.item-entry.compact-entry:hover .item-tooltip {
+  display: block;
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
 }
 
-.item-entry {
-  background: rgba(30, 30, 30, 0.5);
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  padding: 0.5rem 0.7rem;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-}
-
-.item-entry:hover {
-  border-color: var(--accent-primary);
-}
-
-.item-entry strong {
-  font-family: 'Cinzel', serif;
-  font-size: 0.90rem;
-  color: var(--accent-primary);
-  min-width: 90px;
-  text-align: right;
-  margin-right: 0.5rem;
-  padding-right: 0.5rem;
-  border-right: 1px dashed var(--border-color);
-}
-
-.item-detail {
-  margin: 0.2rem 0;
-  font-family: 'EB Garamond', serif;
-  font-size: 0.7rem;
-  line-height: 1.2;
-}
-
-.detail-label {
+.item-name {
   font-weight: bold;
   color: var(--text-primary);
-  display: inline-block;
-  width: 2.7rem;
-  font-size: 0.7rem;
-}
-
-.quantity-value {
-  font-weight: bold;
-  color: var(--text-primary);
-  font-size: 0.8rem;
-}
-
-.durability-value {
-  font-weight: bold;
-  color: var(--success-color, #4ade80);
-  font-size: 0.8rem;
-}
-
-.durability-low {
-  color: var(--warning-color, #fbbf24);
-  animation: pulse 2s infinite;
-}
-
-.durability-critical {
-  color: var(--danger-color, #f87171);
-  animation: pulse 1s infinite;
-}
-
-@keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.6; }
-  100% { opacity: 1; }
-}
-
-/* --- "金钱" 模块样式 --- */
-.money-container {
-  background: rgba(40, 40, 40, 0.7);
-  border: 1px solid var(--border-color);
-  border-radius: 5px;
-  padding: 1.1rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.money-title {
-  font-family: 'Cinzel', serif;
-  font-size: 1.2rem;
-  margin: 0 0 0.7rem 0;
-  text-align: center;
-  color: var(--accent-primary);
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 0.5rem;
-  width: 100%;
-}
-
-.money-display {
-  display: flex;
-  flex-direction: column;
-  gap: 0.8rem;
-  width: 100%;
-  margin-bottom: 1.5rem;
-}
-
-.money-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(30, 30, 30, 0.5);
-  border: 1px solid var(--border-color);
-  border-radius: 3px;
-  padding: 0.5rem 0.7rem;
-}
-
-.money-item:hover {
-  border-color: var(--accent-primary);
-}
-
-.money-icon {
-  font-size: 1.2rem;
-  margin-right: 0.5rem;
-  width: 2rem;
-  text-align: center;
-}
-
-.money-label {
-  font-family: 'Cinzel', serif;
   font-size: 0.9rem;
-  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   flex-grow: 1;
-  text-align: left;
 }
 
-.money-value {
-  font-family: 'EB Garamond', serif;
-  font-size: 1rem;
-  font-weight: bold;
-  color: var(--accent-primary);
-  min-width: 40px;
-  text-align: right;
-}
-
-.money-info {
-  font-family: 'EB Garamond', serif;
-  font-size: 0.9rem;
+.item-meta {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.8rem;
   color: var(--text-secondary);
-  text-align: center;
+  font-family: monospace;
+}
+
+.item-qty { color: var(--accent-primary); }
+
+.action-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0 0.4rem;
+  border-radius: 3px;
+  font-size: 0.8rem;
+  transition: all 0.2s;
+}
+.action-btn:hover:not(:disabled) {
+  background: var(--accent-primary);
+  color: #000;
+  border-color: var(--accent-primary);
+}
+.action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+.store-btn:hover { background: #fbbf24; border-color: #fbbf24; } /* Yellow for store */
+.retrieve-btn { transform: rotate(180deg); } /* Arrow pointing left */
+.retrieve-btn:hover { background: #4ade80; border-color: #4ade80; } /* Green for retrieve */
+
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
   padding: 0.5rem;
   border-top: 1px solid var(--border-color);
-  width: 100%;
-  margin-top: 0.5rem;
+  background: rgba(0,0,0,0.1);
+}
+.pagination-controls button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-weight: bold;
+}
+.pagination-controls button:disabled { opacity: 0.3; }
+
+.empty-hint {
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: 0.8rem;
+  padding: 1rem;
 }
 
-/* --- 动态主题与特效 --- */
-/* 灯 */
+.durability-value { font-weight: bold; color: var(--success-color, #4ade80); font-size: 0.8rem; }
+.durability-low { color: var(--warning-color, #fbbf24); }
+.durability-critical { color: var(--danger-color, #f87171); animation: pulse 1s infinite; }
+
+/* --- "金钱" 模块样式 --- */
+.money-container { background: rgba(40, 40, 40, 0.7); border: 1px solid var(--border-color); border-radius: 5px; padding: 1.1rem; display: flex; flex-direction: column; align-items: center; overflow: auto; }
+.money-title { font-family: 'Cinzel', serif; font-size: 1.2rem; margin: 0 0 0.7rem 0; text-align: center; color: var(--accent-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; width: 100%; }
+.money-display { display: flex; flex-direction: column; gap: 0.8rem; width: 100%; margin-bottom: 1.5rem; }
+.money-item { display: flex; justify-content: space-between; align-items: center; background: rgba(30, 30, 30, 0.5); border: 1px solid var(--border-color); border-radius: 3px; padding: 0.5rem 0.7rem; }
+.money-item:hover { border-color: var(--accent-primary); }
+.money-icon { font-size: 1.2rem; margin-right: 0.5rem; width: 2rem; text-align: center; }
+.money-label { font-family: 'Cinzel', serif; font-size: 0.9rem; color: var(--text-secondary); flex-grow: 1; text-align: left; }
+.money-value { font-family: 'EB Garamond', serif; font-size: 1rem; font-weight: bold; color: var(--accent-primary); min-width: 40px; text-align: right; }
+.money-info { font-family: 'EB Garamond', serif; font-size: 0.9rem; color: var(--text-secondary); text-align: center; padding: 0.5rem; border-top: 1px solid var(--border-color); width: 100%; margin-top: 0.5rem; }
+
+/* --- 动态主题与特效 (保持原样) --- */
 .theme-lamp { --theme-color: #FFD700; }
 .theme-lamp .art-name { color: var(--theme-color); text-shadow: 0 0 10px var(--theme-color); }
-.theme-lamp .xp-fill { background: var(--theme-color); }
 .theme-lamp .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 70%); opacity: 0.15; }
-
-
-/* 铸 (无缝视差最终版) */
 .theme-forge { --theme-color: #FF4500; --flame-color-2: #FF8C00; }
 .theme-forge .art-name { color: var(--theme-color); text-shadow: 0 0 5px #fff, 0 0 10px var(--theme-color), 0 0 15px var(--flame-color-2); }
-.theme-forge .xp-fill { background: linear-gradient(90deg, var(--theme-color), var(--flame-color-2)); }
-
-/*
-  解决方案：
-  1. 使用 transform: translateY 替代 background-position，利用GPU加速，实现绝对平滑的无缝滚动，杜绝卡顿。
-  2. 将动画层的高度设为200%，动画移动-50%的距离。当动画结束时，下半部分无缝衔接上半部分，实现不间断循环。
-  3. 使用两个伪元素创建两层“相同样式”的粒子，但赋予它们不同的密度(background-size)和速度(animation-duration)，让它们交错运行，形成统一但内部速度不一的动态效果。
-*/
-.theme-forge .art-bg-effect {
-  position: absolute;
-  top: 0; left: 0; width: 100%; height: 100%;
-  overflow: hidden; /* 关键：裁剪掉超出容器的动画部分 */
-  z-index: 0;
-}
-
-@keyframes art-forge-seamless-rise {
-  from { transform: translateY(0); }
-  to { transform: translateY(-50%); } /* 向上移动自身高度的一半 */
-}
-
-/* 为两个粒子层定义共同的动画属性 */
-.theme-forge .art-bg-effect::before,
-.theme-forge .art-bg-effect::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 200%; /* 关键：高度为容器的两倍 */
-  background-image: radial-gradient(circle, var(--theme-color) 1px, transparent 1px);
-  background-repeat: repeat;
-  animation-name: art-forge-seamless-rise;
-  animation-timing-function: linear;
-  animation-iteration-count: infinite;
-}
-
-/* 粒子层 1: 速度较快，密度较高 */
-.theme-forge .art-bg-effect::before {
-  top: 0;
-  background-size: 70px 70px; /* 粒子间距 */
-  animation-duration: 6s; /* 动画速度 */
-  opacity: 0.7;
-}
-
-/* 粒子层 2: 速度较慢，密度较低 (形成交错感) */
-.theme-forge .art-bg-effect::after {
-  top: 0;
-  background-size: 110px 110px; /* 粒子间距 */
-  animation-duration: 10s; /* 动画速度 */
-  opacity: 0.6;
-  animation-delay: -3s; /* 使动画初始状态错开 */
-}
-
-/* 刃 */
+.theme-forge .art-bg-effect { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; z-index: 0; }
+@keyframes art-forge-seamless-rise { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+.theme-forge .art-bg-effect::before, .theme-forge .art-bg-effect::after { content: ''; position: absolute; left: 0; width: 100%; height: 200%; background-image: radial-gradient(circle, var(--theme-color) 1px, transparent 1px); background-repeat: repeat; animation-name: art-forge-seamless-rise; animation-timing-function: linear; animation-iteration-count: infinite; }
+.theme-forge .art-bg-effect::before { top: 0; background-size: 70px 70px; animation-duration: 6s; opacity: 0.7; }
+.theme-forge .art-bg-effect::after { top: 0; background-size: 110px 110px; animation-duration: 10s; opacity: 0.6; animation-delay: -3s; }
 .theme-blade { --theme-color: #C0C0C0; --metal-dark: #888; --metal-light: #F0F0F0; }
 .theme-blade .art-name { background: linear-gradient(180deg, var(--metal-light), var(--theme-color) 50%, var(--metal-dark) 51%, var(--theme-color) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); -webkit-text-fill-color: transparent; }
-.theme-blade .xp-fill { background: linear-gradient(45deg, var(--metal-dark), var(--metal-light)); }
 .theme-blade .art-bg-effect { background: linear-gradient(0deg, rgba(255,255,255,0.05), rgba(0,0,0,0.05)), repeating-linear-gradient(90deg, #ccc, #ccc 1px, #bbb 1px, #bbb 2px); opacity: 0.3; }
-
-/* 冬 */
 .theme-winter { --theme-color: #A3D5D5; }
 .theme-winter .art-name { color: var(--theme-color); }
-.theme-winter .xp-fill { background: var(--theme-color); }
 .theme-winter .art-bg-effect { background: radial-gradient(circle, #fff 5%, transparent 6%), radial-gradient(circle, #fff 3%, transparent 4%); background-size: 30px 30px, 50px 50px; background-position: 0 0, 25px 25px; animation: snow 10s linear infinite; }
 @keyframes snow { 0% {background-position: 0 0, 25px 25px;} 100% {background-position: 0 300px, 25px 325px;} }
-
-/* 心 */
 .theme-heart { --theme-color: #FF69B4; }
 .theme-heart .art-name { color: var(--theme-color); text-shadow: 0 0 8px var(--theme-color); }
-.theme-heart .xp-fill { background: var(--theme-color); }
-.theme-heart .art-bg-effect {
-  background: radial-gradient(circle, var(--theme-color) 0%, transparent 50%) no-repeat center;
-  animation: art-heart-pulse-gradient 2s infinite ease-in-out; opacity: 0.15; }
+.theme-heart .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 50%) no-repeat center; animation: art-heart-pulse-gradient 2s infinite ease-in-out; opacity: 0.15; }
 @keyframes art-heart-pulse-gradient { 0%, 100% { background-size: 100% 100%; opacity: 0.1; } 50% { background-size: 150% 150%; opacity: 0.2; } }
-
-/* 杯 */
 .theme-cup { --theme-color: #8B0000; }
 .theme-cup .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.5); }
-.theme-cup .xp-fill { background: var(--theme-color); }
-.theme-cup .art-bg-effect {
-  background-image:
-    linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%),
-    linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%),
-    linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%);
-  background-repeat: no-repeat;
-  background-size: 2px 150%, 3px 200%, 1px 220%, 2px 180%, 3px 250%, 1px 160%;
-  background-position: 10% 0, 25% 0, 40% 0, 60% 0, 75% 0, 90% 0;
-  animation:
-    art-cup-drip-y 4s linear 0s infinite, art-cup-drip-y 6s linear 1.5s infinite,
-    art-cup-drip-y 5s linear 3.5s infinite, art-cup-drip-y 7s linear 2s infinite,
-    art-cup-drip-y 4.5s linear 5s infinite, art-cup-drip-y 5.5s linear 0.5s infinite;
-  opacity: 0.5;
-}
+.theme-cup .art-bg-effect { background-image: linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%); background-repeat: no-repeat; background-size: 2px 150%, 3px 200%, 1px 220%, 2px 180%, 3px 250%, 1px 160%; background-position: 10% 0, 25% 0, 40% 0, 60% 0, 75% 0, 90% 0; animation: art-cup-drip-y 4s linear 0s infinite, art-cup-drip-y 6s linear 1.5s infinite, art-cup-drip-y 5s linear 3.5s infinite, art-cup-drip-y 7s linear 2s infinite, art-cup-drip-y 4.5s linear 5s infinite, art-cup-drip-y 5.5s linear 0.5s infinite; opacity: 0.5; }
 @keyframes art-cup-drip-y { from { background-position-y: -250%; } to { background-position-y: 100%; } }
-
-/* 蛾 */
 .theme-moth { --theme-color: #888888; }
 .theme-moth .art-name { color: var(--theme-color); text-shadow: 1px 1px 1px rgba(0,0,0,0.5); animation: art-moth-glitch-strong 1.5s infinite steps(1); }
-.theme-moth .xp-fill { background: linear-gradient(90deg, #333, #888, #555); }
 .theme-moth .art-bg-effect { background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px); opacity: 0.15; }
 @keyframes art-moth-glitch-strong { 0% { transform: translate(0, 0) skew(0); } 10% { transform: translate(-5px, 3px) skew(-5deg); } 20% { transform: translate(5px, -3px) skew(5deg); } 30% { transform: translate(-8px, 5px) skew(-2deg); } 40% { transform: translate(8px, -5px) skew(2deg); } 50% { transform: translate(-5px, 3px) skew(-5deg); } 60% { transform: translate(5px, -3px) skew(5deg); } 70% { transform: translate(-8px, 5px) skew(-2deg); } 80% { transform: translate(0, 0) skew(0); } 100% { transform: translate(0, 0) skew(0); } }
-
-/* 启 (重制) */
 .theme-key { --theme-color: #9400D3; }
 .theme-key .art-name { color: var(--theme-color); text-shadow: 0 0 8px var(--theme-color); }
-.theme-key .xp-fill { background: var(--theme-color); }
-/* 解决方案：使用单个、巨大的 radial-gradient 模拟星云，通过动画缓慢旋转它。 */
-.theme-key .art-bg-effect {
-  background: radial-gradient(ellipse at center,
-  var(--theme-color) 0%,
-  rgba(148, 0, 211, 0.5) 30%,
-  rgba(148, 0, 211, 0.1) 60%,
-  transparent 80%
-  );
-  transform-origin: center;
-  animation: art-key-slow-spin 30s linear infinite;
-  opacity: 0.4; /* 提高不透明度使其更明显 */
-}
-@keyframes art-key-slow-spin {
-  from { transform: scale(1.5) rotate(0deg); }
-  to { transform: scale(1.5) rotate(360deg); }
-}
-
-
+.theme-key .art-bg-effect { background: radial-gradient(ellipse at center, var(--theme-color) 0%, rgba(148, 0, 211, 0.5) 30%, rgba(148, 0, 211, 0.1) 60%, transparent 80%); transform-origin: center; animation: art-key-slow-spin 30s linear infinite; opacity: 0.4; }
+@keyframes art-key-slow-spin { from { transform: scale(1.5) rotate(0deg); } to { transform: scale(1.5) rotate(360deg); } }
 
 /* --- 响应式与动画 --- */
 @media (max-width: 900px) {
@@ -712,10 +730,13 @@ function nextDescriptionPage() {
   .pagination-nav ul { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
   .art-button { width: auto; border-left: none; border-bottom: 2px solid transparent; border-radius: 4px; }
   .art-button.active { border-bottom-color: var(--accent-danger); }
+  .inventory-columns { flex-direction: column; overflow-y: auto; }
+  .inventory-column { max-height: 400px; }
 }
 .fade-main-enter-active, .fade-main-leave-active { transition: opacity 0.3s ease; }
 .fade-main-enter-from, .fade-main-leave-to { opacity: 0; }
 .fade-list-move, .fade-list-enter-active, .fade-list-leave-active { transition: all 0.4s cubic-bezier(0.55, 0, 0.1, 1); }
 .fade-list-enter-from, .fade-list-leave-to { opacity: 0; transform: scale(0.95) translateY(10px); }
 .fade-list-leave-active { position: absolute; width: calc(100% - 6rem); }
+@keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
 </style>

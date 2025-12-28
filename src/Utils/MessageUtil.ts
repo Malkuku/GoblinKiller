@@ -35,12 +35,12 @@ const getMessagesByRange = (messageId: number, index: number) => {
 /**
  * 将内容合并到message中
  */
-const mergeContentToMessage = async (message_id: number, content: string) => {
+const mergeContentToMessage = async (message_id: number, content: string,refresh: 'none' | 'affected' | 'all' = 'affected') => {
   console.log("正在合并消息到正文: ",message_id, content);
   const chat_message = getChatMessages(message_id)[0];
   let msg = chat_message.message;
   msg = msg.replace(/$/, content);
-  await setChatMessages([{ message_id, message: msg }]);
+  await setChatMessages([{ message_id, message: msg }], {refresh: refresh});
 }
 
 /**
