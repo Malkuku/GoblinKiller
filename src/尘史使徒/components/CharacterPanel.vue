@@ -81,6 +81,11 @@
           <h3 class="section-title">当前想法</h3>
           <p class="current-thought">"{{ characterData.当前想法 }}"</p>
         </div>
+        <!-- Section: 当前行动 -->
+        <div v-if="isOmniscient" class="data-section">
+          <h3 class="section-title">当前行动</h3>
+          <p class="current-thought">"{{ characterData.当前行动 }}"</p>
+        </div>
       </div>
 
       <!-- Page: 特殊状态 -->
@@ -90,7 +95,7 @@
             <!-- [MODIFIED] Changed class binding logic -->
             <template v-for="(status, name) in characterData.特殊状态" :key="name">
               <li>
-                <strong 
+                <strong
                   :class="{
                     'status-name': true,
                     'status-soul-quality': name.toString().includes('魂质'),
