@@ -16,6 +16,8 @@ interface ArtLevelDescriptions {
  */
 interface MainCharacter {
   "当前身份": string;
+  "当前想法": string;
+  "当前行动": string;
   "生命状态": {
     "生命力": number;
     "体力": number;
@@ -59,7 +61,9 @@ interface MainCharacter {
       "关系总结": string;
     };
   };
-  "当前想法": string;
+  "性经验":{
+    [key: string] : number;
+  };
 }
 
 /**
@@ -103,11 +107,14 @@ export interface StatData {
     "日期": string;
     "地点": string;
     "时间": string;
+    "季节": string;
+    "天气": string;
     "当前人物": string;
     "$meta": {
       "necessary": "all";
     };
   };
+  "危险场景":boolean;
   "角色": {
     "主要角色": {
       // 动态键，例如 "user", "莉莉丝"
@@ -127,6 +134,16 @@ export interface StatData {
     [key: string]: {
       "描述": string;
       "作用": string;
+      "数量": number;
+      "耐久":number;
+    };
+  };
+  "仓库": {
+    // 动态键，例如 "白蛾戒指"
+    [key: string]: {
+      "描述": string;
+      "作用": string;
+      "数量": number;
       "耐久":number;
     };
   };

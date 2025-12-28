@@ -115,6 +115,12 @@ v-if="currentArt" :key="currentArt.name"
                 <p v-if="item.effect && item.effect !== '作用未知'" class="item-detail">
                   <span class="detail-label">作用：</span>{{ item.effect }}
                 </p>
+                <p v-if="item.quantity !== null" class="item-detail">
+                  <span class="detail-label">数量：</span>
+                  <span class="quantity-value">
+                    {{ item.quantity }}
+                  </span>
+                </p>
                 <p v-if="item.durability !== null" class="item-detail">
                   <span class="detail-label">耐久：</span>
                   <span
@@ -210,6 +216,7 @@ const userItems = computed(() => {
       name: itemName,
       description: itemDetails?.描述 || '描述缺失',
       effect: itemDetails?.作用 || '作用未知',
+      quantity: itemDetails?.数量 !== undefined ? itemDetails.数量 : null,
       durability: itemDetails?.耐久 !== undefined ? itemDetails.耐久 : null
     }));
 });
@@ -455,6 +462,12 @@ function nextDescriptionPage() {
   display: inline-block;
   width: 2.7rem;
   font-size: 0.7rem;
+}
+
+.quantity-value {
+  font-weight: bold;
+  color: var(--text-primary);
+  font-size: 0.8rem;
 }
 
 .durability-value {

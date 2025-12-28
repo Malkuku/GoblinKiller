@@ -145,6 +145,19 @@
           <p>无可见的人物关系</p>
         </div>
       </div>
+
+      <!-- Page: 性经历 -->
+      <div v-if="currentPage === '性经历'" class="data-section">
+        <div v-if="characterData.性经验 && Object.keys(characterData.性经验).length > 0" class="experience-list">
+          <div v-for="(count, experience) in characterData.性经验" :key="experience" class="experience-item">
+            <span class="experience-name">{{ experience }}</span>
+            <span class="experience-count">{{ count }}</span>
+          </div>
+        </div>
+        <div v-else class="empty-state">
+          <p>无性经历记录</p>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -178,7 +191,7 @@ const displayName = computed(() => getDisplayName(props.characterName));
 
 
 // --- Pagination Logic ---
-const pages = ['生命状态', '特殊状态', '术之等级','人物关系'];
+const pages = ['生命状态', '特殊状态', '术之等级', '人物关系', '性经历'];
 const currentPageIndex = ref(0);
 const currentPage = computed(() => pages[currentPageIndex.value]);
 
@@ -495,6 +508,30 @@ const visibleRelations = computed(() => {
   color: var(--text-secondary);
   padding: 1rem;
   border-style: dashed;
+}
+
+/* Experience List */
+.experience-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.experience-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-primary);
+  padding: 0.75rem 1rem;
+  border-radius: 4px;
+}
+.experience-name {
+  font-size: 0.95rem;
+  color: var(--text-primary);
+}
+.experience-count {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-primary);
 }
 
 /* [ADDED] Special Status Effects */

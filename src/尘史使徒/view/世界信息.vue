@@ -27,6 +27,16 @@
         <span class="label">当前人物</span>
         <span class="value">{{ currentCharacter || '...' }}</span>
       </div>
+      
+      <div class="status-item">
+        <span class="label">当前季节</span>
+        <span class="value">{{ season || '...' }}</span>
+      </div>
+
+      <div class="status-item">
+        <span class="label">当前天气</span>
+        <span class="value">{{ weather || '...' }}</span>
+      </div>
     </div>
   </div>
 </template>
@@ -46,6 +56,8 @@ const date = computed(() => statStore.stat_data?.世界?.日期);
 const location = computed(() => statStore.stat_data?.世界?.地点);
 const time = computed(() => statStore.stat_data?.世界?.时间);
 const currentCharacter = computed(() => statStore.stat_data?.世界?.当前人物);
+const season = computed(() => statStore.stat_data?.世界?.季节);
+const weather = computed(() => statStore.stat_data?.世界?.天气);
 </script>
 
 <style scoped>
