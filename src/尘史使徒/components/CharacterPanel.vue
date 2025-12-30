@@ -245,7 +245,7 @@ const canSeeThoughts = computed(() => {
     const heartLevel = currentUserData.术之等级['心']?.当前等级 || 0;
     const chaliceLevel = currentUserData.术之等级['杯']?.当前等级 || 0;
     const lightLevel = currentUserData.术之等级['灯']?.当前等级 || 0;
-    if (heartLevel >= 7 || chaliceLevel >= 10 || lightLevel >= 8) {
+    if (heartLevel >= 1 || chaliceLevel >= 10 || lightLevel >= 1) {
       return true;
     }
   }

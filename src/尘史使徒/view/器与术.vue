@@ -16,7 +16,7 @@
     <!-- 2. 内容展示区 -->
     <div class="content-wrapper">
 
-      <!-- A. "术" 的内容区 (保持原样，略微调整以适应新结构) -->
+      <!-- A. "术" 的内容区 -->
       <template v-if="activeTab === 'arts'">
         <div v-if="userArts.length > 0" class="arts-layout">
           <!-- A1. 术的选择列表 -->
@@ -83,7 +83,7 @@
         <div v-else class="loading-state">尚未习得任何“术”...</div>
       </template>
 
-      <!-- B. "器 & 仓" 的内容区 (重构) -->
+      <!-- B. "器 & 仓" 的内容区 (重构支持批量更新) -->
       <template v-else-if="activeTab === 'items'">
         <div class="inventory-layout">
           <!-- 搜索栏 -->
@@ -96,15 +96,18 @@
             <span class="danger-indicator" :class="{ 'is-danger': isDanger }">
               {{ isDanger ? '⚠ 危险场景：无法交换' : '✓ 安全区域：可以交换' }}
             </span>
+            <div v-if="hasUnsavedChanges" class="unsaved-indicator">
+              有未保存的变动
+            </div>
           </div>
 
           <div class="inventory-columns">
-            <!-- 左侧：背包 -->
+            <!-- 左侧：背包 (Local Draft) -->
             <div class="inventory-column">
               <h3 class="column-title">随身行囊</h3>
               <div class="items-list-wrapper">
                 <ul class="items-list compact">
-                  <li v-for="item in paginatedBackpackItems" :key="item.name" class="item-entry compact-entry">
+                  <li v-for="item in paginatedBackpackItems" :key="item.name" class="item-entry compact-entry" :class="{ 'is-modified': item.isModified }">
                     <div class="item-header">
                       <span class="item-name" :title="item.description">{{ item.name }}</span>
                       <div class="item-meta">
@@ -113,7 +116,7 @@
                       </div>
                       <button
                         class="action-btn store-btn"
-                        @click="transferItem(item, 'toWarehouse')"
+                        @click="openTransferModal(item, 'toWarehouse')"
                         :disabled="isDanger"
                         title="存入仓库"
                       >
@@ -128,7 +131,6 @@
                   <li v-if="paginatedBackpackItems.length === 0" class="empty-hint">无匹配物品</li>
                 </ul>
               </div>
-              <!-- 背包分页 -->
               <div class="pagination-controls" v-if="totalBackpackPages > 1">
                 <button @click="backpackPage--" :disabled="backpackPage === 1">‹</button>
                 <span>{{ backpackPage }} / {{ totalBackpackPages }}</span>
@@ -136,16 +138,16 @@
               </div>
             </div>
 
-            <!-- 右侧：仓库 -->
+            <!-- 右侧：仓库 (Local Draft) -->
             <div class="inventory-column warehouse-column">
               <h3 class="column-title">秘密仓库</h3>
               <div class="items-list-wrapper">
                 <ul class="items-list compact">
-                  <li v-for="item in paginatedWarehouseItems" :key="item.name" class="item-entry compact-entry">
+                  <li v-for="item in paginatedWarehouseItems" :key="item.name" class="item-entry compact-entry" :class="{ 'is-modified': item.isModified }">
                     <div class="item-header">
                       <button
                         class="action-btn retrieve-btn"
-                        @click="transferItem(item, 'toBackpack')"
+                        @click="openTransferModal(item, 'toBackpack')"
                         :disabled="isDanger"
                         title="取出物品"
                       >
@@ -165,13 +167,20 @@
                   <li v-if="paginatedWarehouseItems.length === 0" class="empty-hint">无匹配物品</li>
                 </ul>
               </div>
-              <!-- 仓库分页 -->
               <div class="pagination-controls" v-if="totalWarehousePages > 1">
                 <button @click="warehousePage--" :disabled="warehousePage === 1">‹</button>
                 <span>{{ warehousePage }} / {{ totalWarehousePages }}</span>
                 <button @click="warehousePage++" :disabled="warehousePage === totalWarehousePages">›</button>
               </div>
             </div>
+          </div>
+
+          <!-- 底部操作栏 -->
+          <div class="action-bar">
+            <button class="btn-reset" @click="resetInventory" :disabled="!hasUnsavedChanges">重置变动</button>
+            <button class="btn-confirm" @click="saveAllChanges" :disabled="!hasUnsavedChanges || isDanger">
+              {{ isDanger ? '危险场景不可操作' : '确认全部更新' }}
+            </button>
           </div>
         </div>
       </template>
@@ -204,16 +213,48 @@
         <div v-else class="loading-state">财务状况未知...</div>
       </template>
     </div>
+
+    <!-- 数量选择模态框 -->
+    <transition name="fade-main">
+      <div v-if="showQuantityModal" class="modal-overlay" @click.self="closeModal">
+        <div class="modal-content">
+          <h3>交换: {{ pendingTransferItem?.name }}</h3>
+          <div class="modal-body">
+            <div class="range-display">
+              <span>数量: {{ transferAmount }}</span>
+              <span class="max-label">(最大: {{ pendingTransferItem?.quantity }})</span>
+            </div>
+            <input
+              type="range"
+              v-model.number="transferAmount"
+              min="1"
+              :max="pendingTransferItem?.quantity"
+              class="qty-slider"
+            >
+            <div class="quick-select">
+              <button @click="transferAmount = 1">1</button>
+              <button @click="transferAmount = Math.ceil(pendingTransferItem?.quantity / 2)">1/2</button>
+              <button @click="transferAmount = pendingTransferItem?.quantity">全部</button>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn-cancel" @click="closeModal">取消</button>
+            <button class="btn-confirm-modal" @click="confirmTransfer">确定</button>
+          </div>
+        </div>
+      </div>
+    </transition>
+
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useStatStore } from '@/尘史使徒/store/StatStore';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 
-// --- 静态数据：术的原则与主题 ---
+// --- 静态数据 ---
 const artPrinciples = {
   '灯': { description: '灯是理性、求知与启明的准则。',  themeClass: 'theme-lamp' },
   '铸': { description: '铸是毁灭、塑形与技巧的准则。',  themeClass: 'theme-forge' },
@@ -240,18 +281,26 @@ const backpackPage = ref(1);
 const warehousePage = ref(1);
 const ITEMS_PER_PAGE = 10;
 
+// 本地暂存库存 (Draft State)
+const localBackpack = ref({});
+const localWarehouse = ref({});
+const hasUnsavedChanges = ref(false);
+
+// 模态框状态
+const showQuantityModal = ref(false);
+const pendingTransferItem = ref(null); // 当前正在操作的物品对象
+const pendingTransferDirection = ref(''); // 'toWarehouse' or 'toBackpack'
+const transferAmount = ref(1);
+
 // --- 计算属性 ---
 
 // 1. 基础数据获取
 const isDanger = computed(() => statStore.stat_data?.危险场景 === true);
-
 const artLevelDescriptionsData = computed(() => statStore.stat_data?.术);
-
 const userArts = computed(() => {
   const artsData = statStore.stat_data?.角色?.主要角色?.['user']?.术之等级;
   return artsData ? Object.entries(artsData).map(([name, data]) => ({ name, data })) : [];
 });
-
 const userMoney = computed(() => {
   const moneyData = statStore.stat_data?.金钱;
   if (!moneyData) return null;
@@ -262,10 +311,10 @@ const userMoney = computed(() => {
   };
 });
 
-// 2. 物品处理 (通用函数)
-const processItems = (itemsData) => {
-  if (!itemsData) return [];
-  return Object.entries(itemsData)
+// 2. 物品处理 (基于本地 Draft)
+const processLocalItems = (itemsObj) => {
+  if (!itemsObj) return [];
+  return Object.entries(itemsObj)
     .filter(([itemName]) => itemName !== '$template')
     .map(([itemName, itemDetails]) => ({
       name: itemName,
@@ -273,13 +322,13 @@ const processItems = (itemsData) => {
       effect: itemDetails?.作用 || '作用未知',
       quantity: itemDetails?.数量 !== undefined ? itemDetails.数量 : 0,
       durability: itemDetails?.耐久 !== undefined ? itemDetails.耐久 : 0,
-      // 保留原始引用以便更新
+      isModified: itemDetails?.isModified || false, // 标记是否被修改过
       raw: itemDetails
     }));
 };
 
-const rawBackpackItems = computed(() => processItems(statStore.stat_data?.器具));
-const rawWarehouseItems = computed(() => processItems(statStore.stat_data?.仓库));
+const localBackpackList = computed(() => processLocalItems(localBackpack.value));
+const localWarehouseList = computed(() => processLocalItems(localWarehouse.value));
 
 // 3. 搜索过滤
 const filterItems = (items) => {
@@ -288,8 +337,8 @@ const filterItems = (items) => {
   return items.filter(item => item.name.toLowerCase().includes(query));
 };
 
-const filteredBackpackItems = computed(() => filterItems(rawBackpackItems.value));
-const filteredWarehouseItems = computed(() => filterItems(rawWarehouseItems.value));
+const filteredBackpackItems = computed(() => filterItems(localBackpackList.value));
+const filteredWarehouseItems = computed(() => filterItems(localWarehouseList.value));
 
 // 4. 分页
 const paginate = (items, page) => {
@@ -303,9 +352,8 @@ const paginatedWarehouseItems = computed(() => paginate(filteredWarehouseItems.v
 const totalBackpackPages = computed(() => Math.ceil(filteredBackpackItems.value.length / ITEMS_PER_PAGE));
 const totalWarehousePages = computed(() => Math.ceil(filteredWarehouseItems.value.length / ITEMS_PER_PAGE));
 
-// 5. 术相关计算
+// 5. 术相关计算 (保持原样)
 const currentArt = computed(() => userArts.value[currentArtIndex.value]);
-
 const maxLevelText = computed(() => {
   if (!currentArt.value || currentArt.value.data.下一级需求经验 !== -1) return '';
   const level = currentArt.value.data.当前等级;
@@ -314,28 +362,22 @@ const maxLevelText = computed(() => {
   if (level >= 19) return "唯有更靠近准则本质方有精进的可能...";
   return "前路已断，无法再精进。";
 });
-
 const currentArtLevelDescriptions = computed(() => {
   if (!currentArt.value) return [];
   const artName = currentArt.value.name;
   const currentLevel = currentArt.value.data.当前等级;
   const descriptionsMap = artLevelDescriptionsData.value?.[artName];
   if (!descriptionsMap) return [];
-
   const unlockedDescriptions = [];
   const levelThresholds = Object.keys(descriptionsMap).map(Number).sort((a, b) => a - b);
-
   for (const threshold of levelThresholds) {
     if (threshold > 0 && threshold <= currentLevel) {
       const descriptions = descriptionsMap[String(threshold)];
-      if (descriptions && typeof descriptions === 'string') {
-        unlockedDescriptions.push(descriptions);
-      }
+      if (descriptions && typeof descriptions === 'string') unlockedDescriptions.push(descriptions);
     }
   }
   return unlockedDescriptions;
 });
-
 const totalDescriptionPages = computed(() => Math.ceil(currentArtLevelDescriptions.value.length / DESCRIPTIONS_PER_PAGE));
 const paginatedDescriptions = computed(() => {
   const startIndex = (descriptionPage.value - 1) * DESCRIPTIONS_PER_PAGE;
@@ -347,11 +389,15 @@ watch(currentArtIndex, () => {
   artDetailTab.value = 'description';
   descriptionPage.value = 1;
 });
-
-// 搜索时重置分页
 watch(itemSearchQuery, () => {
   backpackPage.value = 1;
   warehousePage.value = 1;
+});
+// 当切换到 items 标签页时，初始化本地库存
+watch(activeTab, (newTab) => {
+  if (newTab === 'items') {
+    resetInventory();
+  }
 });
 
 // --- 方法 ---
@@ -367,77 +413,156 @@ function getDurabilityClass(val) {
   return 'durability-normal';
 }
 
-/**
- * 物品交换核心逻辑
- * @param {Object} item - 当前操作的物品对象
- * @param {String} direction - 'toWarehouse' (存入) 或 'toBackpack' (取出)
- */
-async function transferItem(item, direction) {
-  // 1. 检查危险场景
-  if (isDanger.value) {
-    console.warn("危险场景下无法交换物品");
+// --- 核心逻辑：本地库存管理与批量更新 ---
+
+// 1. 初始化/重置库存
+function resetInventory() {
+  // 深拷贝 store 中的数据到本地 ref
+  const rawBackpack = statStore.stat_data?.器具 || {};
+  const rawWarehouse = statStore.stat_data?.仓库 || {};
+
+  localBackpack.value = JSON.parse(JSON.stringify(rawBackpack));
+  localWarehouse.value = JSON.parse(JSON.stringify(rawWarehouse));
+  hasUnsavedChanges.value = false;
+}
+
+// 2. 打开交换模态框
+function openTransferModal(item, direction) {
+  if (isDanger.value) return;
+  pendingTransferItem.value = item;
+  pendingTransferDirection.value = direction;
+  transferAmount.value = 1; // 默认数量
+  showQuantityModal.value = true;
+}
+
+function closeModal() {
+  showQuantityModal.value = false;
+  pendingTransferItem.value = null;
+}
+
+// 3. 确认单次本地交换 (不调用 API，只改本地数据)
+function confirmTransfer() {
+  if (!pendingTransferItem.value || transferAmount.value <= 0) return;
+
+  const item = pendingTransferItem.value;
+  const qty = transferAmount.value;
+  const direction = pendingTransferDirection.value;
+
+  const isStoring = direction === 'toWarehouse';
+  const sourceObj = isStoring ? localBackpack.value : localWarehouse.value;
+  const targetObj = isStoring ? localWarehouse.value : localBackpack.value;
+
+  // A. 处理源头 (减少数量)
+  if (sourceObj[item.name]) {
+    sourceObj[item.name].数量 -= qty;
+    sourceObj[item.name].isModified = true; // 标记修改
+    // 如果数量归零，删除条目
+    if (sourceObj[item.name].数量 <= 0) {
+      delete sourceObj[item.name];
+    }
+  }
+
+  // B. 处理目标 (增加数量)
+  if (targetObj[item.name]) {
+    // 目标已存在：合并逻辑
+    const existing = targetObj[item.name];
+    // 耐久度合并算法：(原耐久 + 新耐久) / 2，向上取整
+    const newDurability = Math.ceil((existing.耐久 + item.durability) / 2);
+
+    existing.数量 += qty;
+    existing.耐久 = newDurability;
+    existing.isModified = true;
+  } else {
+    // 目标不存在：新建条目
+    targetObj[item.name] = {
+      "描述": item.description,
+      "作用": item.effect,
+      "数量": qty,
+      "耐久": item.durability,
+      "isModified": true
+    };
+  }
+
+  hasUnsavedChanges.value = true;
+  closeModal();
+}
+
+// 4. 批量保存更改 (API 调用)
+async function saveAllChanges() {
+  if (isDanger.value) return;
+
+  const updatePayload = { "器具": {}, "仓库": {} };
+  const deletePayload = { "器具": {}, "仓库": {} };
+  let logDetails = [];
+
+  // 辅助函数：比较并构建 payload
+  // 我们采取的策略是：只要本地和远程不一致，就 Delete 旧的 Insert 新的 (最稳妥的方式)
+  // 或者：只处理 isModified 的项。为了防止并发问题，这里简单对比 key 和 属性。
+
+  const processDiff = (localObj, remoteObj, categoryKey) => {
+    const allKeys = new Set([...Object.keys(localObj), ...Object.keys(remoteObj)]);
+
+    allKeys.forEach(key => {
+      if (key === '$template') return;
+
+      const localItem = localObj[key];
+      const remoteItem = remoteObj[key];
+
+      // 情况1: 本地有，远程无 (新增) -> Insert
+      // 情况2: 本地无，远程有 (删除) -> Delete
+      // 情况3: 都有，但数据不同 (修改) -> Delete + Insert
+
+      if (!localItem && remoteItem) {
+        // 删除
+        deletePayload[categoryKey][key] = {};
+      } else if (localItem && !remoteItem) {
+        // 新增
+        // 清理掉前端用的临时字段 isModified
+        const { isModified, ...cleanItem } = localItem;
+        updatePayload[categoryKey][key] = cleanItem;
+      } else if (localItem && remoteItem) {
+        // 比较关键属性
+        if (localItem.数量 !== remoteItem.数量 || localItem.耐久 !== remoteItem.耐久) {
+          deletePayload[categoryKey][key] = {};
+          const { isModified, ...cleanItem } = localItem;
+          updatePayload[categoryKey][key] = cleanItem;
+        }
+      }
+    });
+  };
+
+  const remoteBackpack = statStore.stat_data?.器具 || {};
+  const remoteWarehouse = statStore.stat_data?.仓库 || {};
+
+  processDiff(localBackpack.value, remoteBackpack, "器具");
+  processDiff(localWarehouse.value, remoteWarehouse, "仓库");
+
+  // 检查是否有实际变动
+  const hasDeletes = Object.keys(deletePayload.器具).length > 0 || Object.keys(deletePayload.仓库).length > 0;
+  const hasUpdates = Object.keys(updatePayload.器具).length > 0 || Object.keys(updatePayload.仓库).length > 0;
+
+  if (!hasDeletes && !hasUpdates) {
+    hasUnsavedChanges.value = false;
     return;
   }
 
-  const isStoring = direction === 'toWarehouse';
-  const sourceKey = isStoring ? '器具' : '仓库';
-  const targetKey = isStoring ? '仓库' : '器具';
-
-  // 获取目标容器中是否已有同名物品
-  const targetContainer = statStore.stat_data?.[targetKey] || {};
-  const existingItem = targetContainer[item.name];
-
-  // 准备更新数据
-  const updatePayload = {};
-  const delPreUpdatePayload = {};
-  const deletePayload = {};
-
-  // 构造目标物品的新状态
-  let newQuantity = item.quantity;
-  let newDurability = item.durability;
-
-  if (existingItem) {
-    // 存在相同key：更新数量，计算耐久堆叠
-    newQuantity += existingItem.数量;
-    // 耐久度为两者之和/2向上取整
-    newDurability = Math.ceil((item.durability + existingItem.耐久) / 2);
-  }
-
-  // 设置目标数据 (UpdateByObject)
-  updatePayload[targetKey] = {
-    [item.name]: {
-      "描述": item.description,
-      "作用": item.effect,
-      "数量": newQuantity,
-      "耐久": newDurability
-    }
-  };
-  delPreUpdatePayload[targetKey] = {
-    [item.name]: {}
-  }
-
-  // 设置源数据删除 (DeleteByObject) - 假设每次移动都是全部移动
-  // 如果需要部分移动，这里需要修改逻辑为更新源数量
-  deletePayload[sourceKey] = {
-    [item.name]: {} // 空对象表示删除
-  };
-
   try {
-    // 执行 API 调用
-    await ERAUtil.DeleteByObject(deletePayload);
-    await ERAUtil.DeleteByObject(delPreUpdatePayload);
-    await ERAUtil.InsertByObject(updatePayload);
+    // 执行 API
+    if (hasDeletes) await ERAUtil.DeleteByObject(deletePayload);
+    if (hasUpdates) await ERAUtil.InsertByObject(updatePayload);
 
-    // 3. 记录日志
-    const logItem = JSON.stringify([{ "道具名": item.name, "数量": item.quantity }]);
-    const logText = isStoring
-      ? `\n<user>将以下道具放入了仓库：\n${logItem}`
-      : `\n<user>从仓库中取出了以下道具：\n${logItem}`;
+    // 记录日志 (简单记录发生了仓库整理)
+    const logText = `\n<user>将手中的器具与漫宿之上的秘密空间完成了交换。`;
+    await MessageUtil.mergeContentToMessage(getCurrentMessageId(), logText, 'none');
 
-    await MessageUtil.mergeContentToMessage(getCurrentMessageId(), logText,'none');
+    // 重置状态
+    hasUnsavedChanges.value = false;
+    Object.values(localBackpack.value).forEach(i => i.isModified = false);
+    Object.values(localWarehouse.value).forEach(i => i.isModified = false);
 
   } catch (e) {
-    console.error("物品交换失败:", e);
+    console.error("批量更新失败:", e);
+    // 可以在这里添加错误提示 UI
   }
 }
 
@@ -445,12 +570,12 @@ async function transferItem(item, direction) {
 
 <style scoped lang="scss">
 /* --- 基础布局与通用样式 --- */
-.arts-items-view-container { display: flex; flex-direction: column; height: 100%; }
+.arts-items-view-container { display: flex; flex-direction: column; height: 100%; position: relative; }
 .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
 .tab-button { background: none; border: none; border-bottom: 3px solid transparent; padding: 0.5rem 1.5rem; font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--text-secondary); cursor: pointer; transition: all 0.3s ease; }
 .tab-button:hover { color: var(--text-primary); }
 .tab-button.active { color: var(--accent-primary); border-bottom-color: var(--accent-primary); }
-.content-wrapper { flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; } /* overflow hidden specifically for items tab scrolling */
+.content-wrapper { flex-grow: 1; overflow: hidden; display: flex; flex-direction: column; }
 .loading-state { color: var(--text-secondary); font-style: italic; text-align: center; padding: 4rem 0; }
 
 /* --- "术" 模块布局 (保持原样) --- */
@@ -487,7 +612,7 @@ async function transferItem(item, direction) {
 .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .page-indicator { font-family: 'EB Garamond', serif; font-size: 0.9rem; color: var(--text-secondary); min-width: 4ch; text-align: center; }
 
-/* --- "器 & 仓" 模块样式 (新) --- */
+/* --- "器 & 仓" 模块样式 --- */
 .inventory-layout {
   display: flex;
   flex-direction: column;
@@ -522,16 +647,24 @@ async function transferItem(item, direction) {
   color: var(--danger-color, #f87171);
 }
 
+.unsaved-indicator {
+  font-size: 0.8rem;
+  color: #fbbf24;
+  font-weight: bold;
+  animation: pulse 2s infinite;
+}
+
 .inventory-columns {
   display: flex;
   flex-grow: 1;
   gap: 1rem;
-  overflow: hidden; /* Prevent outer scroll */
+  overflow: hidden;
 }
 
 .inventory-column {
   flex: 1;
   display: flex;
+  min-height: 300px;
   flex-direction: column;
   background: rgba(40, 40, 40, 0.4);
   border: 1px solid var(--border-color);
@@ -540,7 +673,7 @@ async function transferItem(item, direction) {
 }
 
 .warehouse-column {
-  background: rgba(20, 20, 30, 0.6); /* Slightly darker for warehouse */
+  background: rgba(20, 20, 30, 0.6);
 }
 
 .column-title {
@@ -578,7 +711,12 @@ async function transferItem(item, direction) {
   transition: background 0.2s;
 }
 
-/* Tooltip Logic */
+/* 标记修改过的条目 */
+.item-entry.compact-entry.is-modified {
+  border-left: 3px solid #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
 .item-tooltip {
   display: none;
   position: absolute;
@@ -644,9 +782,9 @@ async function transferItem(item, direction) {
   opacity: 0.3;
   cursor: not-allowed;
 }
-.store-btn:hover { background: #fbbf24; border-color: #fbbf24; } /* Yellow for store */
-.retrieve-btn { transform: rotate(180deg); } /* Arrow pointing left */
-.retrieve-btn:hover { background: #4ade80; border-color: #4ade80; } /* Green for retrieve */
+.store-btn:hover { background: #fbbf24; border-color: #fbbf24; }
+.retrieve-btn { transform: rotate(180deg); }
+.retrieve-btn:hover { background: #4ade80; border-color: #4ade80; }
 
 .pagination-controls {
   display: flex;
@@ -677,6 +815,131 @@ async function transferItem(item, direction) {
 .durability-value { font-weight: bold; color: var(--success-color, #4ade80); font-size: 0.8rem; }
 .durability-low { color: var(--warning-color, #fbbf24); }
 .durability-critical { color: var(--danger-color, #f87171); animation: pulse 1s infinite; }
+
+/* 底部操作栏 */
+.action-bar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 0.5rem;
+  border-top: 1px solid var(--border-color);
+  background: rgba(0,0,0,0.2);
+}
+.btn-reset, .btn-confirm {
+  padding: 0.5rem 1.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'Cinzel', serif;
+  transition: all 0.2s;
+}
+.btn-reset {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.btn-reset:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+}
+.btn-confirm {
+  background: var(--accent-primary);
+  color: #000;
+  font-weight: bold;
+  border-color: var(--accent-primary);
+}
+.btn-confirm:hover:not(:disabled) {
+  filter: brightness(1.1);
+  box-shadow: 0 0 10px var(--accent-primary);
+}
+.btn-confirm:disabled, .btn-reset:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #333;
+  color: #666;
+  border-color: #444;
+}
+
+/* 模态框样式 */
+.modal-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+.modal-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-primary);
+  padding: 1.5rem;
+  border-radius: 8px;
+  width: 300px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+}
+.modal-content h3 {
+  margin-top: 0;
+  color: var(--accent-primary);
+  font-family: 'Cinzel', serif;
+  text-align: center;
+}
+.modal-body {
+  margin: 1.5rem 0;
+}
+.range-display {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+  font-family: monospace;
+}
+.max-label { color: var(--text-secondary); font-size: 0.8rem; }
+.qty-slider {
+  width: 100%;
+  margin-bottom: 1rem;
+  cursor: pointer;
+}
+.quick-select {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.quick-select button {
+  flex: 1;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 3px;
+}
+.quick-select button:hover {
+  background: var(--accent-primary);
+  color: #000;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+}
+.btn-confirm-modal {
+  background: var(--accent-primary);
+  border: 1px solid var(--accent-primary);
+  color: #000;
+  padding: 0.4rem 1rem;
+  cursor: pointer;
+  font-weight: bold;
+}
 
 /* --- "金钱" 模块样式 --- */
 .money-container { background: rgba(40, 40, 40, 0.7); border: 1px solid var(--border-color); border-radius: 5px; padding: 1.1rem; display: flex; flex-direction: column; align-items: center; overflow: auto; }
