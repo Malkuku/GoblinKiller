@@ -46,6 +46,7 @@ const navItems = ref([
   { name: '吾之追求', path: '/任务' },
   { name: '未来已至', path: '/选项' },
   { name: '拜请伟大存在', path: '/设置' },
+  { name: '赤红画廊', path: '/图片' },
 ]);
 
 const statStore = useStatStore();
@@ -264,5 +265,46 @@ const toggleTheme = async () => {
   .main-content-area {
     padding: 15px;
   }
+}
+
+/* 1. 针对 Webkit 内核 (Chrome, Edge, Safari) */
+
+/* 定义滚动条整体宽高 */
+.narrative-layout::-webkit-scrollbar,
+.main-content-area::-webkit-scrollbar {
+  width: 8px;  /* 纵向滚动条宽度 */
+  height: 8px; /* 横向滚动条高度 */
+}
+
+/* 定义滚动条轨道 (Track) */
+.narrative-layout::-webkit-scrollbar-track,
+.main-content-area::-webkit-scrollbar-track {
+  background: var(--bg-secondary); /* 与侧边栏/Header背景一致，视觉融合 */
+  border-left: 1px solid var(--border-color); /* 增加一条淡淡的分隔线 */
+}
+
+/* 定义滚动条滑块 (Thumb) */
+.narrative-layout::-webkit-scrollbar-thumb,
+.main-content-area::-webkit-scrollbar-thumb {
+  background-color: var(--border-color); /* 默认状态使用边框色，低调不抢眼 */
+  border-radius: 4px; /* 圆角设计，符合现代UI */
+  /* 下面这行是为了让滑块看起来比轨道细，制造一种悬浮感 */
+  border: 2px solid var(--bg-secondary);
+  background-clip: content-box;
+}
+
+/* 定义滑块悬停/激活状态 */
+.narrative-layout::-webkit-scrollbar-thumb:hover,
+.main-content-area::-webkit-scrollbar-thumb:active {
+  background-color: var(--accent-primary); /* 悬停时变更为“金色/强调色”，提供交互反馈 */
+  border-color: var(--bg-secondary);
+}
+
+/* 2. 针对 Firefox (标准属性) */
+.narrative-layout,
+.main-content-area {
+  scrollbar-width: thin; /* 细滚动条 */
+  /* 语法: scrollbar-color: <滑块颜色> <轨道颜色>; */
+  scrollbar-color: var(--border-color) var(--bg-secondary);
 }
 </style>
