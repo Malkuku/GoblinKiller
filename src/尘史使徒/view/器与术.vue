@@ -486,74 +486,109 @@ function confirmTransfer() {
   hasUnsavedChanges.value = true;
   closeModal();
 }
-
 // 4. 批量保存更改 (API 调用)
 async function saveAllChanges() {
   if (isDanger.value) return;
 
-  const updatePayload = { "器具": {}, "仓库": {} };
+  // 1. 准备 Payload
   const deletePayload = { "器具": {}, "仓库": {} };
-  let logDetails = [];
+  const insertPayload = { "器具": {}, "仓库": {} };
+  const exchangeLogs = [];
 
-  // 辅助函数：比较并构建 payload
-  // 我们采取的策略是：只要本地和远程不一致，就 Delete 旧的 Insert 新的 (最稳妥的方式)
-  // 或者：只处理 isModified 的项。为了防止并发问题，这里简单对比 key 和 属性。
-
-  const processDiff = (localObj, remoteObj, categoryKey) => {
-    const allKeys = new Set([...Object.keys(localObj), ...Object.keys(remoteObj)]);
-
-    allKeys.forEach(key => {
-      if (key === '$template') return;
-
-      const localItem = localObj[key];
-      const remoteItem = remoteObj[key];
-
-      // 情况1: 本地有，远程无 (新增) -> Insert
-      // 情况2: 本地无，远程有 (删除) -> Delete
-      // 情况3: 都有，但数据不同 (修改) -> Delete + Insert
-
-      if (!localItem && remoteItem) {
-        // 删除
-        deletePayload[categoryKey][key] = {};
-      } else if (localItem && !remoteItem) {
-        // 新增
-        // 清理掉前端用的临时字段 isModified
-        const { isModified, ...cleanItem } = localItem;
-        updatePayload[categoryKey][key] = cleanItem;
-      } else if (localItem && remoteItem) {
-        // 比较关键属性
-        if (localItem.数量 !== remoteItem.数量 || localItem.耐久 !== remoteItem.耐久) {
-          deletePayload[categoryKey][key] = {};
-          const { isModified, ...cleanItem } = localItem;
-          updatePayload[categoryKey][key] = cleanItem;
-        }
-      }
-    });
-  };
-
+  // 获取远程原始数据（用于构建删除列表和对比日志）
   const remoteBackpack = statStore.stat_data?.器具 || {};
   const remoteWarehouse = statStore.stat_data?.仓库 || {};
 
-  processDiff(localBackpack.value, remoteBackpack, "器具");
-  processDiff(localWarehouse.value, remoteWarehouse, "仓库");
+  // --- A. 构建删除 Payload (清空远程现有的所有条目) ---
+  // 只要远程有的，全部加入删除列表
+  Object.keys(remoteBackpack).forEach(key => {
+    if (key !== '$template') deletePayload["器具"][key] = {};
+  });
+  Object.keys(remoteWarehouse).forEach(key => {
+    if (key !== '$template') deletePayload["仓库"][key] = {};
+  });
 
-  // 检查是否有实际变动
-  const hasDeletes = Object.keys(deletePayload.器具).length > 0 || Object.keys(deletePayload.仓库).length > 0;
-  const hasUpdates = Object.keys(updatePayload.器具).length > 0 || Object.keys(updatePayload.仓库).length > 0;
+  // --- B. 构建插入 Payload (写入本地当前的所有条目) ---
+  // 将本地草稿中的所有数据写入
+  Object.entries(localBackpack.value).forEach(([key, item]) => {
+    if (key !== '$template') {
+      const { isModified, ...cleanItem } = item; // 移除前端临时字段
+      insertPayload["器具"][key] = cleanItem;
+    }
+  });
+  Object.entries(localWarehouse.value).forEach(([key, item]) => {
+    if (key !== '$template') {
+      const { isModified, ...cleanItem } = item;
+      insertPayload["仓库"][key] = cleanItem;
+    }
+  });
 
-  if (!hasDeletes && !hasUpdates) {
+  // --- C. 计算日志 (对比 本地 vs 远程) ---
+  const allItemNames = new Set([
+    ...Object.keys(remoteBackpack),
+    ...Object.keys(remoteWarehouse),
+    ...Object.keys(localBackpack.value),
+    ...Object.keys(localWarehouse.value)
+  ]);
+
+  allItemNames.forEach(name => {
+    if (name === '$template') return;
+
+    // 获取数量，不存在则为0
+    const oldBagQty = remoteBackpack[name]?.数量 || 0;
+    const newBagQty = localBackpack.value[name]?.数量 || 0;
+    const oldWhQty = remoteWarehouse[name]?.数量 || 0;
+    const newWhQty = localWarehouse.value[name]?.数量 || 0;
+
+    const bagDiff = newBagQty - oldBagQty;
+    const whDiff = newWhQty - oldWhQty;
+
+    // 只有当背包和仓库都有变动时，才视为交换
+    if (bagDiff === 0 && whDiff === 0) return;
+
+    // 逻辑：背包减少且仓库增加 -> 存入
+    if (bagDiff < 0 && whDiff > 0) {
+      const amount = Math.min(Math.abs(bagDiff), whDiff); // 取变动量的最小值作为实际交换量
+      exchangeLogs.push({ "名称": name, "数量": amount, "方向": "存入仓库" });
+    }
+    // 逻辑：背包增加且仓库减少 -> 取出
+    else if (bagDiff > 0 && whDiff < 0) {
+      const amount = Math.min(bagDiff, Math.abs(whDiff));
+      exchangeLogs.push({ "名称": name, "数量": amount, "方向": "取出到背包" });
+    }
+  });
+
+  // 如果没有实际变动且没有未保存标记，直接返回
+  if (Object.keys(deletePayload["器具"]).length === 0 &&
+    Object.keys(deletePayload["仓库"]).length === 0 &&
+    Object.keys(insertPayload["器具"]).length === 0 &&
+    Object.keys(insertPayload["仓库"]).length === 0) {
     hasUnsavedChanges.value = false;
     return;
   }
 
   try {
-    // 执行 API
-    if (hasDeletes) await ERAUtil.DeleteByObject(deletePayload);
-    if (hasUpdates) await ERAUtil.InsertByObject(updatePayload);
+    // 执行 API：先删后增
+    // 1. 删除远程旧数据
+    if (Object.keys(deletePayload["器具"]).length > 0 || Object.keys(deletePayload["仓库"]).length > 0) {
+      await ERAUtil.DeleteByObject(deletePayload);
+    }
 
-    // 记录日志 (简单记录发生了仓库整理)
-    const logText = `\n<user>将手中的器具与漫宿之上的秘密空间完成了交换。`;
-    await MessageUtil.mergeContentToMessage(getCurrentMessageId(), logText, 'none');
+    // 2. 插入本地新数据
+    if (Object.keys(insertPayload["器具"]).length > 0 || Object.keys(insertPayload["仓库"]).length > 0) {
+      await ERAUtil.InsertByObject(insertPayload);
+    }
+
+    // 3. 记录日志
+    if (exchangeLogs.length > 0) {
+      const jsonLog = JSON.stringify(exchangeLogs, null, 2);
+      const logText = `\n<user>与漫宿之上的神秘空间进行了物资交换:\n\`\`\`json\n${jsonLog}\n\`\`\``;
+
+      // 确保 getCurrentMessageId 可用
+      if (typeof getCurrentMessageId === 'function') {
+        await MessageUtil.mergeContentToMessage(getCurrentMessageId(), logText, 'none');
+      }
+    }
 
     // 重置状态
     hasUnsavedChanges.value = false;

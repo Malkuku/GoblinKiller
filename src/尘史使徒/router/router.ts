@@ -33,6 +33,10 @@ export const router = createRouter({
           path: '设置',
           component: () => import('../view/设置.vue'),
         },
+        {
+          path: '图片',
+          component: () => import('../view/图片展示.vue'),
+        },
       ],
     },
   ],
