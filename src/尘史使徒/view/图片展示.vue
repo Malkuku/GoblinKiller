@@ -228,13 +228,20 @@ const loadGalleryData = async () => {
     const sfwBooks = WorldInfoUtil.filterWorldBookNamesRegex(/<sfw_img>/i, allNames);
     const nsfwBooks = WorldInfoUtil.filterWorldBookNamesRegex(/<nsfw_img>/i, allNames);
 
+    // 分别解析每个符合条件的条目，而不是合并所有内容
     if (sfwBooks.length > 0) {
-      const content = await WorldInfoUtil.getWorldBookContent(sfwBooks);
-      parsedData.sfw = parseWorldBookContent(content);
+      for (const bookName of sfwBooks) {
+        const content = await WorldInfoUtil.getWorldBookContent([bookName]);
+        const parsed = parseWorldBookContent(content);
+        parsedData.sfw.push(...parsed);
+      }
     }
     if (nsfwBooks.length > 0) {
-      const content = await WorldInfoUtil.getWorldBookContent(nsfwBooks);
-      parsedData.nsfw = parseWorldBookContent(content);
+      for (const bookName of nsfwBooks) {
+        const content = await WorldInfoUtil.getWorldBookContent([bookName]);
+        const parsed = parseWorldBookContent(content);
+        parsedData.nsfw.push(...parsed);
+      }
     }
   } catch (e) {
     console.error("加载图鉴失败:", e);
