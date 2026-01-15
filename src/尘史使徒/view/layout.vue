@@ -34,28 +34,74 @@
 
 <script setup>
 import { ref } from 'vue';
-import { RouterLink, RouterView } from 'vue-router';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { useStatStore } from '@/尘史使徒/store/StatStore';
-
-// 导航模块定义
-const navItems = ref([
-  { name: '视界', path: '/世界信息' },
-  { name: '镜中倒影', path: '/角色' },
-  { name: '器与术', path: '/器与术' },
-  { name: '吾之追求', path: '/任务' },
-  { name: '未来已至', path: '/选项' },
-  { name: '拜请伟大存在', path: '/设置' },
-  { name: '赤红画廊', path: '/图片' },
-]);
+import { useShopStore } from '@/尘史使徒/store/ShopStore';
+import { useQuestStore } from '@/尘史使徒/store/QuestStore';
 
 const statStore = useStatStore();
+const shopStore = useShopStore();
+const questStore = useQuestStore();
+const router = useRouter();
+const route = useRoute();
+
+// 导航模块定义
+const baseNavItems = [
+  { name: '视界', path: '/世界信息' },
+  { name: '倒影', path: '/角色' },
+  { name: '器法', path: '/器与术' },
+  { name: '道寻', path: '/任务' },
+  { name: '未途', path: '/选项' },
+  { name: '祈奉', path: '/设置' },
+  { name: '绯廊', path: '/图片' },
+];
+
+// 动态导航计算：委托 > 商店 > 基础
+const navItems = computed(() => {
+  const items = [...baseNavItems];
+
+  // 1. 检查商店 (插入头部)
+  if (shopStore.hasShopData) {
+    items.unshift({ name: '置物', path: '/商店' });
+  }
+
+  // 2. 检查委托 (再次插入头部，这样它会排在商店前面)
+  if (questStore.hasQuestData) {
+    items.unshift({ name: '榜文', path: '/任务接取' });
+  }
+
+  return items;
+});
+
+// 优先级跳转逻辑
+watch(
+  [() => questStore.hasQuestData, () => shopStore.hasShopData],
+  ([hasQuest, hasShop]) => {
+    // 情况 A: 委托数据出现 (最高优先级)
+    if (hasQuest) {
+      if (route.path !== '/任务接取') {
+        router.push('/任务接取');
+      }
+      return; // 既然跳转了委托，就不用管商店了
+    }
+
+    // 情况 B: 商店数据出现 (且没有新委托出现)
+    if (hasShop) {
+      // 只有在当前没有委托数据，或者当前不在委托页面时，才跳转商店
+      // 如果同时有委托和商店，优先停留在委托
+      if (!hasQuest && route.path !== '/商店') {
+        router.push('/商店');
+      }
+    }
+  },
+);
 
 // 主题切换逻辑
-const currentTheme = computed(()=>statStore.stat_data?.theme);
+const currentTheme = computed(() => statStore.stat_data?.theme);
 const toggleTheme = async () => {
   const theme = currentTheme.value === 'dark' ? 'light' : 'dark';
-  await ERAUtil.UpdateByObject({"theme": theme});
+  await ERAUtil.UpdateByObject({ theme: theme });
 };
 </script>
 
@@ -76,7 +122,7 @@ const toggleTheme = async () => {
   --shadow-color: rgba(0, 0, 0, 0.5);
 }
 
-.narrative-layout[data-theme="light"] {
+.narrative-layout[data-theme='light'] {
   /* 白天主题 (苍白之日) */
   --bg-primary: #f4f0e8;
   --bg-secondary: #e9e4d8;
@@ -92,8 +138,8 @@ const toggleTheme = async () => {
 .narrative-layout {
   display: grid;
   grid-template-areas:
-    "header header"
-    "nav content";
+    'header header'
+    'nav content';
   grid-template-columns: 200px 1fr;
   grid-template-rows: 55px 1fr;
   width: 100vw;
@@ -102,7 +148,9 @@ const toggleTheme = async () => {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'EB Garamond', serif;
-  transition: background-color 0.4s ease, color 0.4s ease;
+  transition:
+    background-color 0.4s ease,
+    color 0.4s ease;
   overflow-y: auto;
 }
 
@@ -116,7 +164,9 @@ const toggleTheme = async () => {
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   box-shadow: 0 2px 10px var(--shadow-color);
-  transition: background-color 0.4s ease, border-color 0.4s ease;
+  transition:
+    background-color 0.4s ease,
+    border-color 0.4s ease;
   z-index: 10;
 }
 
@@ -146,7 +196,9 @@ const toggleTheme = async () => {
   background-color: var(--bg-secondary);
   border-right: 1px solid var(--border-color);
   padding-top: 20px;
-  transition: background-color 0.4s ease, border-color 0.4s ease;
+  transition:
+    background-color 0.4s ease,
+    border-color 0.4s ease;
   z-index: 5;
 }
 
@@ -209,9 +261,9 @@ const toggleTheme = async () => {
   /* 1. 重新定义页面网格布局 */
   .narrative-layout {
     grid-template-areas:
-      "header"
-      "content"
-      "nav"; /* 导航移动到底部 */
+      'header'
+      'content'
+      'nav'; /* 导航移动到底部 */
     grid-template-columns: 1fr; /* 单列布局 */
     grid-template-rows: 50px 1fr 60px; /* 顶部Header, 中间内容(自适应), 底部Nav */
   }
@@ -272,7 +324,7 @@ const toggleTheme = async () => {
 /* 定义滚动条整体宽高 */
 .narrative-layout::-webkit-scrollbar,
 .main-content-area::-webkit-scrollbar {
-  width: 8px;  /* 纵向滚动条宽度 */
+  width: 8px; /* 纵向滚动条宽度 */
   height: 8px; /* 横向滚动条高度 */
 }
 

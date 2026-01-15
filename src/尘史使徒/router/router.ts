@@ -37,6 +37,14 @@ export const router = createRouter({
           path: '图片',
           component: () => import('../view/图片展示.vue'),
         },
+        {
+          path: '商店',
+          component: () => import('../view/商店.vue'),
+        },
+        {
+          path: '任务接取',
+          component: () => import('../view/任务接取.vue'),
+        }
       ],
     },
   ],
