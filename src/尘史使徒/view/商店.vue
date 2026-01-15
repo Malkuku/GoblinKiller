@@ -2,17 +2,36 @@
   <div class="shop-container">
     <header class="shop-header">
       <h2 class="shop-title">交易</h2>
-      <div class="shop-divider"></div>
-      <!-- 显示玩家当前资产 -->
+
+      <!-- 玩家资产显示 -->
       <div class="player-wealth">
-        <span class="wealth-label">当前持有:</span>
+        <span class="wealth-label">持有:</span>
         <span class="wealth-value">{{ formatCurrencyFromObject(playerMoneyObj) }}</span>
+      </div>
+
+      <!-- 分页/分类 Tab -->
+      <div class="shop-tabs">
+        <button
+          class="tab-btn"
+          :class="{ active: currentTab === '购买' }"
+          @click="currentTab = '购买'"
+        >
+          购买物资
+        </button>
+        <button
+          class="tab-btn"
+          :class="{ active: currentTab === '出售' }"
+          @click="currentTab = '出售'"
+        >
+          出售物品
+        </button>
       </div>
     </header>
 
+    <!-- 商品列表 -->
     <transition-group v-if="hasData" name="list" tag="div" class="items-grid">
       <div
-        v-for="(item, name) in shopData"
+        v-for="(item, name) in paginatedShopData"
         :key="name"
         class="item-card"
         :class="[
@@ -20,39 +39,52 @@
           { 'is-disabled': item['方向'] === '购买' && !canAffordItem(name as string) }
         ]"
       >
-        <div class="card-header">
-          <span class="item-name">{{ name }}</span>
-          <span class="item-badge">{{ item['方向'] }}</span>
+        <div class="card-top">
+          <div class="item-name">{{ name }}</div>
+          <div class="item-price" v-html="formatPriceToHtml(item['价格'])"></div>
         </div>
 
         <div class="card-body">
-          <p class="item-desc">{{ item['描述'] }}</p>
-          <div class="item-stats">
-            <span v-if="item['作用']">效果: {{ item['作用'] }}</span>
-            <span v-if="item['最大耐久']">耐久: {{ item['最大耐久'] }}</span>
+          <p class="item-desc" :title="item['描述']">{{ item['描述'] }}</p>
+          <div class="item-meta">
+            <span v-if="item['作用']" class="meta-tag">{{ item['作用'] }}</span>
+            <span v-if="item['最大耐久']" class="meta-tag">耐久:{{ item['最大耐久'] }}</span>
           </div>
         </div>
 
         <div class="card-footer">
-          <!-- 价格显示 -->
-          <div class="price-display">
-            <span class="price-label">单价:</span>
-            <span class="currency-text" v-html="formatPriceToHtml(item['价格'])"></span>
-          </div>
-
-          <div class="action-controls">
+          <div class="input-group">
             <button
-              class="ctrl-btn minus"
-              :disabled="!cart[name]"
+              class="qty-btn minus"
               @click="updateCart(name as string, -1)"
+              :disabled="!cart[name]"
             >-</button>
-            <span class="qty">{{ cart[name] || 0 }}</span>
+
+            <!-- 手动输入框 -->
+            <input
+              type="number"
+              class="qty-input"
+              :value="cart[name] || 0"
+              @input="(e) => handleInput(e, name as string, item)"
+              @blur="(e) => fixInputQuantity(e, name as string, item)"
+              @keydown.enter="(e) => (e.target as HTMLInputElement).blur()"
+            />
+
             <button
-              class="ctrl-btn plus"
-              :disabled="isAddDisabled(name as string, item)"
+              class="qty-btn plus"
               @click="updateCart(name as string, 1)"
+              :disabled="isAddDisabled(name as string, item)"
             >+</button>
           </div>
+
+          <!-- 最大值按钮 -->
+          <button
+            class="max-btn"
+            @click="setMaxQuantity(name as string, item)"
+            :disabled="isAddDisabled(name as string, item) && (!cart[name] || cart[name] >= calculateMax(name as string, item))"
+          >
+            最大
+          </button>
         </div>
       </div>
     </transition-group>
@@ -61,18 +93,38 @@
       <p>暂无交易信息...</p>
     </div>
 
+    <!-- 分页控制器 -->
+    <div class="pagination-controls" v-if="hasData && totalPages > 1">
+      <button
+        class="page-btn"
+        @click="currentPage--"
+        :disabled="currentPage === 1"
+      >
+        &lt;
+      </button>
+      <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
+      <button
+        class="page-btn"
+        @click="currentPage++"
+        :disabled="currentPage === totalPages"
+      >
+        &gt;
+      </button>
+    </div>
+
     <!-- 底部结算浮层 -->
     <transition name="slide-up">
       <div class="checkout-bar" v-if="totalItems > 0">
         <div class="checkout-info">
           <div class="summary-row">
-            <span>已选: {{ totalItems }} 项</span>
+            <span>已选: {{ totalItems }}</span>
+            <span class="divider">|</span>
             <span :class="{ 'text-danger': !isTransactionValid }">
               总计: <span v-html="formatCurrencyFromCopper(totalTransactionCostInCopper)"></span>
             </span>
           </div>
           <div class="balance-preview" v-if="totalTransactionCostInCopper > 0">
-            剩余预计: <span v-html="formatCurrencyFromCopper(playerTotalCopper - totalTransactionCostInCopper)"></span>
+            剩余: <span v-html="formatCurrencyFromCopper(playerTotalCopper - totalTransactionCostInCopper)"></span>
           </div>
         </div>
 
@@ -81,7 +133,7 @@
           @click="submitTransaction"
           :disabled="!isTransactionValid"
         >
-          {{ isTransactionValid ? '确认交易' : '资金不足' }}
+          {{ isTransactionValid ? '确认' : '不足' }}
         </button>
       </div>
     </transition>
@@ -89,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useShopStore } from '@/尘史使徒/store/ShopStore';
 import { useStatStore } from '@/尘史使徒/store/StatStore';
 import type { ShopItem } from '@/尘史使徒/store/ShopStore';
@@ -100,63 +152,100 @@ const statStore = useStatStore();
 const shopData = computed(() => shopStore.shopData);
 const hasData = computed(() => shopStore.hasShopData);
 
+// 当前选中的 Tab
+const currentTab = ref<'购买' | '出售'>('购买');
+
+// 根据 Tab 过滤商品
+const filteredShopData = computed(() => {
+  const targetDir = currentTab.value;
+  const result: Record<string, ShopItem> = {};
+  for (const [key, val] of Object.entries(shopData.value)) {
+    if (val['方向'] === targetDir) {
+      result[key] = val;
+    }
+  }
+  return result;
+});
+
+// --- 分页逻辑 ---
+const currentPage = ref(1);
+const pageSize = ref(8); // 默认桌面端8条
+
+// 响应式调整每页数量
+const updatePageSize = () => {
+  // 手机端通常宽度小于 768px
+  pageSize.value = window.innerWidth <= 768 ? 4 : 8;
+};
+
+onMounted(() => {
+  updatePageSize();
+  window.addEventListener('resize', updatePageSize);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updatePageSize);
+});
+
+// 切换 Tab 时重置页码
+watch(currentTab, () => {
+  currentPage.value = 1;
+});
+
+// 计算总页数
+const totalPages = computed(() => {
+  const totalItems = Object.keys(filteredShopData.value).length;
+  return Math.ceil(totalItems / pageSize.value) || 1;
+});
+
+// 获取当前页的数据
+const paginatedShopData = computed(() => {
+  const allItems = Object.entries(filteredShopData.value);
+  const start = (currentPage.value - 1) * pageSize.value;
+  const end = start + pageSize.value;
+  const slicedItems = allItems.slice(start, end);
+  return Object.fromEntries(slicedItems);
+});
+
 // 获取玩家金钱对象
 const playerMoneyObj = computed(() => statStore.stat_data?.金钱 || { 金索尔: 0, 银里弗: 0, 铜便士: 0 });
 
 // --- 货币核心逻辑 ---
-
-// 1. 将所有货币转换为最小单位（铜便士）进行计算
-// 1 金索尔 = 100 银里弗 = 1000 铜便士
-// 1 银里弗 = 10 铜便士
 const toCopper = (gold: number, silver: number, copper: number) => {
   return (gold * 1000) + (silver * 10) + copper;
 };
 
-// 玩家总资产（铜便士）
 const playerTotalCopper = computed(() => {
   const m = playerMoneyObj.value;
   return toCopper(m.金索尔 || 0, m.银里弗 || 0, m.铜便士 || 0);
 });
 
-// 2. 格式化显示函数 (从铜便士转回文本)
 const formatCurrencyFromCopper = (totalCopper: number) => {
   const isNegative = totalCopper < 0;
   let absCopper = Math.abs(totalCopper);
-
   const gold = Math.floor(absCopper / 1000);
   const silver = Math.floor((absCopper % 1000) / 10);
   const copper = Math.floor(absCopper % 10);
 
   let html = '';
-  if (isNegative) html += '<span style="color:var(--accent-danger)">- </span>';
-
-  if (gold > 0) html += `<span class="c-gold">${gold}金</span> `;
-  if (silver > 0) html += `<span class="c-silver">${silver}银</span> `;
+  if (isNegative) html += '<span style="color:var(--accent-danger)">-</span>';
+  if (gold > 0) html += `<span class="c-gold">${gold}金</span>`;
+  if (silver > 0) html += `<span class="c-silver">${silver}银</span>`;
   if (copper > 0) html += `<span class="c-copper">${copper}铜</span>`;
-
   if (html === '') html = '<span class="c-copper">0铜</span>';
-
   return html;
 };
 
-// 3. 格式化显示函数 (从对象)
 const formatCurrencyFromObject = (money: {金索尔:number, 银里弗:number, 铜便士:number}) => {
-  const c = toCopper(money.金索尔, money.银里弗, money.铜便士);
-  // 这里为了复用逻辑，先转铜再转字符串，也可以直接拼字符串
-  // 但为了去掉为0的单位，转铜再算比较方便
-  // 注意：这里返回纯文本用于插值，上面那个返回HTML
   const gold = money.金索尔;
   const silver = money.银里弗;
   const copper = money.铜便士;
-
   let text = [];
-  if (gold > 0) text.push(`${gold}金索尔`);
-  if (silver > 0) text.push(`${silver}银里弗`);
-  if (copper > 0) text.push(`${copper}铜便士`);
-  return text.length > 0 ? text.join(' ') : "身无分文";
+  if (gold > 0) text.push(`${gold}金`);
+  if (silver > 0) text.push(`${silver}银`);
+  if (copper > 0) text.push(`${copper}铜`);
+  return text.length > 0 ? text.join(' ') : "0";
 };
 
-// 4. 格式化商品价格 (输入是银里弗)
 const formatPriceToHtml = (priceInSilver: number) => {
   return formatCurrencyFromCopper(priceInSilver * 10);
 };
@@ -167,68 +256,74 @@ const cart = ref<Record<string, number>>({});
 
 const totalItems = computed(() => Object.values(cart.value).reduce((a, b) => a + b, 0));
 
-// 计算当前交易的总花费（铜便士）
-// 正数表示玩家需要支付，负数表示玩家获得
 const totalTransactionCostInCopper = computed(() => {
   let totalCost = 0;
   for (const [name, count] of Object.entries(cart.value)) {
     const item = shopData.value[name];
     if (!item) continue;
-
-    // 商品价格单位是银里弗，转为铜便士需 * 10
     const itemPriceCopper = item['价格'] * 10;
-
     if (item['方向'] === '购买') {
       totalCost += itemPriceCopper * count;
     } else {
-      // 出售获得金钱，花费为负
       totalCost -= itemPriceCopper * count;
     }
   }
   return totalCost;
 });
 
-// 交易是否合法（钱够不够）
 const isTransactionValid = computed(() => {
-  // 如果总花费 <= 玩家资产，则合法
-  // 注意：如果是在卖东西，totalTransactionCostInCopper 是负数，肯定小于玩家资产，所以总是合法的
   return playerTotalCopper.value >= totalTransactionCostInCopper.value;
 });
 
-// 判断单个商品是否买得起（用于UI样式）
 const canAffordItem = (name: string) => {
   const item = shopData.value[name];
   if (!item) return false;
-  // 简单判断：买1个是否买得起（不考虑购物车里其他东西，仅用于列表显示灰色状态）
-  // 如果要严谨，应该判断 (当前购物车总价 + 这个商品单价) <= 玩家余额
   return playerTotalCopper.value >= (item['价格'] * 10);
+};
+
+// --- 数量输入与限制逻辑 ---
+
+// 计算某个商品的最大可操作数量
+const calculateMax = (name: string, item: ShopItem) => {
+  const maxStock = item['最大数量'] || 99;
+
+  // 如果是出售（玩家卖给商店），理论上受限于玩家背包，但这里暂无背包数据，仅受限于商店接收上限
+  if (item['方向'] === '出售') {
+    return maxStock;
+  }
+
+  // 如果是购买，受限于金钱
+  const priceCopper = item['价格'] * 10;
+  if (priceCopper <= 0) return maxStock;
+
+  // 计算当前剩余预算（排除掉购物车里其他商品的花费）
+  // 这是一个简化的计算：假设当前商品数量为0时的剩余金钱
+  // 实际上为了交互流畅，我们通常计算：(当前余额 + 当前商品已选数量的总价) / 单价
+  const currentQty = cart.value[name] || 0;
+  const currentSpentOnThis = currentQty * priceCopper;
+
+  // 预算 = 玩家总钱 - (总花费 - 这个商品的花费)
+  // 即：玩家还能在这个商品上花多少钱
+  const otherItemsCost = totalTransactionCostInCopper.value - currentSpentOnThis;
+  const availableMoney = playerTotalCopper.value - otherItemsCost;
+
+  const maxAffordable = Math.floor(availableMoney / priceCopper);
+
+  return Math.min(maxStock, maxAffordable);
 };
 
 // 判断加号是否禁用
 const isAddDisabled = (name: string, item: ShopItem) => {
   const currentQty = cart.value[name] || 0;
-  const maxQty = item['最大数量'] || 99;
-
-  // 1. 数量限制
-  if (currentQty >= maxQty) return true;
-
-  // 2. 金钱限制 (仅针对购买)
-  if (item['方向'] === '购买') {
-    const itemPriceCopper = item['价格'] * 10;
-    // 预测增加一个后的总花费
-    const nextTotalCost = totalTransactionCostInCopper.value + itemPriceCopper;
-    if (nextTotalCost > playerTotalCopper.value) return true;
-  }
-
-  return false;
+  const max = calculateMax(name, item);
+  return currentQty >= max;
 };
 
+// 更新购物车（按钮点击）
 const updateCart = (name: string, delta: number) => {
   const current = cart.value[name] || 0;
   const next = current + delta;
 
-  // 这里的逻辑主要处理减法，加法的限制在 isAddDisabled 中处理了
-  // 但为了安全，这里也可以再校验一次
   if (next <= 0) {
     delete cart.value[name];
   } else {
@@ -236,39 +331,65 @@ const updateCart = (name: string, delta: number) => {
   }
 };
 
-// 新增：专门用于日志记录的纯文本格式化函数
+// 设置为最大值
+const setMaxQuantity = (name: string, item: ShopItem) => {
+  const max = calculateMax(name, item);
+  if (max > 0) {
+    cart.value[name] = max;
+  }
+};
+
+// 处理输入框实时输入 (仅限制非数字)
+const handleInput = (e: Event, name: string, item: ShopItem) => {
+  const val = (e.target as HTMLInputElement).value;
+  // 暂时不强制修正，允许用户删除完数字，但在 blur 时修正
+  if (val === '') return;
+};
+
+// 处理输入框失焦 (修正数值)
+const fixInputQuantity = (e: Event, name: string, item: ShopItem) => {
+  const input = e.target as HTMLInputElement;
+  let val = parseInt(input.value);
+
+  if (isNaN(val) || val < 0) val = 0;
+
+  const max = calculateMax(name, item);
+  if (val > max) val = max;
+
+  if (val === 0) {
+    delete cart.value[name];
+    input.value = '0'; // 视觉归零
+  } else {
+    cart.value[name] = val;
+    input.value = val.toString(); // 修正显示
+  }
+};
+
+// --- 提交逻辑 ---
 const formatPriceToString = (priceInSilver: number) => {
   const totalCopper = priceInSilver * 10;
   const gold = Math.floor(totalCopper / 1000);
   const silver = Math.floor((totalCopper % 1000) / 10);
   const copper = Math.floor(totalCopper % 10);
-
   let text = [];
-  if (gold > 0) text.push(`${gold}金索尔`);
-  if (silver > 0) text.push(`${silver}银里弗`);
-  if (copper > 0) text.push(`${copper}铜便士`);
-
-  return text.length > 0 ? text.join(' ') : "0铜便士";
+  if (gold > 0) text.push(`${gold}金`);
+  if (silver > 0) text.push(`${silver}银`);
+  if (copper > 0) text.push(`${copper}铜`);
+  return text.length > 0 ? text.join('') : "0铜";
 };
 
 const submitTransaction = () => {
   if (!isTransactionValid.value) return;
-
-  // 构建详细日志
   const logs = Object.entries(cart.value).map(([name, quantity]) => {
     const item = shopData.value[name];
-
-    // 计算单价和总价的文字描述
     const totalPriceStr = formatPriceToString(item['价格'] * quantity);
-
     return {
-      [name]:{
-        "描述": item['描述'],
-        "作用": item['作用'] || "无特殊作用", // 防止 undefined
-        "交易方向": item['方向'],
-        "数量": quantity,
-        "总价": totalPriceStr
-      }
+      "名称": name,
+      "描述": item['描述'],
+      "作用": item['作用'] || "无特殊作用", // 防止 undefined
+      "交易方向": item['方向'],
+      "数量": quantity,
+      "总价": totalPriceStr
     }
   });
 
@@ -277,15 +398,13 @@ const submitTransaction = () => {
   try {
     const input = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement;
     if (input) {
-      // 使用 null, 2 参数让 JSON 格式化输出，更易读
       const jsonStr = JSON.stringify(logs, null, 2);
-      const outputText = `\n<user>希望进行以下交易：\n${jsonStr}`;
+      const outputText = `\n<user>希望进行以下交易：\n<list>\n${jsonStr}\n</list>\n如果顺利，则完成交易，离开当前场景\n`;
 
       const currentVal = input.value;
       input.value = currentVal ? currentVal + outputText : outputText;
       input.dispatchEvent(new Event('input', { bubbles: true }));
       input.focus();
-
       cart.value = {};
     }
   } catch (e) {
@@ -295,156 +414,262 @@ const submitTransaction = () => {
 </script>
 
 <style scoped>
-/* 引入之前的样式，并增加货币相关的样式 */
 .shop-container {
-  padding-bottom: 100px;
+  padding-bottom: 80px;
+  font-family: 'Segoe UI', sans-serif;
 }
 
 .shop-header {
-  text-align: center;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
   background: rgba(0,0,0,0.2);
-  padding: 1rem;
+  padding: 0.8rem;
   border-radius: 8px;
   border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .shop-title {
   font-family: 'Cinzel', serif;
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   color: var(--accent-primary);
   margin: 0;
+  text-align: center;
 }
 
 .player-wealth {
-  margin-top: 0.8rem;
-  font-family: 'EB Garamond', serif;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   color: var(--text-primary);
+  text-align: center;
+  background: rgba(0,0,0,0.2);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.wealth-value { color: #ffd700; font-weight: bold; margin-left: 5px; }
+
+/* Tabs 样式 */
+.shop-tabs {
+  display: flex;
+  gap: 10px;
+  margin-top: 5px;
 }
 
-.wealth-label {
+.tab-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  margin-right: 0.5rem;
+  padding: 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.9rem;
 }
 
-.wealth-value {
-  color: #ffd700; /* 金色高亮 */
+.tab-btn.active {
+  background: var(--accent-primary);
+  color: #1a1d24;
   font-weight: bold;
+  border-color: var(--accent-primary);
 }
 
-/* 货币颜色类 (用于 v-html) */
-:deep(.c-gold) { color: #ffd700; font-weight: bold; margin-right: 4px; }
-:deep(.c-silver) { color: #c0c0c0; font-weight: bold; margin-right: 4px; }
-:deep(.c-copper) { color: #cd7f32; font-weight: bold; }
-:deep(.text-danger) { color: var(--accent-danger); }
+/* 紧凑 Grid 布局 */
+.items-grid {
+  display: grid;
+  /* 缩小最小宽度，允许一行放更多 */
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.8rem;
+}
 
-/* 卡片样式调整 */
+/* 紧凑卡片样式 */
 .item-card {
-  /* ...原有样式... */
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 6px;
   display: flex;
   flex-direction: column;
-  transition: all 0.3s ease;
-  position: relative;
   overflow: hidden;
+  font-size: 0.85rem;
 }
 
-/* 禁用状态（买不起） */
-.item-card.is-disabled {
-  opacity: 0.7;
-  border-color: transparent;
-}
-.item-card.is-disabled .price-display {
-  color: var(--accent-danger);
-}
+.item-card.is-disabled { opacity: 0.6; }
 
-.items-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
-}
-
-.card-header {
-  padding: 0.8rem;
+.card-top {
+  padding: 0.5rem;
+  background: rgba(0,0,0,0.15);
   display: flex;
   justify-content: space-between;
-  background: rgba(0,0,0,0.1);
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
 
 .item-name {
-  font-family: 'Cinzel', serif;
   font-weight: bold;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 65%;
+}
+
+.item-price {
+  font-size: 0.8rem;
+  text-align: right;
 }
 
 .card-body {
-  padding: 0.8rem;
+  padding: 0.5rem;
   flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .item-desc {
-  font-size: 0.9rem;
   color: var(--text-secondary);
-  margin-bottom: 0.5rem;
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2; /* 限制描述最多2行 */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.card-footer {
-  padding: 0.8rem;
-  border-top: 1px solid var(--border-color);
+.item-meta {
+  margin-top: auto;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
-.price-display {
-  font-size: 0.9rem;
+.meta-tag {
+  background: rgba(255,255,255,0.05);
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+/* 底部操作区 */
+.card-footer {
+  padding: 0.5rem;
+  background: rgba(0,0,0,0.1);
   display: flex;
   flex-direction: column;
+  gap: 5px;
 }
 
-.price-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-}
-
-.action-controls {
+.input-group {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   background: var(--bg-primary);
   border-radius: 4px;
   border: 1px solid var(--border-color);
+  overflow: hidden;
 }
 
-.ctrl-btn {
-  background: none;
+.qty-btn {
+  background: rgba(255,255,255,0.05);
   border: none;
   color: var(--text-primary);
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.qty-btn:hover:not(:disabled) { background: rgba(255,255,255,0.15); }
+.qty-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+.qty-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  text-align: center;
+  font-size: 0.9rem;
+  -moz-appearance: textfield; /* 去除 Firefox 箭头 */
+}
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none; /* 去除 Chrome 箭头 */
+  margin: 0;
+}
+.qty-input:focus { outline: none; background: rgba(255,255,255,0.05); }
+
+.max-btn {
+  width: 100%;
+  background: transparent;
+  border: 1px dashed var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  padding: 2px 0;
+  border-radius: 3px;
   cursor: pointer;
 }
-.ctrl-btn:disabled {
-  color: var(--text-secondary);
+.max-btn:hover:not(:disabled) {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+}
+.max-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* 分页控制器样式 */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: 15px;
+  padding: 10px;
+}
+
+.page-btn {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background: var(--accent-primary);
+  color: #1a1d24;
+  border-color: var(--accent-primary);
+}
+
+.page-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
 
-/* 底部结算栏增强 */
+.page-info {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* 结算栏 */
 .checkout-bar {
   position: fixed;
-  bottom: 20px;
+  bottom: 15px;
   left: 50%;
   transform: translateX(-50%);
-  width: 90%;
-  max-width: 500px;
+  width: 92%;
+  max-width: 400px;
   background: var(--bg-secondary);
   border: 1px solid var(--accent-primary);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.8);
-  padding: 1rem;
-  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.9);
+  padding: 0.6rem 1rem;
+  border-radius: 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -454,37 +679,43 @@ const submitTransaction = () => {
 .checkout-info {
   display: flex;
   flex-direction: column;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .summary-row {
   display: flex;
-  gap: 1rem;
   align-items: center;
-  margin-bottom: 4px;
+  gap: 8px;
+  font-weight: bold;
 }
+.divider { color: var(--text-secondary); opacity: 0.5; }
 
 .balance-preview {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
+  margin-top: 2px;
 }
 
 .confirm-btn {
   background: var(--accent-primary);
   color: #1a1d24;
   border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  font-family: 'Cinzel', serif;
+  padding: 0.4rem 1rem;
+  border-radius: 15px;
   font-weight: bold;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s;
+  min-width: 70px;
+}
+.confirm-btn:disabled {
+  background: #444;
+  color: #888;
+  cursor: not-allowed;
 }
 
-.confirm-btn:disabled {
-  background: var(--bg-primary);
-  color: var(--text-secondary);
-  cursor: not-allowed;
-  border: 1px solid var(--border-color);
-}
+/* 货币颜色 */
+:deep(.c-gold) { color: #ffd700; margin-right: 2px; }
+:deep(.c-silver) { color: #c0c0c0; margin-right: 2px; }
+:deep(.c-copper) { color: #cd7f32; }
+:deep(.text-danger) { color: #ff4d4d; }
 </style>

@@ -57,9 +57,7 @@
         <div class="action-info">
           已接取: <span class="highlight">{{ selectedQuests.size }}</span> 件委托
         </div>
-        <button class="sign-btn" @click="confirmQuests">
-          签署契约
-        </button>
+        <button class="sign-btn" @click="confirmQuests">签署契约</button>
       </div>
     </transition>
   </div>
@@ -90,7 +88,7 @@ const formatReward = (reward: string | number) => {
     if (silver > 0) text.push(`${silver}银里弗`);
     if (copper > 0) text.push(`${copper}铜便士`);
 
-    return text.length > 0 ? text.join(' ') : "无金钱报酬";
+    return text.length > 0 ? text.join(' ') : '无金钱报酬';
   }
   // 如果是字符串（例如物品名称），直接返回
   return reward;
@@ -111,11 +109,10 @@ const confirmQuests = () => {
   const logs = Array.from(selectedQuests.value).map(name => {
     const quest = questData.value[name];
     return {
-      [name]: {
-        "描述": quest['描述'],
-        "要求": quest['要求'],
-        "报酬": formatReward(quest['报酬'])
-      }
+      名称: name,
+      描述: quest['描述'],
+      要求: quest['要求'],
+      报酬: formatReward(quest['报酬']),
     };
   });
 
@@ -124,7 +121,7 @@ const confirmQuests = () => {
     if (input) {
       const jsonStr = JSON.stringify(logs, null, 2); // 格式化 JSON 增加可读性
       // 使用特定标签包裹，明确意图
-      const outputText = `<user>希望接取以下委托\n${jsonStr}\n`;
+      const outputText = `<user>希望接取以下委托\n<list>\n${jsonStr}\n</list>\n如果顺利，则离开当前场景\n`;
 
       const currentVal = input.value;
       input.value = currentVal ? currentVal + outputText : outputText;
@@ -135,7 +132,7 @@ const confirmQuests = () => {
       selectedQuests.value.clear();
     }
   } catch (e) {
-    console.error("委托提交失败", e);
+    console.error('委托提交失败', e);
   }
 };
 </script>
@@ -159,7 +156,7 @@ const confirmQuests = () => {
   color: var(--text-primary);
   letter-spacing: 2px;
   margin: 0;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .board-subtitle {
@@ -181,19 +178,23 @@ const confirmQuests = () => {
   color: #2c241b;
   padding: 1.5rem;
   position: relative;
-  box-shadow: 5px 5px 15px rgba(0,0,0,0.3);
+  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   cursor: pointer;
   transform: rotate(-1deg);
   border: 1px solid #d1c8b6;
 }
 
-.quest-paper:nth-child(2n) { transform: rotate(1deg); }
-.quest-paper:nth-child(3n) { transform: rotate(-0.5deg); }
+.quest-paper:nth-child(2n) {
+  transform: rotate(1deg);
+}
+.quest-paper:nth-child(3n) {
+  transform: rotate(-0.5deg);
+}
 
 .quest-paper:hover {
   transform: scale(1.02) rotate(0deg);
-  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
   z-index: 10;
 }
 
@@ -212,7 +213,7 @@ const confirmQuests = () => {
   height: 12px;
   background: radial-gradient(circle at 30% 30%, #555, #000);
   border-radius: 50%;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
 }
 
 .quest-name {
@@ -268,14 +269,23 @@ const confirmQuests = () => {
 }
 
 @keyframes stamp-in {
-  0% { transform: scale(2) rotate(-15deg); opacity: 0; }
-  100% { transform: scale(1) rotate(-15deg); opacity: 0.8; }
+  0% {
+    transform: scale(2) rotate(-15deg);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1) rotate(-15deg);
+    opacity: 0.8;
+  }
 }
 
 .selection-overlay {
   position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.05);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.05);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -286,7 +296,7 @@ const confirmQuests = () => {
   opacity: 1;
 }
 .select-hint {
-  background: rgba(0,0,0,0.7);
+  background: rgba(0, 0, 0, 0.7);
   color: #fff;
   padding: 4px 8px;
   border-radius: 4px;
@@ -305,7 +315,7 @@ const confirmQuests = () => {
   display: flex;
   gap: 2rem;
   align-items: center;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.6);
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.6);
   z-index: 100;
 }
 
@@ -339,8 +349,22 @@ const confirmQuests = () => {
   box-shadow: 0 0 15px rgba(164, 139, 87, 0.5);
 }
 
-.paper-enter-active, .paper-leave-active { transition: all 0.5s ease; }
-.paper-enter-from, .paper-leave-to { opacity: 0; transform: translateY(30px); }
-.slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s ease; }
-.slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translate(-50%, 20px); }
+.paper-enter-active,
+.paper-leave-active {
+  transition: all 0.5s ease;
+}
+.paper-enter-from,
+.paper-leave-to {
+  opacity: 0;
+  transform: translateY(30px);
+}
+.slide-up-enter-active,
+.slide-up-leave-active {
+  transition: all 0.3s ease;
+}
+.slide-up-enter-from,
+.slide-up-leave-to {
+  opacity: 0;
+  transform: translate(-50%, 20px);
+}
 </style>
