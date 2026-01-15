@@ -33,14 +33,8 @@
       <div v-else>
         <!-- 2. 角色分页导航 -->
         <div class="char-nav">
-          <button
-            class="nav-arrow"
-            disabled
-          >
-            &lt;
-          </button>
+          <button class="nav-arrow" disabled>&lt;</button>
 
-          <!-- 修改部分：自定义选择框 -->
           <div class="char-select-wrapper">
             <select v-model="activeCharIndex" class="char-select">
               <option
@@ -48,18 +42,13 @@
                 :key="index"
                 :value="index"
               >
-                  {{ char.name }}
+                {{ char.name }}
               </option>
             </select>
             <span class="select-arrow">▼</span>
           </div>
 
-          <button
-            class="nav-arrow"
-            disabled
-          >
-             &gt;
-          </button>
+          <button class="nav-arrow" disabled>&gt;</button>
         </div>
 
         <!-- 3. 当前角色展示区域 -->
@@ -129,7 +118,6 @@
                     &gt;
                   </button>
 
-                  <!-- 修改部分：下载按钮 -->
                   <div class="divider"></div>
                   <button
                     class="ctrl-btn download-btn"
@@ -146,39 +134,74 @@
       </div>
     </div>
 
-    <!-- 4. 全屏图片灯箱 (Lightbox) -->
+    <!-- 4. 全屏图片灯箱 (Lightbox) - 已升级支持缩放 -->
     <transition name="fade">
-      <div v-if="lightbox.show" class="lightbox-overlay" @click="closeLightbox">
-        <div class="lightbox-content">
-          <img :src="lightbox.url" alt="Full size preview" />
-          <button class="close-btn">×</button>
-        </div>
+      <div
+        v-if="lightbox.show"
+        class="lightbox-overlay"
+        @click.self="closeLightbox"
+        @wheel.prevent="onWheel"
+        @mousedown="onMouseDown"
+        @mousemove="onMouseMove"
+        @mouseup="onMouseUp"
+        @mouseleave="onMouseUp"
+        @touchstart.prevent="onTouchStart"
+        @touchmove.prevent="onTouchMove"
+        @touchend="onTouchEnd"
+      >
+        <!-- 关闭按钮 -->
+        <button class="close-btn" @click="closeLightbox">&times;</button>
+
+        <!-- 图片内容 -->
+        <img
+          ref="lightboxImg"
+          class="lightbox-content"
+          :src="lightbox.url"
+          alt="Full size preview"
+          draggable="false"
+        />
+
+        <!-- 提示文字 -->
+        <div class="lightbox-tip">滚轮/双指缩放 · 拖拽移动</div>
       </div>
     </transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive, watch } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
 
 // --- 状态定义 ---
 const loading = ref(true);
-const currentMode = ref('sfw'); // 'sfw' | 'nsfw'
-const activeCharIndex = ref(0); // 当前选中的角色索引
+const currentMode = ref('sfw');
+const activeCharIndex = ref(0);
 
 const parsedData = reactive({
   sfw: [],
   nsfw: []
 });
 
-// 视图状态缓存
 const viewState = reactive({});
-// 图片加载状态
 const imgLoading = ref(false);
 const imgError = ref(false);
-// 灯箱状态
 const lightbox = reactive({ show: false, url: '' });
+const lightboxImg = ref(null); // 图片 DOM 引用
+
+// --- 缩放逻辑状态 ---
+const zoom = reactive({
+  scale: 1,
+  x: 0,
+  y: 0,
+  isDragging: false,
+  startX: 0,
+  startY: 0,
+  lastX: 0,
+  lastY: 0,
+  // 触摸相关
+  initialDistance: 0,
+  initialScale: 1
+});
 
 // --- 计算属性 ---
 const currentData = computed(() => parsedData[currentMode.value] || []);
@@ -188,15 +211,13 @@ const activeChar = computed(() => {
   return currentData.value[activeCharIndex.value];
 });
 
-// --- 核心逻辑：解析器 (已更新适配 <%= %>) ---
+// --- 核心逻辑：解析器 ---
 const parseWorldBookContent = (text) => {
   const lines = text.split('\n');
   const result = [];
   let currentChar = null;
-
   const charRegex = /^\s*(\S+):/;
-  // 适配 <%=_.random(1, 8)%>
-  const actionRegex = /^\s*-\s*(.+?)<%=\s*_\.random\((\d+),\s*(\d+)\)\s*%>/;
+  const actionRegex = /^\s*-\s*(.+?)<\s*%=\s*_\.random\((\d+),\s*(\d+)\)\s*%>/;
 
   lines.forEach(line => {
     const charMatch = line.match(charRegex);
@@ -205,7 +226,6 @@ const parseWorldBookContent = (text) => {
       result.push(currentChar);
       return;
     }
-
     if (currentChar) {
       const actionMatch = line.match(actionRegex);
       if (actionMatch) {
@@ -228,19 +248,16 @@ const loadGalleryData = async () => {
     const sfwBooks = WorldInfoUtil.filterWorldBookNamesRegex(/<sfw_img>/i, allNames);
     const nsfwBooks = WorldInfoUtil.filterWorldBookNamesRegex(/<nsfw_img>/i, allNames);
 
-    // 分别解析每个符合条件的条目，而不是合并所有内容
     if (sfwBooks.length > 0) {
       for (const bookName of sfwBooks) {
         const content = await WorldInfoUtil.getWorldBookContent([bookName]);
-        const parsed = parseWorldBookContent(content);
-        parsedData.sfw.push(...parsed);
+        parsedData.sfw.push(...parseWorldBookContent(content));
       }
     }
     if (nsfwBooks.length > 0) {
       for (const bookName of nsfwBooks) {
         const content = await WorldInfoUtil.getWorldBookContent([bookName]);
-        const parsed = parseWorldBookContent(content);
-        parsedData.nsfw.push(...parsed);
+        parsedData.nsfw.push(...parseWorldBookContent(content));
       }
     }
   } catch (e) {
@@ -253,7 +270,7 @@ const loadGalleryData = async () => {
 // --- 交互逻辑 ---
 const switchMode = (mode) => {
   currentMode.value = mode;
-  activeCharIndex.value = 0; // 切换模式时重置到第一个角色
+  activeCharIndex.value = 0;
 };
 
 const getActionState = (charName, actionName) => {
@@ -284,32 +301,137 @@ const changePage = (charName, actionName, delta) => {
   imgError.value = false;
 };
 
-// --- 修改后的下载逻辑 ---
 const downloadImage = (charName, action) => {
   const url = getCurrentImageUrl(charName, action);
-  // const index = getCurrentIndex(charName, action.name);
-  // const filename = `${charName}_${action.name}_${index}.webp`;
-
-  // 直接在新标签页打开图片，让用户右键保存
-  // 或者浏览器会自动处理（取决于浏览器设置）
   const link = document.createElement('a');
   link.href = url;
-  link.target = '_blank'; // 在新标签页打开
-  // link.download = filename; // 注意：跨域资源下，download 属性通常会被浏览器忽略
+  link.target = '_blank';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 };
 
-// --- 灯箱逻辑 ---
+// --- 灯箱逻辑 (含缩放) ---
+
+const updateTransform = () => {
+  if (!lightboxImg.value) return;
+  lightboxImg.value.style.transform = `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.scale})`;
+};
+
 const openLightbox = (url) => {
+  // 重置缩放状态
+  zoom.scale = 1;
+  zoom.x = 0;
+  zoom.y = 0;
+  zoom.isDragging = false;
+
   lightbox.url = url;
   lightbox.show = true;
+
+  // 确保 DOM 更新后重置 transform
+  setTimeout(() => {
+    if (lightboxImg.value) {
+      lightboxImg.value.style.transform = 'translate(0px, 0px) scale(1)';
+      lightboxImg.value.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+    }
+  }, 0);
 };
 
 const closeLightbox = () => {
   lightbox.show = false;
   lightbox.url = '';
+};
+
+// 1. 鼠标滚轮
+const onWheel = (e) => {
+  const delta = -Math.sign(e.deltaY);
+  const step = 0.15;
+  const oldScale = zoom.scale;
+  let newScale = oldScale + (delta * step * oldScale);
+
+  if (newScale < 0.5) newScale = 0.5;
+  if (newScale > 10) newScale = 10;
+
+  zoom.scale = newScale;
+  updateTransform();
+};
+
+// 2. 鼠标拖拽
+const onMouseDown = (e) => {
+  // 只有左键可以拖拽
+  if (e.button !== 0) return;
+  zoom.isDragging = true;
+  zoom.startX = e.clientX;
+  zoom.startY = e.clientY;
+  zoom.lastX = zoom.x;
+  zoom.lastY = zoom.y;
+  if (lightboxImg.value) lightboxImg.value.style.transition = 'none'; // 拖拽时移除过渡
+};
+
+const onMouseMove = (e) => {
+  if (!zoom.isDragging) return;
+  const dx = e.clientX - zoom.startX;
+  const dy = e.clientY - zoom.startY;
+  zoom.x = zoom.lastX + dx;
+  zoom.y = zoom.lastY + dy;
+  updateTransform();
+};
+
+const onMouseUp = () => {
+  zoom.isDragging = false;
+  if (lightboxImg.value) lightboxImg.value.style.transition = 'transform 0.1s ease-out';
+};
+
+// 3. 触摸事件 (双指缩放 + 单指拖拽)
+const onTouchStart = (e) => {
+  if (e.touches.length === 1) {
+    // 单指拖拽
+    zoom.isDragging = true;
+    zoom.startX = e.touches[0].clientX;
+    zoom.startY = e.touches[0].clientY;
+    zoom.lastX = zoom.x;
+    zoom.lastY = zoom.y;
+    if (lightboxImg.value) lightboxImg.value.style.transition = 'none';
+  } else if (e.touches.length === 2) {
+    // 双指缩放
+    zoom.isDragging = false;
+    zoom.initialDistance = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    zoom.initialScale = zoom.scale;
+  }
+};
+
+const onTouchMove = (e) => {
+  if (e.touches.length === 1 && zoom.isDragging) {
+    const dx = e.touches[0].clientX - zoom.startX;
+    const dy = e.touches[0].clientY - zoom.startY;
+    zoom.x = zoom.lastX + dx;
+    zoom.y = zoom.lastY + dy;
+    updateTransform();
+  } else if (e.touches.length === 2) {
+    const currentDistance = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    if (zoom.initialDistance > 0) {
+      const diff = currentDistance / zoom.initialDistance;
+      let newScale = zoom.initialScale * diff;
+      if (newScale < 0.5) newScale = 0.5;
+      if (newScale > 10) newScale = 10;
+      zoom.scale = newScale;
+      updateTransform();
+    }
+  }
+};
+
+const onTouchEnd = (e) => {
+  zoom.isDragging = false;
+  if (lightboxImg.value) lightboxImg.value.style.transition = 'transform 0.1s ease-out';
+  if (e.touches.length < 2) {
+    zoom.initialDistance = 0;
+  }
 };
 
 // --- URL 构建 ---
@@ -319,7 +441,6 @@ const getCurrentImageUrl = (charName, action) => {
   return `${BASE_URL}/${charName}/${action.name}${index}.webp`;
 };
 
-// --- 图片事件 ---
 const onImgLoad = () => { imgLoading.value = false; };
 const onImgError = () => { imgLoading.value = false; imgError.value = true; };
 
@@ -366,7 +487,7 @@ onMounted(() => {
   border-color: var(--accent-danger);
 }
 
-/* --- Character Navigation (Pagination) --- */
+/* --- Character Navigation --- */
 .char-nav {
   display: flex;
   justify-content: space-between;
@@ -390,16 +511,8 @@ onMounted(() => {
   transition: opacity 0.3s;
 }
 
-.nav-arrow:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
+.nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
 
-.nav-arrow:hover:not(:disabled) {
-  text-shadow: 0 0 5px var(--accent-primary);
-}
-
-/* 修改部分：选择框样式 */
 .char-select-wrapper {
   position: relative;
   flex-grow: 1;
@@ -425,9 +538,7 @@ onMounted(() => {
   transition: border-color 0.3s;
 }
 
-.char-select:hover, .char-select:focus {
-  border-color: var(--accent-primary);
-}
+.char-select:hover, .char-select:focus { border-color: var(--accent-primary); }
 
 .select-arrow {
   position: absolute;
@@ -463,7 +574,6 @@ onMounted(() => {
   .action-card.is-expanded { grid-column: span 1; }
 }
 
-/* --- Action Header --- */
 .action-header {
   padding: 12px 15px;
   display: flex;
@@ -476,12 +586,7 @@ onMounted(() => {
 .action-header:hover { background-color: rgba(255,255,255,0.05); }
 .action-name { font-weight: bold; color: var(--text-primary); }
 
-.action-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
+.action-meta { display: flex; align-items: center; gap: 10px; }
 .count-badge {
   font-size: 0.8rem;
   color: var(--text-secondary);
@@ -514,7 +619,7 @@ onMounted(() => {
   overflow: hidden;
   position: relative;
   margin-bottom: 15px;
-  cursor: zoom-in; /* 鼠标变成放大镜 */
+  cursor: zoom-in;
 }
 
 .img-wrapper img {
@@ -536,7 +641,6 @@ onMounted(() => {
   transition: opacity 0.3s;
   pointer-events: none;
 }
-
 .img-wrapper:hover .zoom-hint { opacity: 1; }
 
 .img-spinner {
@@ -572,21 +676,9 @@ onMounted(() => {
 .ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
 .page-indicator { font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--text-secondary); }
 
-/* 修改部分：下载按钮样式 */
-.divider {
-  width: 1px;
-  height: 25px;
-  background-color: var(--border-color);
-  margin: 0 5px;
-}
-
-.download-btn {
-  border-color: var(--text-secondary);
-}
-.download-btn:hover {
-  background-color: var(--text-secondary); /* 稍微不同的悬停色 */
-  color: var(--bg-primary);
-}
+.divider { width: 1px; height: 25px; background-color: var(--border-color); margin: 0 5px; }
+.download-btn { border-color: var(--text-secondary); }
+.download-btn:hover { background-color: var(--text-secondary); color: var(--bg-primary); }
 
 /* --- Lightbox (Fullscreen Zoom) --- */
 .lightbox-overlay {
@@ -595,36 +687,65 @@ onMounted(() => {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.9);
+  background-color: rgba(0, 0, 0, 0.95);
   z-index: 9999;
   display: flex;
   justify-content: center;
   align-items: center;
-  cursor: zoom-out;
+  overflow: hidden;
+  touch-action: none; /* 禁止移动端默认滚动 */
+  backdrop-filter: blur(5px);
 }
 
 .lightbox-content {
-  position: relative;
   max-width: 95vw;
   max-height: 95vh;
+  object-fit: contain;
+  box-shadow: 0 0 30px rgba(0,0,0,0.9);
+  border: 1px solid #d4af37;
+
+  /* 缩放关键样式 */
+  transform-origin: center center;
+  will-change: transform;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-.lightbox-content img {
-  max-width: 100%;
-  max-height: 95vh;
-  object-fit: contain;
-  box-shadow: 0 0 20px rgba(0,0,0,0.5);
+.lightbox-content:active {
+  cursor: grabbing;
 }
 
 .close-btn {
   position: absolute;
-  top: -40px;
-  right: -40px;
+  top: 20px;
+  right: 30px;
   background: none;
   border: none;
-  color: #fff;
-  font-size: 2rem;
+  color: #e0e0e0;
+  font-size: 50px;
+  font-weight: 300;
+  line-height: 1;
   cursor: pointer;
+  z-index: 10000;
+  text-shadow: 0 2px 5px rgba(0,0,0,0.8);
+  transition: color 0.2s, transform 0.2s;
+}
+
+.close-btn:hover {
+  color: #d4af37;
+  transform: scale(1.1);
+}
+
+.lightbox-tip {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: rgba(255,255,255,0.5);
+  font-size: 12px;
+  pointer-events: none;
+  z-index: 10000;
 }
 
 /* --- Animations --- */
