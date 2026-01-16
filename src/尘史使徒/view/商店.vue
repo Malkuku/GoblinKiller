@@ -1,12 +1,13 @@
 <template>
   <div class="shop-container">
     <header class="shop-header">
-      <h2 class="shop-title">交易</h2>
-
-      <!-- 玩家资产显示 -->
-      <div class="player-wealth">
-        <span class="wealth-label">持有:</span>
-        <span class="wealth-value">{{ formatCurrencyFromObject(playerMoneyObj) }}</span>
+      <div class="header-top-row">
+        <h2 class="shop-title">交易</h2>
+        <!-- 玩家资产显示 -->
+        <div class="player-wealth">
+          <span class="wealth-label">持有:</span>
+          <span class="wealth-value">{{ formatCurrencyFromObject(playerMoneyObj) }}</span>
+        </div>
       </div>
 
       <!-- 分页/分类 Tab -->
@@ -45,11 +46,17 @@
         </div>
 
         <div class="card-body">
-          <p class="item-desc" :title="item['描述']">{{ item['描述'] }}</p>
-          <div class="item-meta">
-            <span v-if="item['作用']" class="meta-tag">{{ item['作用'] }}</span>
-            <span v-if="item['最大耐久']" class="meta-tag">耐久:{{ item['最大耐久'] }}</span>
-          </div>
+          <!-- 描述改为完整显示，绑定自定义Hover/Click事件 -->
+          <p
+            class="item-desc"
+            @mouseenter="(e) => showTooltip(e, name as string, item)"
+            @mousemove="updateTooltipPosition"
+            @mouseleave="hideTooltip"
+            @click="(e) => showTooltip(e, name as string, item)"
+          >
+            {{ item['描述'] }}
+          </p>
+          <!-- 原来的 item-meta 已移除，信息移至 Tooltip -->
         </div>
 
         <div class="card-footer">
@@ -137,6 +144,19 @@
         </button>
       </div>
     </transition>
+
+    <!-- 自定义 Tooltip -->
+    <div
+      v-if="tooltip.visible"
+      class="custom-tooltip"
+      :style="{ top: tooltip.y + 'px', left: tooltip.x + 'px' }"
+    >
+      <div class="tooltip-header">{{ tooltip.name }}</div>
+      <div class="tooltip-content">
+        <div class="tooltip-row"><span class="t-label">作用:</span> {{ tooltip.effect }}</div>
+        <div class="tooltip-row" v-if="tooltip.durability"><span class="t-label">耐久:</span> {{ tooltip.durability }}</div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -250,6 +270,37 @@ const formatPriceToHtml = (priceInSilver: number) => {
   return formatCurrencyFromCopper(priceInSilver * 10);
 };
 
+// --- Tooltip 逻辑 ---
+const tooltip = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  name: '',
+  effect: '',
+  durability: '' as string | number
+});
+
+const showTooltip = (e: MouseEvent, name: string, item: ShopItem) => {
+  tooltip.value = {
+    visible: true,
+    x: e.clientX + 15,
+    y: e.clientY + 15,
+    name: name,
+    effect: item['作用'] || '无特殊作用',
+    durability: item['最大耐久'] || 0
+  };
+};
+
+const updateTooltipPosition = (e: MouseEvent) => {
+  if (!tooltip.value.visible) return;
+  tooltip.value.x = e.clientX + 15;
+  tooltip.value.y = e.clientY + 15;
+};
+
+const hideTooltip = () => {
+  tooltip.value.visible = false;
+};
+
 // --- 购物车逻辑 ---
 
 const cart = ref<Record<string, number>>({});
@@ -297,13 +348,9 @@ const calculateMax = (name: string, item: ShopItem) => {
   if (priceCopper <= 0) return maxStock;
 
   // 计算当前剩余预算（排除掉购物车里其他商品的花费）
-  // 这是一个简化的计算：假设当前商品数量为0时的剩余金钱
-  // 实际上为了交互流畅，我们通常计算：(当前余额 + 当前商品已选数量的总价) / 单价
   const currentQty = cart.value[name] || 0;
   const currentSpentOnThis = currentQty * priceCopper;
 
-  // 预算 = 玩家总钱 - (总花费 - 这个商品的花费)
-  // 即：玩家还能在这个商品上花多少钱
   const otherItemsCost = totalTransactionCostInCopper.value - currentSpentOnThis;
   const availableMoney = playerTotalCopper.value - otherItemsCost;
 
@@ -342,7 +389,6 @@ const setMaxQuantity = (name: string, item: ShopItem) => {
 // 处理输入框实时输入 (仅限制非数字)
 const handleInput = (e: Event, name: string, item: ShopItem) => {
   const val = (e.target as HTMLInputElement).value;
-  // 暂时不强制修正，允许用户删除完数字，但在 blur 时修正
   if (val === '') return;
 };
 
@@ -419,31 +465,36 @@ const submitTransaction = () => {
   font-family: 'Segoe UI', sans-serif;
 }
 
+/* 紧凑 Header */
 .shop-header {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
   background: rgba(0,0,0,0.2);
-  padding: 0.8rem;
+  padding: 0.4rem 0.6rem;
   border-radius: 8px;
   border: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.3rem;
+}
+
+.header-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .shop-title {
   font-family: 'Cinzel', serif;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   color: var(--accent-primary);
   margin: 0;
-  text-align: center;
 }
 
 .player-wealth {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-primary);
-  text-align: center;
   background: rgba(0,0,0,0.2);
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
 }
 .wealth-value { color: #ffd700; font-weight: bold; margin-left: 5px; }
@@ -451,8 +502,7 @@ const submitTransaction = () => {
 /* Tabs 样式 */
 .shop-tabs {
   display: flex;
-  gap: 10px;
-  margin-top: 5px;
+  gap: 8px;
 }
 
 .tab-btn {
@@ -460,11 +510,11 @@ const submitTransaction = () => {
   background: transparent;
   border: 1px solid var(--border-color);
   color: var(--text-secondary);
-  padding: 6px;
+  padding: 4px;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .tab-btn.active {
@@ -477,7 +527,6 @@ const submitTransaction = () => {
 /* 紧凑 Grid 布局 */
 .items-grid {
   display: grid;
-  /* 缩小最小宽度，允许一行放更多 */
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 0.8rem;
 }
@@ -489,7 +538,7 @@ const submitTransaction = () => {
   border-radius: 6px;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: hidden; /* 保持卡片圆角，但内容会撑开 */
   font-size: 0.85rem;
 }
 
@@ -530,26 +579,10 @@ const submitTransaction = () => {
   color: var(--text-secondary);
   margin: 0;
   font-size: 0.8rem;
-  line-height: 1.2;
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* 限制描述最多2行 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.item-meta {
-  margin-top: auto;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.meta-tag {
-  background: rgba(255,255,255,0.05);
-  padding: 1px 4px;
-  border-radius: 3px;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
+  line-height: 1.3;
+  /* 完整显示，移除截断 */
+  white-space: normal;
+  cursor: help; /* 提示可交互 */
 }
 
 /* 底部操作区 */
@@ -592,11 +625,11 @@ const submitTransaction = () => {
   color: var(--text-primary);
   text-align: center;
   font-size: 0.9rem;
-  -moz-appearance: textfield; /* 去除 Firefox 箭头 */
+  -moz-appearance: textfield;
 }
 .qty-input::-webkit-outer-spin-button,
 .qty-input::-webkit-inner-spin-button {
-  -webkit-appearance: none; /* 去除 Chrome 箭头 */
+  -webkit-appearance: none;
   margin: 0;
 }
 .qty-input:focus { outline: none; background: rgba(255,255,255,0.05); }
@@ -711,6 +744,43 @@ const submitTransaction = () => {
   background: #444;
   color: #888;
   cursor: not-allowed;
+}
+
+/* 自定义 Tooltip 样式 */
+.custom-tooltip {
+  position: fixed;
+  z-index: 9999;
+  background: rgba(20, 20, 25, 0.95);
+  border: 1px solid var(--accent-primary);
+  border-radius: 6px;
+  padding: 8px 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  pointer-events: none; /* 防止鼠标移动时闪烁 */
+  min-width: 120px;
+  max-width: 250px;
+}
+
+.tooltip-header {
+  font-weight: bold;
+  color: var(--accent-primary);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+
+.tooltip-content {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+
+.tooltip-row {
+  margin-bottom: 2px;
+}
+
+.t-label {
+  color: var(--text-secondary);
+  margin-right: 4px;
 }
 
 /* 货币颜色 */

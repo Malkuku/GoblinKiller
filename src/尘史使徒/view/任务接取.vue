@@ -145,14 +145,14 @@ const confirmQuests = () => {
 
 .board-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.5rem; /* 略微减小头部间距 */
   border-bottom: 2px solid var(--accent-primary);
-  padding-bottom: 1rem;
+  padding-bottom: 0.8rem;
 }
 
 .board-title {
   font-family: 'Cinzel', serif;
-  font-size: 2.2rem;
+  font-size: 2rem; /* 略微减小标题 */
   color: var(--text-primary);
   letter-spacing: 2px;
   margin: 0;
@@ -163,26 +163,36 @@ const confirmQuests = () => {
   font-family: 'EB Garamond', serif;
   font-style: italic;
   color: var(--text-secondary);
-  margin-top: 0.5rem;
+  margin-top: 0.3rem;
+  font-size: 0.9rem;
 }
 
 .quest-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 2rem;
-  padding: 1rem;
+  /* 修改为一行4个，使用 minmax 允许在极小屏幕下自动调整，但主要目标是缩小以适应4个 */
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem; /* 间距从 2rem 减小到 1rem */
+  padding: 0.5rem;
+}
+
+/* 针对极小屏幕的适配，如果屏幕实在太窄，回退到2列 */
+@media (max-width: 768px) {
+  .quest-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .quest-paper {
   background-color: #e3dccb;
   color: #2c241b;
-  padding: 1.5rem;
+  padding: 1rem; /* 内边距从 1.5rem 减小到 1rem */
   position: relative;
-  box-shadow: 5px 5px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: 3px 3px 10px rgba(0, 0, 0, 0.3);
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   cursor: pointer;
   transform: rotate(-1deg);
   border: 1px solid #d1c8b6;
+  font-size: 0.9rem; /* 基础字体减小 */
 }
 
 .quest-paper:nth-child(2n) {
@@ -194,7 +204,7 @@ const confirmQuests = () => {
 
 .quest-paper:hover {
   transform: scale(1.02) rotate(0deg);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
   z-index: 10;
 }
 
@@ -206,11 +216,11 @@ const confirmQuests = () => {
 
 .pin {
   position: absolute;
-  top: -10px;
+  top: -8px; /* 调整位置 */
   left: 50%;
   transform: translateX(-50%);
-  width: 12px;
-  height: 12px;
+  width: 10px; /* 尺寸减小 */
+  height: 10px;
   background: radial-gradient(circle at 30% 30%, #555, #000);
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
@@ -218,29 +228,30 @@ const confirmQuests = () => {
 
 .quest-name {
   font-family: 'Cinzel', serif;
-  font-size: 1.4rem;
+  font-size: 1.1rem; /* 字体从 1.4rem 减小 */
   font-weight: bold;
   border-bottom: 1px solid #8a7a61;
-  padding-bottom: 0.5rem;
-  margin: 0 0 1rem 0;
+  padding-bottom: 0.3rem;
+  margin: 0 0 0.6rem 0; /* 间距减小 */
   text-align: center;
+  line-height: 1.2;
 }
 
 .section {
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.5rem; /* 间距减小 */
   font-family: 'EB Garamond', serif;
 }
 
 .label {
   font-weight: bold;
-  font-size: 0.9rem;
+  font-size: 0.8rem; /* 字体减小 */
   color: #5a4a31;
 }
 
 .text {
-  margin: 0.2rem 0 0 0;
-  font-size: 1rem;
-  line-height: 1.4;
+  margin: 0.1rem 0 0 0;
+  font-size: 0.85rem; /* 字体减小 */
+  line-height: 1.3;
 }
 
 .section.warning .text {
@@ -254,14 +265,14 @@ const confirmQuests = () => {
 
 .stamp {
   position: absolute;
-  bottom: 20px;
-  right: 20px;
-  border: 3px solid var(--accent-danger);
+  bottom: 10px; /* 位置调整 */
+  right: 10px;
+  border: 2px solid var(--accent-danger); /* 边框变细 */
   color: var(--accent-danger);
   font-family: 'Cinzel', serif;
   font-weight: bold;
-  font-size: 1.5rem;
-  padding: 0.2rem 1rem;
+  font-size: 1rem; /* 字体从 1.5rem 减小 */
+  padding: 0.1rem 0.5rem;
   transform: rotate(-15deg);
   opacity: 0.8;
   pointer-events: none;
@@ -298,9 +309,9 @@ const confirmQuests = () => {
 .select-hint {
   background: rgba(0, 0, 0, 0.7);
   color: #fff;
-  padding: 4px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.7rem;
 }
 
 .action-bar {
@@ -310,10 +321,10 @@ const confirmQuests = () => {
   transform: translateX(-50%);
   background: var(--bg-secondary);
   border: 1px solid var(--accent-primary);
-  padding: 1rem 2rem;
+  padding: 0.8rem 1.5rem; /* 尺寸略微减小 */
   border-radius: 50px;
   display: flex;
-  gap: 2rem;
+  gap: 1.5rem;
   align-items: center;
   box-shadow: 0 5px 20px rgba(0, 0, 0, 0.6);
   z-index: 100;
@@ -322,11 +333,12 @@ const confirmQuests = () => {
 .action-info {
   font-family: 'Cinzel', serif;
   color: var(--text-primary);
+  font-size: 0.9rem;
 }
 
 .highlight {
   color: var(--accent-primary);
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: bold;
 }
 
@@ -334,10 +346,10 @@ const confirmQuests = () => {
   background: var(--accent-primary);
   color: #1a1d24;
   border: none;
-  padding: 0.6rem 1.5rem;
+  padding: 0.5rem 1.2rem;
   font-family: 'Cinzel', serif;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 1rem;
   border-radius: 30px;
   cursor: pointer;
   transition: all 0.2s;
