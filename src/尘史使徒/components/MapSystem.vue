@@ -17,7 +17,6 @@
     </div>
 
     <!-- 地图视口 -->
-    <!-- 添加事件监听：滚轮、鼠标拖拽、触摸 -->
     <div ref="viewportRef" class="viewport"
          @wheel.prevent="handleWheel"
          @mousedown="handleMouseDown"
@@ -39,13 +38,15 @@
           <div v-if="currentLayer === 'world'" class="map-layer">
             <!-- 边疆区域 -->
             <div v-for="loc in mapData.world" :key="loc.name"
-                 class="map-node frontier-node" :style="getStyle(loc, 0.08)"
+                 class="map-node frontier-node"
+                 :style="[getStyle(loc, 0.08), nodeTransformStyle]"
                  @mouseenter="setTooltip(loc)">
               <div class="node-icon" :class="loc.type"></div>
               <span class="node-label">{{ loc.name }}</span>
             </div>
             <!-- 埃布尔王国入口 -->
-            <div class="map-node kingdom-entry" :style="getStyle({x:0, y:0}, 0.08)"
+            <div class="map-node kingdom-entry"
+                 :style="[getStyle({x:0, y:0}, 0.08), nodeTransformStyle]"
                  @click.stop="setLayer('kingdom')" @mouseenter="setTooltip(kingdomSummary)">
               <div class="pulse-ring"></div>
               <div class="center-point"></div>
@@ -59,7 +60,8 @@
           <div v-if="currentLayer === 'kingdom'" class="map-layer">
             <!-- 城市节点 (可点击进入) -->
             <div v-for="city in mapData.kingdom.cities" :key="city.id"
-                 class="map-node wide-city-node" :style="getStyle(city, 0.4)"
+                 class="map-node wide-city-node"
+                 :style="[getStyle(city, 0.4), nodeTransformStyle]"
                  @click.stop="enterCity(city.id)"
                  @mouseenter="setTooltip(city)">
               <div class="city-icon" :class="city.id"></div>
@@ -67,7 +69,8 @@
             </div>
             <!-- 地理节点 (不可进入) -->
             <div v-for="geo in mapData.kingdom.geography" :key="geo.name"
-                 class="map-node wide-geo-node" :style="getStyle(geo, 0.4)"
+                 class="map-node wide-geo-node"
+                 :style="[getStyle(geo, 0.4), nodeTransformStyle]"
                  @mouseenter="setTooltip(geo)">
               <div class="node-icon" :class="geo.type"></div>
               <span class="node-label">{{ geo.name }}</span>
@@ -79,7 +82,8 @@
         <transition name="map-zoom">
           <div v-if="currentLayer === 'city'" class="map-layer">
             <div v-for="loc in currentCityNodes" :key="loc.name"
-                 class="map-node city-node" :style="getStyle(loc, 6, currentCityOffset)"
+                 class="map-node city-node"
+                 :style="[getStyle(loc, 6, currentCityOffset), nodeTransformStyle]"
                  @mouseenter="setTooltip(loc)">
               <!-- 特殊样式判断 -->
               <div v-if="loc.name.includes('王宫') || loc.name.includes('圣殿')" class="shape-star"></div>
@@ -102,6 +106,10 @@
           N:{{ tooltip.data.x }}km / E:{{ tooltip.data.y }}km / Alt:{{ tooltip.data.z }}km
         </div>
         <p class="tooltip-desc">{{ tooltip.data.desc }}</p>
+        <!-- 新增：前往按钮 -->
+        <button class="travel-btn" @click="handleTravel(tooltip.data.name)">
+          前往此处
+        </button>
       </div>
     </div>
   </div>
@@ -162,7 +170,7 @@ const mapData = {
   cities: {
     estrella: [
       { name: "白金王宫", x: 0, y: 0, z: 0.3, desc: "狮子之丘的冠冕。高耸于城市中心，纯白石材雕琢而成，它的存在俯瞰整个都城，彰显着王室权威与秩序。" },
-      { name: "狮子之丘", x: 0, y: 0, z: 0.3, desc: "城市的脊柱，圆锥状隆起。" },
+      { name: "狮子之丘", x: 0.3, y: -0.2, z: 0.3, desc: "城市的脊柱，圆锥状隆起。" },
       { name: "贵族街", x: -1, y: 1, z: 0.05, desc: "环绕狮子之丘山脚的同心圆结构。建筑宏伟，道路宽阔如棋盘。是财富与权力的交汇点。" },
       { name: "菲尼克斯家族宅邸", x: -0.5, y: -0.8, z: 0.07, desc: "贵族街深处，靠近狮子之丘。由纯白大理石和晶体结构构成，其主塔如同竖琴，在阳光下折射出七彩的光芒。宅邸内部庭院宽阔，遍布罕见的花卉与鸣泉，四周高墙环绕。" },
       { name: "启明大礼拜堂", x: 0.5, y: -0.5, z: 0.06, desc: "贵族街外围，毗邻中央广场。首都灯教会的核心建筑，其主体为一座圆形穹顶建筑，白色石材搭建，简洁而庄严。教堂内部以采光和空旷感为主，没有神像，只有穹顶的彩绘玻璃在白昼时投下斑斓的光影，夜晚则依靠祭坛上的巨大水晶灯散发柔和白光。是王都民众进行每日祈祷和重要宗教仪式的场所。" },
@@ -212,6 +220,12 @@ const transformStyle = computed(() => ({
   transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`
 }));
 
+// 新增：节点反向缩放样式
+// 当地图放大时，节点缩小相应的倍数，保持视觉大小不变，但位置会随地图拉开
+const nodeTransformStyle = computed(() => ({
+  transform: `translate(-50%, 50%) scale(${1 / transform.k})`
+}));
+
 // 切换层级
 const setLayer = (layer) => {
   currentLayer.value = layer;
@@ -226,6 +240,14 @@ const enterCity = (cityId) => {
   resetView();
 };
 
+// 重置视图
+const resetView = () => {
+  transform.k = 1;
+  transform.x = 0;
+  transform.y = 0;
+  tooltip.visible = false;
+};
+
 // 样式计算
 const getStyle = (loc, scale, offset = {x: 0, y: 0}) => {
   const relX = loc.x - offset.x;
@@ -237,11 +259,11 @@ const getStyle = (loc, scale, offset = {x: 0, y: 0}) => {
 };
 
 // =====================
-// 与父窗口交互 (新增)
+// 与父窗口交互
 // =====================
 const handleTravel = (locationName) => {
   const option = `<user>打算前往${locationName}`;
-  
+
   try {
     // 尝试获取 SillyTavern 的输入框
     const input = window.parent.document.querySelector('#send_textarea');
@@ -260,6 +282,9 @@ const handleTravel = (locationName) => {
     // 聚焦输入框
     input.focus();
 
+    // 可选：点击后关闭提示框
+    tooltip.visible = false;
+
   } catch (error) {
     console.error("与父窗口交互时出错:", error);
   }
@@ -273,10 +298,9 @@ const setTooltip = (data) => {
   tooltip.data = data;
   tooltip.visible = true;
 };
-// const clearTooltip = () => { tooltip.visible = false; }; // 移除或注释掉此函数，不再需要自动清除
 
 // =====================
-// 缩放与拖拽逻辑 (核心新增)
+// 缩放与拖拽逻辑
 // =====================
 
 // 限制缩放范围
@@ -299,9 +323,7 @@ const handleWheel = (e) => {
   // 限制范围
   newScale = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
 
-  // 以鼠标为中心进行缩放的数学推导：
-  // (mouseX - newX) / newScale = (mouseX - oldX) / oldScale
-  // newX = mouseX - (mouseX - oldX) * (newScale / oldScale)
+  // 以鼠标为中心进行缩放
   transform.x = mouseX - (mouseX - transform.x) * (newScale / oldScale);
   transform.y = mouseY - (mouseY - transform.y) * (newScale / oldScale);
   transform.k = newScale;
@@ -499,9 +521,10 @@ const updateCursor = (e) => {
 
 /* 节点通用 */
 .map-node {
-  position: absolute; transform: translate(-50%, 50%);
+  position: absolute;
+  /* transform: translate(-50%, 50%);  <-- 移除此处的静态 transform，改为动态绑定 */
   display: flex; flex-direction: column; align-items: center;
-  transition: opacity 0.5s; /* 移除 transform transition，避免与缩放冲突 */
+  transition: opacity 0.5s;
   z-index: 2;
 }
 /* 仅在hover时放大节点本身，不影响位置 */
@@ -574,9 +597,8 @@ const updateCursor = (e) => {
 .map-tooltip {
   position: absolute; top: 20px; right: 20px; width: 240px;
   background: rgba(26, 29, 36, 0.95); border: 1px solid var(--accent-primary);
-  padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.6); 
-  /* 修改这里：从 none 改为 auto，允许点击交互 */
-  pointer-events: auto; 
+  padding: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+  pointer-events: auto;
   z-index: 100;
   backdrop-filter: blur(5px);
 }
