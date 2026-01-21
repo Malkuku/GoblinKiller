@@ -28,16 +28,15 @@
          @touchend="handleTouchEnd"
          @click="handleBackgroundClick">
 
-      <!-- 变换层：仅负责平移 (Panning)，缩放由子元素位置计算处理 -->
+      <!-- 变换层 -->
       <div class="map-transform-layer" :style="translateStyle">
 
-        <!-- 背景网格：通过 background-size 模拟缩放 -->
+        <!-- 背景网格 -->
         <div class="grid-lines" :class="{ dense: currentLayer === 'city' }" :style="gridStyle"></div>
 
         <!-- 1. 宏观世界层 (World Layer) -->
         <transition name="map-fade">
           <div v-if="currentLayer === 'world'" class="map-layer">
-            <!-- 边疆区域 -->
             <div v-for="loc in mapData.world" :key="loc.name"
                  class="map-node frontier-node"
                  :style="getPositionStyle(loc, 1.2)"
@@ -45,11 +44,9 @@
               <div class="node-icon" :class="loc.type"></div>
               <span class="node-label">{{ loc.name }}</span>
             </div>
-            <!-- 埃布尔王国入口 -->
             <div class="map-node kingdom-entry"
                  :style="getPositionStyle({x:0, y:0}, 1.2)"
                  @click.stop="handleNodeClick(kingdomSummary)">
-              <div class="pulse-ring"></div>
               <div class="center-point"></div>
               <span class="node-label main-kingdom">埃布尔王国</span>
             </div>
@@ -59,18 +56,16 @@
         <!-- 2. 王国广域层 (Kingdom Layer) -->
         <transition name="map-zoom">
           <div v-if="currentLayer === 'kingdom'" class="map-layer">
-            <!-- 城市节点 -->
             <div v-for="city in mapData.kingdom.cities" :key="city.id"
                  class="map-node wide-city-node"
-                 :style="getPositionStyle(city, 6)"
+                 :style="getPositionStyle(city, 5)"
                  @click.stop="handleNodeClick(city)">
               <div class="city-icon" :class="city.id"></div>
               <span class="node-label city-label">{{ city.name }}</span>
             </div>
-            <!-- 地理节点 -->
             <div v-for="geo in mapData.kingdom.geography" :key="geo.name"
                  class="map-node wide-geo-node"
-                 :style="getPositionStyle(geo, 6)"
+                 :style="getPositionStyle(geo, 5)"
                  @click.stop="handleNodeClick(geo)">
               <div class="node-icon" :class="geo.type"></div>
               <span class="node-label">{{ geo.name }}</span>
@@ -85,7 +80,6 @@
                  class="map-node city-node"
                  :style="getPositionStyle(loc, 80, currentCityOffset)"
                  @click.stop="handleNodeClick(loc)">
-              <!-- 特殊样式判断 -->
               <div v-if="loc.name.includes('王宫') || loc.name.includes('圣殿')" class="shape-star"></div>
               <div v-else-if="loc.name.includes('贵族')" class="shape-ring"></div>
               <div v-else class="node-point" :class="{ 'sub-point': loc.z < 0 }"></div>
@@ -99,7 +93,7 @@
       <button v-if="currentLayer === 'kingdom'" class="back-btn" @click.stop="setLayer('world')">← 返回世界地图</button>
       <button v-if="currentLayer === 'city'" class="back-btn" @click.stop="setLayer('kingdom')">← 返回王国全境</button>
 
-      <!-- 详情弹窗 (改为点击触发) -->
+      <!-- 详情弹窗 -->
       <transition name="fade">
         <div v-if="tooltip.visible" class="map-tooltip" @click.stop>
           <button class="close-btn" @click="closeTooltip">×</button>
@@ -110,11 +104,9 @@
           <p class="tooltip-desc">{{ tooltip.data.desc }}</p>
 
           <div class="tooltip-actions">
-            <!-- 进入按钮 (仅针对可进入的节点) -->
             <button v-if="canEnter(tooltip.data)" class="action-btn enter-btn" @click="enterArea(tooltip.data)">
               进入区域
             </button>
-            <!-- 前往按钮 -->
             <button class="action-btn travel-btn" @click="handleTravel(tooltip.data.name)">
               前往此处
             </button>
@@ -131,27 +123,32 @@ import { ref, reactive, computed } from 'vue';
 // =====================
 // 状态管理
 // =====================
-const currentLayer = ref('world'); // 'world' | 'kingdom' | 'city'
+const currentLayer = ref('world');
 const currentCityId = ref('');
 const viewportRef = ref(null);
 const hoverCoords = reactive({ x: 0, y: 0 });
 const tooltip = reactive({ visible: false, data: {} });
 
 // 视图变换状态
-const transform = reactive({ k: 1, x: 0, y: 0 }); // k=scale, x/y=translate (pixels)
-const isDragging = ref(false);
-const dragStart = { x: 0, y: 0 };
-const lastTransform = { x: 0, y: 0 };
+const transform = reactive({ k: 1, x: 0, y: 0 });
+
+// 交互状态 (核心修复部分)
+const isPointerDown = ref(false); // 鼠标是否按下
+const isMapDragging = ref(false); // 是否判定为拖拽行为
+const dragStart = { x: 0, y: 0 }; // 拖拽起始点
+const lastTransform = { x: 0, y: 0 }; // 拖拽前的偏移量
+const DRAG_THRESHOLD = 3; // 移动超过3像素才视为拖拽，否则视为点击
+
 const touchState = { dist: 0, center: { x: 0, y: 0 } };
 
 const kingdomSummary = {
   name: "埃布尔王国", x: 0, y: 0, z: 0,
   desc: "人类文明的中心，由白金王宫统御的广袤疆域。",
-  type: "kingdom" // 特殊类型标记
+  type: "kingdom"
 };
 
 // =====================
-// 地图数据
+// 地图数据 (保持不变)
 // =====================
 const mapData = {
   world: [
@@ -222,12 +219,10 @@ const currentCityOffset = computed(() => {
   return city ? { x: city.x, y: city.y } : { x: 0, y: 0 };
 });
 
-// 1. 容器只负责平移，不负责缩放，保证文字清晰
 const translateStyle = computed(() => ({
   transform: `translate(${transform.x}px, ${transform.y}px)`
 }));
 
-// 2. 网格通过 background-size 模拟缩放
 const gridStyle = computed(() => {
   const size = 100 * transform.k;
   return {
@@ -236,17 +231,12 @@ const gridStyle = computed(() => {
 });
 
 // =====================
-// 核心逻辑：坐标计算
+// 坐标计算
 // =====================
-
-// 计算节点位置：使用像素偏移而非百分比，确保在缩放时保持清晰
-// 公式：中心点(50%) + (相对坐标 * 基础比例 * 缩放系数)px
 const getPositionStyle = (loc, baseScalePx, offset = {x: 0, y: 0}) => {
-  const relX = loc.x - offset.x; // 北向 (Bottom)
-  const relY = loc.y - offset.y; // 东向 (Left)
+  const relX = loc.x - offset.x;
+  const relY = loc.y - offset.y;
 
-  // baseScalePx: 1单位坐标对应的像素值 (在1倍缩放下)
-  // transform.k: 当前缩放倍数
   const pixelX = relX * baseScalePx * transform.k;
   const pixelY = relY * baseScalePx * transform.k;
 
@@ -275,26 +265,26 @@ const resetView = () => {
 
 // 点击节点：打开详情
 const handleNodeClick = (data) => {
-  if (isDragging.value) return;
+  // 核心修复：只有当确实发生了拖拽行为时，才拦截点击
+  if (isMapDragging.value) return;
+
   tooltip.data = data;
   tooltip.visible = true;
 };
 
 // 点击背景：关闭详情
 const handleBackgroundClick = () => {
-  if (!isDragging.value) closeTooltip();
+  if (!isMapDragging.value) closeTooltip();
 };
 
 const closeTooltip = () => {
   tooltip.visible = false;
 };
 
-// 判断是否可进入
 const canEnter = (data) => {
   return data.type === 'kingdom' || data.type === 'capital' || data.type === 'city' || data.type === 'port';
 };
 
-// 进入区域逻辑
 const enterArea = (data) => {
   if (data.type === 'kingdom') {
     setLayer('kingdom');
@@ -305,7 +295,6 @@ const enterArea = (data) => {
   }
 };
 
-// 发送指令到父窗口
 const handleTravel = (locationName) => {
   const option = `<user>打算前往${locationName}`;
   try {
@@ -315,18 +304,18 @@ const handleTravel = (locationName) => {
     input.value = currentValue ? `${currentValue} ${option}` : option;
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
-    closeTooltip(); // 点击前往后关闭弹窗
+    closeTooltip();
   } catch (error) {
     console.error("Interaction Error:", error);
   }
 };
 
 // =====================
-// 缩放与拖拽 (保持逻辑，但适配新的渲染方式)
+// 缩放与拖拽 (修复版)
 // =====================
 
-const MIN_SCALE = 0.5;
-const MAX_SCALE = 4.0;
+const MIN_SCALE = 0.3;
+const MAX_SCALE = 6.0;
 
 const handleWheel = (e) => {
   const rect = viewportRef.value.getBoundingClientRect();
@@ -340,7 +329,6 @@ const handleWheel = (e) => {
   let newScale = oldScale * scaleFactor;
   newScale = Math.min(Math.max(newScale, MIN_SCALE), MAX_SCALE);
 
-  // 缩放中心计算
   transform.x = mouseX - (mouseX - transform.x) * (newScale / oldScale);
   transform.y = mouseY - (mouseY - transform.y) * (newScale / oldScale);
   transform.k = newScale;
@@ -348,33 +336,53 @@ const handleWheel = (e) => {
   updateCursor(e);
 };
 
+// 鼠标按下
 const handleMouseDown = (e) => {
-  isDragging.value = true;
+  isPointerDown.value = true;
+  isMapDragging.value = false; // 重置拖拽标记
+
   dragStart.x = e.clientX;
   dragStart.y = e.clientY;
   lastTransform.x = transform.x;
   lastTransform.y = transform.y;
 };
 
+// 鼠标移动
 const handleMouseMove = (e) => {
   updateCursor(e);
-  if (!isDragging.value) return;
+
+  if (!isPointerDown.value) return;
+
   const dx = e.clientX - dragStart.x;
   const dy = e.clientY - dragStart.y;
-  transform.x = lastTransform.x + dx;
-  transform.y = lastTransform.y + dy;
+
+  // 核心修复：计算移动距离
+  const distance = Math.hypot(dx, dy);
+
+  // 只有移动超过阈值，才视为拖拽，并开始更新位置
+  if (distance > DRAG_THRESHOLD) {
+    isMapDragging.value = true;
+    transform.x = lastTransform.x + dx;
+    transform.y = lastTransform.y + dy;
+  }
 };
 
+// 鼠标松开
 const handleMouseUp = () => {
-  // 延迟一点重置 dragging，防止拖拽结束时触发 click
-  setTimeout(() => { isDragging.value = false; }, 50);
+  isPointerDown.value = false;
+  // 注意：这里不要立即重置 isMapDragging，因为 click 事件会在 mouseup 之后触发
+  // click 事件处理函数需要读取 isMapDragging 的值
+  // 可以在下一次 mousedown 时重置，或者使用 setTimeout
+  setTimeout(() => {
+    isMapDragging.value = false;
+  }, 0);
 };
 
-// 触摸逻辑省略部分细节，保持与之前一致，核心是修改 transform.k/x/y
+// 触摸逻辑
 const handleTouchStart = (e) => {
   if (e.touches.length === 1) handleMouseDown(e.touches[0]);
   else if (e.touches.length === 2) {
-    isDragging.value = false;
+    isPointerDown.value = false; // 双指缩放不视为普通拖拽
     touchState.dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     lastTransform.k = transform.k;
   }
@@ -391,10 +399,9 @@ const handleTouchMove = (e) => {
 };
 
 const handleTouchEnd = (e) => {
-  setTimeout(() => { isDragging.value = false; }, 50);
+  handleMouseUp();
 };
 
-// 光标坐标更新 (适配新的像素计算逻辑)
 const updateCursor = (e) => {
   if(!viewportRef.value) return;
   const rect = viewportRef.value.getBoundingClientRect();
@@ -404,11 +411,9 @@ const updateCursor = (e) => {
   const mouseX = clientX - rect.left;
   const mouseY = clientY - rect.top;
 
-  // 逆向计算：(鼠标位置 - 平移 - 中心偏移) / (缩放 * 基础比例)
   const centerX = rect.width / 2;
   const centerY = rect.height / 2;
 
-  // 基础比例 (需与 getPositionStyle 中的 baseScalePx 保持一致)
   let baseScale = 1.2;
   let offsetX = 0;
   let offsetY = 0;
@@ -420,10 +425,9 @@ const updateCursor = (e) => {
     offsetY = currentCityOffset.value.x;
   }
 
-  const rawX = (mouseX - transform.x - centerX) / (baseScale * transform.k); // 对应 Left (Y坐标)
-  const rawY = (mouseY - transform.y - centerY) / (baseScale * transform.k); // 对应 Bottom (X坐标, 需反转)
+  const rawX = (mouseX - transform.x - centerX) / (baseScale * transform.k);
+  const rawY = (mouseY - transform.y - centerY) / (baseScale * transform.k);
 
-  // 坐标系转换：屏幕Y向下增加，地图X(Bottom)向上增加 -> 取反
   const mapX = -rawY + offsetY;
   const mapY = rawX + offsetX;
 
@@ -436,7 +440,7 @@ const updateCursor = (e) => {
 .map-container {
   width: 100%; height: 100%; display: flex; flex-direction: column;
   background-color: var(--bg-primary); position: relative; overflow: hidden;
-  user-select: none; /* 防止文字被选中 */
+  user-select: none;
 }
 
 .map-controls {
@@ -460,26 +464,23 @@ const updateCursor = (e) => {
   touch-action: none;
 }
 
-/* 变换层：现在只处理 translate，不处理 scale */
 .map-transform-layer {
   width: 100%; height: 100%;
   position: absolute; top: 0; left: 0;
   will-change: transform;
 }
 
-/* 网格 */
 .grid-lines {
-  position: absolute; inset: -200%; /* 足够大以覆盖拖拽区域 */
+  position: absolute; inset: -200%;
   width: 500%; height: 500%;
   background-image: linear-gradient(var(--border-color) 1px, transparent 1px), linear-gradient(90deg, var(--border-color) 1px, transparent 1px);
   opacity: 0.08; pointer-events: none;
 }
 .grid-lines.dense { opacity: 0.12; }
 
-/* 节点通用：不再受父级 scale 影响，文字始终清晰 */
 .map-node {
   position: absolute;
-  transform: translate(-50%, 50%); /* 锚点居中 */
+  transform: translate(-50%, 50%);
   display: flex; flex-direction: column; align-items: center;
   cursor: pointer;
   z-index: 2;
@@ -496,18 +497,12 @@ const updateCursor = (e) => {
 .node-label {
   font-size: 0.75rem; color: var(--text-secondary); text-shadow: 0 1px 3px #000;
   white-space: nowrap; pointer-events: none; transition: color 0.3s;
-  /* 确保文字清晰 */
   -webkit-font-smoothing: antialiased;
 }
 
-/* === World Layer Styles === */
 .kingdom-entry .center-point {
   width: 16px; height: 16px; background: var(--accent-primary); border: 2px solid #fff;
   transform: rotate(45deg); box-shadow: 0 0 20px var(--accent-primary);
-}
-.kingdom-entry .pulse-ring {
-  position: absolute; top: -12px; left: -12px; width: 40px; height: 40px;
-  border: 1px solid var(--accent-primary); border-radius: 50%; animation: pulse 2s infinite;
 }
 .main-kingdom { color: var(--accent-primary); font-size: 1rem; font-weight: bold; margin-top: 10px; }
 
@@ -515,7 +510,6 @@ const updateCursor = (e) => {
 .frontier-node .node-icon.ice { background: #a8d8ea; box-shadow: 0 0 8px #a8d8ea; }
 .frontier-node .node-icon.swamp { background: #5d4037; }
 
-/* === Kingdom Layer Styles === */
 .wide-city-node .city-icon {
   width: 12px; height: 12px; border: 2px solid #fff; transform: rotate(45deg); margin-bottom: 6px;
   transition: transform 0.3s;
@@ -529,7 +523,6 @@ const updateCursor = (e) => {
   width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid #7f8c8d; background: none; border-radius: 0;
 }
 
-/* === City Layer Styles === */
 .city-node .node-point { width: 6px; height: 6px; background: #fff; border-radius: 50%; }
 .city-node .node-point.sub-point { background: #7f8c8d; border: 1px solid #fff; }
 
@@ -542,7 +535,6 @@ const updateCursor = (e) => {
   position: absolute; top: -20px; left: -20px; animation: spin 30s linear infinite; pointer-events: none;
 }
 
-/* UI Components */
 .back-btn {
   position: absolute; bottom: 30px; left: 30px;
   background: rgba(0,0,0,0.7); border: 1px solid var(--accent-primary); color: var(--accent-primary);
@@ -550,7 +542,6 @@ const updateCursor = (e) => {
 }
 .back-btn:hover { background: var(--accent-primary); color: var(--bg-primary); }
 
-/* 弹窗样式优化 */
 .map-tooltip {
   position: absolute; top: 20px; right: 20px; width: 260px;
   background: rgba(26, 29, 36, 0.98); border: 1px solid var(--accent-primary);
@@ -585,8 +576,6 @@ const updateCursor = (e) => {
 
 .travel-btn { border-style: dashed; }
 
-/* Animations */
-@keyframes pulse { 0% { transform: scale(0.8); opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
