@@ -5,6 +5,7 @@ import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } f
 import { router } from './router/router';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
+import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 
 let vueApp: VueApp | null = null;
 let mountPoint: JQuery<HTMLDivElement> | null = null;
@@ -52,6 +53,10 @@ $(() => {
   vueApp.use(router);
   vueApp.mount(mountPoint[0]);
 
+  // 获取 store 实例并暴露到 window，以便外部函数调用
+  console.debug('initialize', '正在初始化 store 实例');
+  (window as any).UiStore = useUiStore(pinia);
+
   // 传送样式，也只执行一次
   teleportStyle();
   console.debug('initialize', 'Vue App 已挂载，样式已传送');
@@ -70,7 +75,6 @@ $(() => {
   // 注册事件监听器
   useStatStore().registerListener()
   useMessageStore().registerListener()
-  useStatStore().initData();
   useMessageStore().getMessage();
 });
 

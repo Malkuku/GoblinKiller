@@ -1,5 +1,7 @@
 <template>
-  <div class="narrative-layout" :data-theme="currentTheme">
+  <div v-if="visible" class="mask narrative-layout" :data-theme="currentTheme">
+    <!-- 关闭按钮 -->
+    <button class="close-x" title="关闭" @click="close">&times;</button>
     <header class="app-header">
       <!-- 这是一个干净的容器，只用于放置全局控件 -->
       <div class="header-controls">
@@ -33,18 +35,25 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
+import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 
 const statStore = useStatStore();
 const shopStore = useShopStore();
 const questStore = useQuestStore();
+const UIStore = useUiStore();
 const router = useRouter();
 const route = useRoute();
+
+const visible = computed(() => UIStore.showUI);
+
+const close = ()=>{
+  UIStore.showUI = false;
+}
 
 // 导航模块定义
 const baseNavItems = [
@@ -108,6 +117,21 @@ const toggleTheme = async () => {
 <style scoped>
 /* 引入字体 */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
+
+/* 遮罩层 */
+.mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  height: 100vh;
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease;
+}
 
 /* --- 主题系统：CSS 变量 --- */
 .narrative-layout {

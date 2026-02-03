@@ -5,7 +5,7 @@ export const useMessageStore = defineStore('message', () => {
   const message = ref('');
   const textarea = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement;
   const getMessage = () => {
-    const message_id = getCurrentMessageId();
+    const message_id = getLastMessageId();
     const chat_messages = getChatMessages(message_id);
 
     if (!chat_messages || chat_messages.length === 0) {
