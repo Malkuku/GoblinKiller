@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
-import { useMessageStore } from '@/尘史使徒/store/MessageStore';
+import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
 
 // 定义接口
 export interface ShopItem {

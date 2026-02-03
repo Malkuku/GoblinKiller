@@ -162,9 +162,9 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
-import { useShopStore } from '@/尘史使徒/store/ShopStore';
-import { useStatStore } from '@/尘史使徒/store/StatStore';
-import type { ShopItem } from '@/尘史使徒/store/ShopStore';
+import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import type { ShopItem } from '@/尘史使徒/UI/store/ShopStore';
 
 const shopStore = useShopStore();
 const statStore = useStatStore();

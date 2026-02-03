@@ -34,7 +34,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ERAUtil } from '@/Utils/ERAUtil';
-import { useStatStore } from '@/尘史使徒/store/StatStore';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import * as toastr from 'toastr';
 
 const statStore = useStatStore();

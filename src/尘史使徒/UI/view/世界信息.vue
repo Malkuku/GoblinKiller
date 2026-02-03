@@ -72,9 +72,9 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import { useStatStore } from '@/尘史使徒/store/StatStore';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 // 引入地图组件，请根据实际文件路径调整
-import MapSystem from '@/尘史使徒/components/MapSystem.vue';
+import MapSystem from '@/尘史使徒/UI/components/MapSystem.vue';
 
 const statStore = useStatStore();
 const currentTab = ref('status');

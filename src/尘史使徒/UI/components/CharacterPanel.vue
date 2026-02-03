@@ -171,7 +171,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 // 1. 引入 store
-import { useStatStore } from '@/尘史使徒/store/StatStore';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 
 // 2. 初始化 store
 const statStore = useStatStore();

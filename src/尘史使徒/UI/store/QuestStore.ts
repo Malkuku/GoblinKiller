@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref, computed, watch } from 'vue';
-import { useMessageStore } from '@/尘史使徒/store/MessageStore';
+import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
 
 export interface QuestItem {
   "描述": string;

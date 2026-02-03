@@ -250,7 +250,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
-import { useStatStore } from '@/尘史使徒/store/StatStore';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 

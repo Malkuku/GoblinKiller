@@ -65,7 +65,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { useQuestStore } from '@/尘史使徒/store/QuestStore'; // 请确保路径正确
+import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore'; // 请确保路径正确
 
 const questStore = useQuestStore();
 const questData = computed(() => questStore.questData);

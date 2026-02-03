@@ -36,9 +36,9 @@
 import { ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { ERAUtil } from '@/Utils/ERAUtil';
-import { useStatStore } from '@/尘史使徒/store/StatStore';
-import { useShopStore } from '@/尘史使徒/store/ShopStore';
-import { useQuestStore } from '@/尘史使徒/store/QuestStore';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
+import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 
 const statStore = useStatStore();
 const shopStore = useShopStore();

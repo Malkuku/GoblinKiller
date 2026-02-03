@@ -111,7 +111,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
-import { useStatStore } from '@/尘史使徒/store/StatStore';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 
 
 const statStore = useStatStore();

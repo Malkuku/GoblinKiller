@@ -21,7 +21,7 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue';
-import { useMessageStore } from '@/尘史使徒/store/MessageStore';
+import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
 
 const messageStore = useMessageStore();
 const optionsList = ref<string[]>([]);

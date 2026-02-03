@@ -58,9 +58,9 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { useStatStore } from '@/尘史使徒/store/StatStore';
-import MinorCharacterPanel from '@/尘史使徒/components/MinorCharacterPanel.vue';
-import CharacterPanel from '@/尘史使徒/components/CharacterPanel.vue';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import MinorCharacterPanel from '@/尘史使徒/UI/components/MinorCharacterPanel.vue';
+import CharacterPanel from '@/尘史使徒/UI/components/CharacterPanel.vue';
 
 const statStore = useStatStore();
 
