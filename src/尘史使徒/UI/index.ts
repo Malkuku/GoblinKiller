@@ -74,6 +74,7 @@ $(() => {
 
   // 注册事件监听器
   useStatStore().registerListener()
+  useStatStore().initData()
   useMessageStore().registerListener()
   useMessageStore().getMessage();
 });

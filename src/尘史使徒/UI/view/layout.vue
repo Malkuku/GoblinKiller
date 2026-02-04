@@ -1,32 +1,47 @@
+<!-- Layout.vue -->
 <template>
-  <div v-if="visible" class="mask narrative-layout" :data-theme="currentTheme">
-    <!-- 关闭按钮 -->
-    <button class="close-x" title="关闭" @click="close">&times;</button>
-    <header class="app-header">
-      <!-- 这是一个干净的容器，只用于放置全局控件 -->
-      <div class="header-controls">
-        <button class="theme-toggle-btn" @click="toggleTheme" aria-label="切换主题">
-          <span v-if="currentTheme === 'dark'">☀️</span>
-          <span v-else>🌙</span>
-        </button>
-      </div>
-    </header>
+  <div v-if="visible" class="ac-layout" :data-theme="currentTheme">
+    <!-- 背景遮罩与噪点纹理 -->
+    <div class="animus-background"></div>
 
-    <aside class="app-sidebar">
-      <nav>
-        <ul>
-          <li v-for="item in navItems" :key="item.path">
-            <router-link :to="item.path">
-              <span class="nav-text">{{ item.name }}</span>
-            </router-link>
-          </li>
-        </ul>
+    <!-- 侧边导航栏 (Sidebar) -->
+    <aside class="ac-sidebar">
+      <!-- 顶部装饰线 -->
+      <div class="sidebar-line top"></div>
+
+      <!-- 导航列表区域 (可滑动) -->
+      <nav class="ac-nav-container">
+        <div class="nav-scroll-wrapper">
+          <router-link
+            v-for="item in navItems"
+            :key="item.path"
+            :to="item.path"
+            class="ac-nav-item"
+            active-class="active"
+          >
+            <div class="active-indicator"></div>
+            <span class="icon" v-if="item.icon">{{ item.icon }}</span>
+            <span class="text">{{ item.name }}</span>
+          </router-link>
+        </div>
       </nav>
+
+      <!-- 底部控制区 -->
+      <div class="sidebar-controls">
+        <button class="control-btn theme-btn" @click="toggleTheme" title="切换主题">
+          {{ currentTheme === 'dark' ? '☀' : '☾' }}
+        </button>
+        <button class="control-btn close-btn" @click="close" title="关闭">✕</button>
+      </div>
+
+      <!-- 侧边装饰线 -->
+      <div class="sidebar-border-right"></div>
     </aside>
 
-    <main class="main-content-area">
+    <!-- 主内容区域 -->
+    <main class="ac-main">
       <router-view v-slot="{ Component }">
-        <transition name="fade-main" mode="out-in">
+        <transition name="animus-fade" mode="out-in">
           <component :is="Component" />
         </transition>
       </router-view>
@@ -35,6 +50,7 @@
 </template>
 
 <script setup>
+import { computed, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
@@ -50,64 +66,42 @@ const router = useRouter();
 const route = useRoute();
 
 const visible = computed(() => UIStore.showUI);
+const close = () => { UIStore.showUI = false; };
 
-const close = ()=>{
-  UIStore.showUI = false;
-}
-
-// 导航模块定义
+// --- 导航逻辑 ---
 const baseNavItems = [
-  { name: '视界', path: '/世界信息' },
-  { name: '倒影', path: '/角色' },
-  { name: '器法', path: '/器与术' },
-  { name: '道寻', path: '/任务' },
-  { name: '未途', path: '/选项' },
-  { name: '祈奉', path: '/设置' },
-  { name: '绯廊', path: '/图片' },
+  { name: '视界', path: '/世界信息', icon: '👁' },
+  { name: '倒影', path: '/角色', icon: '♟' },
+  { name: '器法', path: '/器与术', icon: '⚔' },
+  { name: '道寻', path: '/任务', icon: '⚖' },
+  { name: '未途', path: '/选项', icon: '❖' },
+  { name: '祈奉', path: '/设置', icon: '⚙' },
+  { name: '绯廊', path: '/图片', icon: '🖼' },
 ];
 
-// 动态导航计算：委托 > 商店 > 基础
 const navItems = computed(() => {
   const items = [...baseNavItems];
-
-  // 1. 检查商店 (插入头部)
-  if (shopStore.hasShopData) {
-    items.unshift({ name: '置物', path: '/商店' });
-  }
-
-  // 2. 检查委托 (再次插入头部，这样它会排在商店前面)
-  if (questStore.hasQuestData) {
-    items.unshift({ name: '榜文', path: '/任务接取' });
-  }
-
+  if (shopStore.hasShopData) items.unshift({ name: '置物', path: '/商店', icon: '💰' });
+  if (questStore.hasQuestData) items.unshift({ name: '榜文', path: '/任务接取', icon: '📜' });
   return items;
 });
 
-// 优先级跳转逻辑
+// 优先级跳转
 watch(
   [() => questStore.hasQuestData, () => shopStore.hasShopData],
   ([hasQuest, hasShop]) => {
-    // 情况 A: 委托数据出现 (最高优先级)
     if (hasQuest) {
-      if (route.path !== '/任务接取') {
-        router.push('/任务接取');
-      }
-      return; // 既然跳转了委托，就不用管商店了
+      if (route.path !== '/任务接取') router.push('/任务接取');
+      return;
     }
-
-    // 情况 B: 商店数据出现 (且没有新委托出现)
-    if (hasShop) {
-      // 只有在当前没有委托数据，或者当前不在委托页面时，才跳转商店
-      // 如果同时有委托和商店，优先停留在委托
-      if (!hasQuest && route.path !== '/商店') {
-        router.push('/商店');
-      }
+    if (hasShop && !hasQuest && route.path !== '/商店') {
+      router.push('/商店');
     }
   },
 );
 
-// 主题切换逻辑
-const currentTheme = computed(() => statStore.stat_data?.theme);
+// 主题切换
+const currentTheme = computed(() => statStore.stat_data?.theme || 'dark');
 const toggleTheme = async () => {
   const theme = currentTheme.value === 'dark' ? 'light' : 'dark';
   await ERAUtil.UpdateByObject({ theme: theme });
@@ -115,272 +109,180 @@ const toggleTheme = async () => {
 </script>
 
 <style scoped>
-/* 引入字体 */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
 
-/* 遮罩层 */
-.mask {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(4px);
+.ac-layout {
+  --c-bg-overlay: rgba(15, 18, 24, 0.95);
+  --c-gold: #a48b57;
+  --c-text-main: #e0e0e0;
+  --c-text-dim: #8a92a0;
+  --c-border: rgba(164, 139, 87, 0.3);
+  --c-hover-bg: rgba(164, 139, 87, 0.1);
+  --font-title: 'Cinzel', serif;
+  --font-body: 'EB Garamond', serif;
+  --sidebar-width: 220px;
+
+  position: fixed; inset: 0; z-index: 9999;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 9999;
-  height: 100vh;
-  overflow-y: auto;
-  animation: fadeIn 0.2s ease;
+  /* 关键修改：改为行布局 */
+  flex-direction: row;
+  font-family: var(--font-body); color: var(--c-text-main);
+  overflow: hidden;
 }
 
-/* --- 主题系统：CSS 变量 --- */
-.narrative-layout {
-  /* 黑夜主题 (默认) */
-  --bg-primary: #1a1d24;
-  --bg-secondary: #242832;
-  --text-primary: #c8d1e0;
-  --text-secondary: #7a8291;
-  --border-color: #3a4150;
-  --accent-primary: #a48b57;
-  --accent-danger: #b03a48;
-  --shadow-color: rgba(0, 0, 0, 0.5);
+.ac-layout[data-theme='light'] {
+  --c-bg-overlay: rgba(240, 238, 233, 0.98);
+  --c-gold: #8a6f3e;
+  --c-text-main: #2c2c2c;
+  --c-text-dim: #666;
+  --c-border: rgba(138, 111, 62, 0.3);
+  --c-hover-bg: rgba(138, 111, 62, 0.1);
 }
 
-.narrative-layout[data-theme='light'] {
-  /* 白天主题 (苍白之日) */
-  --bg-primary: #f4f0e8;
-  --bg-secondary: #e9e4d8;
-  --text-primary: #4a4130;
-  --text-secondary: #8a7a61;
-  --border-color: #d1c8b6;
-  --accent-primary: #8a6f3e;
-  --accent-danger: #9a3d3d;
-  --shadow-color: rgba(0, 0, 0, 0.1);
+.animus-background {
+  position: absolute; inset: 0;
+  background-color: var(--c-bg-overlay);
+  backdrop-filter: blur(8px); z-index: -1;
+  background-image: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
 }
 
-/* --- 基础与桌面端布局 --- */
-.narrative-layout {
-  display: grid;
-  grid-template-areas:
-    'header header'
-    'nav content';
-  grid-template-columns: 200px 1fr;
-  grid-template-rows: 55px 1fr;
-  width: 100vw;
-  min-height: 600px;
-  max-height: 1400px;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: 'EB Garamond', serif;
-  transition:
-    background-color 0.4s ease,
-    color 0.4s ease;
-  overflow-y: auto;
-}
-
-/* --- Header --- */
-.app-header {
-  grid-area: header;
+/* --- 侧边栏样式 --- */
+.ac-sidebar {
+  width: var(--sidebar-width);
+  height: 100%;
   display: flex;
-  justify-content: flex-end; /* 将控件推到右侧 */
-  align-items: center;
-  padding: 0 20px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  box-shadow: 0 2px 10px var(--shadow-color);
-  transition:
-    background-color 0.4s ease,
-    border-color 0.4s ease;
-  z-index: 10;
+  flex-direction: column;
+  position: relative;
+  background: rgba(0,0,0,0.1); /* 轻微加深侧边栏背景 */
+  flex-shrink: 0;
 }
 
-.theme-toggle-btn {
-  background: none;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  width: 40px;
-  height: 30px;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 1.2rem;
+.sidebar-border-right {
+  position: absolute; right: 0; top: 0; bottom: 0; width: 1px;
+  background: linear-gradient(to bottom, transparent, var(--c-border) 10%, var(--c-border) 90%, transparent);
+}
+
+.ac-nav-container {
+  flex: 1;
+  /* 关键：min-height: 0 允许 flex 子项滚动 */
+  min-height: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-.theme-toggle-btn:hover {
-  color: var(--text-primary);
-  border-color: var(--accent-primary);
-  background-color: rgba(164, 139, 87, 0.1);
-}
-
-/* --- 侧边导航栏 (桌面) --- */
-.app-sidebar {
-  grid-area: nav;
-  background-color: var(--bg-secondary);
-  border-right: 1px solid var(--border-color);
+  flex-direction: column;
   padding-top: 20px;
-  transition:
-    background-color 0.4s ease,
-    border-color 0.4s ease;
-  z-index: 5;
 }
 
-.app-sidebar ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
+.nav-scroll-wrapper {
+  /* 关键：设置滚动 */
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  padding: 0 10px;
+
+  /* 隐藏滚动条但保留功能 */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE 10+ */
+}
+.nav-scroll-wrapper::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
 }
 
-.app-sidebar a {
-  display: block;
-  padding: 18px 25px;
-  color: var(--text-secondary);
+.ac-nav-item {
+  position: relative;
   text-decoration: none;
+  color: var(--c-text-dim);
+  font-family: var(--font-title);
   font-size: 1.1rem;
-  font-family: 'Cinzel', serif;
-  font-weight: 400;
-  border-left: 3px solid transparent;
-  transition: all 0.3s ease;
-}
-
-.app-sidebar a:hover {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
-
-.app-sidebar a.router-link-active {
-  background-color: var(--bg-primary);
-  color: var(--accent-primary);
-  border-left-color: var(--accent-danger);
   font-weight: 700;
-  box-shadow: inset 2px 0 5px var(--shadow-color);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 15px 20px;
+  margin-bottom: 5px;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-radius: 4px;
+}
+
+.ac-nav-item:hover {
+  color: var(--c-text-main);
+  background-color: var(--c-hover-bg);
+}
+
+.ac-nav-item.active {
+  color: var(--c-gold);
+  background-color: var(--c-hover-bg);
+  text-shadow: 0 0 8px rgba(164, 139, 87, 0.2);
+}
+
+/* 激活指示器：改为左侧竖条 */
+.active-indicator {
+  position: absolute;
+  left: 0; top: 50%;
+  width: 3px; height: 0%;
+  background-color: var(--c-gold);
+  transform: translateY(-50%);
+  transition: height 0.3s ease;
+  box-shadow: 0 0 8px var(--c-gold);
+}
+
+.ac-nav-item.active .active-indicator {
+  height: 70%;
+}
+
+/* 底部控制区 */
+.sidebar-controls {
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  border-top: 1px solid var(--c-border);
+  background: rgba(0,0,0,0.05);
+}
+
+.control-btn {
+  width: 40px; height: 40px;
+  background: transparent;
+  border: 1px solid var(--c-border);
+  color: var(--c-text-dim);
+  cursor: pointer;
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.3s;
+  border-radius: 50%;
+}
+
+.control-btn:hover {
+  color: var(--c-gold);
+  border-color: var(--c-gold);
+  transform: rotate(90deg); /* 简单的悬停动画 */
 }
 
 /* --- 主内容区域 --- */
-.main-content-area {
-  grid-area: content;
-  padding: 25px;
-  background-color: var(--bg-primary);
-  transition: background-color 0.4s ease;
-  overflow-y: auto;
+.ac-main {
+  flex: 1;
+  min-width: 0; /* 防止内容撑开 */
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
-/* --- 路由切换动画 --- */
-.fade-main-enter-active,
-.fade-main-leave-active {
-  transition: opacity 0.2s ease;
+/* 动画过渡 */
+.animus-fade-enter-active,
+.animus-fade-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
-.fade-main-enter-from,
-.fade-main-leave-to {
+
+.animus-fade-enter-from {
   opacity: 0;
+  transform: translateY(10px);
 }
 
-/*
- * =========================================
- *   响应式设计：移动端适配 (<= 768px)
- * =========================================
-*/
-@media (max-width: 768px) {
-  /* 1. 重新定义页面网格布局 */
-  .narrative-layout {
-    grid-template-areas:
-      'header'
-      'content'
-      'nav'; /* 导航移动到底部 */
-    grid-template-columns: 1fr; /* 单列布局 */
-    grid-template-rows: 50px 1fr 60px; /* 顶部Header, 中间内容(自适应), 底部Nav */
-  }
-
-  .app-header {
-    padding: 0 15px;
-  }
-
-  /* 2. 将侧边栏转换为底部导航栏 */
-  .app-sidebar {
-    padding-top: 0;
-    border-right: none;
-    border-top: 1px solid var(--border-color);
-    display: flex; /* 用于垂直居中导航列表 */
-    align-items: center;
-    box-shadow: 0 -2px 10px var(--shadow-color);
-  }
-
-  .app-sidebar nav {
-    width: 100%;
-  }
-
-  .app-sidebar ul {
-    display: flex; /* 让导航项水平排列 */
-    justify-content: space-around; /* 均匀分布 */
-    height: 100%;
-  }
-
-  /* 3. 调整导航链接的样式以适应底部栏 */
-  .app-sidebar a {
-    padding: 8px 5px;
-    border-left: none; /* 移除左侧边框 */
-    border-bottom: 3px solid transparent; /* 使用底部边框作为激活指示器 */
-    font-size: 0.8rem; /* 减小字体以适应空间 */
-    text-align: center;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .app-sidebar a.router-link-active {
-    border-left-color: transparent; /* 覆盖桌面端样式 */
-    border-bottom-color: var(--accent-danger); /* 激活时显示底部边框 */
-    box-shadow: none; /* 移除桌面端阴影 */
-    background-color: transparent; /* 移除背景色变化 */
-    color: var(--accent-primary);
-  }
-
-  /* 4. 调整主内容区的内边距 */
-  .main-content-area {
-    padding: 15px;
-  }
-}
-
-/* 1. 针对 Webkit 内核 (Chrome, Edge, Safari) */
-
-/* 定义滚动条整体宽高 */
-.narrative-layout::-webkit-scrollbar,
-.main-content-area::-webkit-scrollbar {
-  width: 8px; /* 纵向滚动条宽度 */
-  height: 8px; /* 横向滚动条高度 */
-}
-
-/* 定义滚动条轨道 (Track) */
-.narrative-layout::-webkit-scrollbar-track,
-.main-content-area::-webkit-scrollbar-track {
-  background: var(--bg-secondary); /* 与侧边栏/Header背景一致，视觉融合 */
-  border-left: 1px solid var(--border-color); /* 增加一条淡淡的分隔线 */
-}
-
-/* 定义滚动条滑块 (Thumb) */
-.narrative-layout::-webkit-scrollbar-thumb,
-.main-content-area::-webkit-scrollbar-thumb {
-  background-color: var(--border-color); /* 默认状态使用边框色，低调不抢眼 */
-  border-radius: 4px; /* 圆角设计，符合现代UI */
-  /* 下面这行是为了让滑块看起来比轨道细，制造一种悬浮感 */
-  border: 2px solid var(--bg-secondary);
-  background-clip: content-box;
-}
-
-/* 定义滑块悬停/激活状态 */
-.narrative-layout::-webkit-scrollbar-thumb:hover,
-.main-content-area::-webkit-scrollbar-thumb:active {
-  background-color: var(--accent-primary); /* 悬停时变更为“金色/强调色”，提供交互反馈 */
-  border-color: var(--bg-secondary);
-}
-
-/* 2. 针对 Firefox (标准属性) */
-.narrative-layout,
-.main-content-area {
-  scrollbar-width: thin; /* 细滚动条 */
-  /* 语法: scrollbar-color: <滑块颜色> <轨道颜色>; */
-  scrollbar-color: var(--border-color) var(--bg-secondary);
+.animus-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
 }
 </style>

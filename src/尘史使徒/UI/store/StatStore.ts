@@ -2,11 +2,15 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { StatData } from '../types/StatData';
+import { getOldStatData } from '@/尘史使徒/UI/util/messageUtil';
 
 export const useStatStore = defineStore('stat', () => {
   // 状态数据
   const stat_data = ref<StatData>();
 
+  const initData = ()=>{
+      getOldStatData(getLastMessageId());
+  }
 
   // 处理统计数据的函数
   const processStatData = (detail:{ result:{message_id:number,stat: StatData }}) => {
@@ -29,6 +33,7 @@ export const useStatStore = defineStore('stat', () => {
 
   return {
     stat_data,
+    initData,
     processStatData,
     registerListener,
   };
