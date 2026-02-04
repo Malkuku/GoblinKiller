@@ -28,7 +28,7 @@
               <div class="bar-container">
                 <div class="bar-fill hp-flow" :style="{width: (data.生命状态?.生命力 || 0) + '%'}"></div>
                 <div class="bar-glare"></div>
-                <span class="bar-text">{{ data.生命状态?.生命力 }}/100</span>
+                <span class="bar-text">{{ data.生命状态?.生命力 }}%</span>
               </div>
             </div>
             <div class="stat-item">
@@ -36,7 +36,7 @@
               <div class="bar-container">
                 <div class="bar-fill sp-flow" :style="{width: (data.生命状态?.体力 || 0) + '%'}"></div>
                 <div class="bar-glare"></div>
-                <span class="bar-text">{{ data.生命状态?.体力 }}/100</span>
+                <span class="bar-text">{{ data.生命状态?.体力 }}%</span>
               </div>
             </div>
             <div class="stat-item">
@@ -44,7 +44,7 @@
               <div class="bar-container">
                 <div class="bar-fill mp-flow" :style="{width: (data.生命状态?.精神力 || 0) + '%'}"></div>
                 <div class="bar-glare"></div>
-                <span class="bar-text">{{ data.生命状态?.精神力 }}/100</span>
+                <span class="bar-text">{{ data.生命状态?.精神力 }}%</span>
               </div>
             </div>
           </div>
@@ -77,27 +77,12 @@
       <div v-if="currentTab === '属性'" class="tab-content">
         <section class="info-block">
           <h3>性格倾向</h3>
-          <div class="personality-container">
-            <div class="radar-chart-wrapper" v-if="radarPoints">
-              <svg viewBox="0 0 200 200" class="radar-svg">
-                <polygon :points="radarGrid.outer" class="radar-grid" />
-                <polygon :points="radarGrid.mid" class="radar-grid" />
-                <polygon :points="radarGrid.inner" class="radar-grid" />
-                <line v-for="(point, idx) in radarGrid.axes" :key="'axis-'+idx" x1="100" y1="100" :x2="point.x" :y2="point.y" class="radar-axis" />
-                <polygon :points="radarPoints" class="radar-area" />
-                <g v-for="(point, idx) in radarDataPoints" :key="'pt-'+idx">
-                  <circle :cx="point.x" :cy="point.y" r="3" class="radar-point" />
-                  <text :x="point.lx" :y="point.ly" class="radar-label" text-anchor="middle">{{ point.label }}</text>
-                </g>
-              </svg>
-            </div>
-            <p class="summary text-center">{{ data.性格?.性格总结?.join('，') }}</p>
-          </div>
+          <PersonalityModule :data="data.性格" />
         </section>
 
         <!-- 引入独立的术之等级模块 -->
         <section class="info-block">
-          <ArtsModule :artsData="data.术之等级" />
+          <ArtsModule :arts-data="data.术之等级" />
         </section>
       </div>
 
@@ -138,7 +123,8 @@
 
 <script setup>
 import { ref, computed } from 'vue';
-import ArtsModule from './ArtsModule.vue'; // 引入新组件
+import ArtsModule from './ArtsModule.vue';
+import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModule.vue'; // 引入新组件
 
 const props = defineProps(['data']);
 const tabs = ['状态', '属性', '档案', '物品'];
@@ -156,54 +142,6 @@ const getStatusClass = (name) => {
     'status-injury': n.includes('伤病')
   };
 };
-
-// --- 雷达图逻辑 ---
-const radarDataPoints = computed(() => {
-  if (!props.data.性格 || typeof props.data.性格 !== 'object') return [];
-  const keys = Object.keys(props.data.性格).filter(k => k !== '性格总结');
-  if (keys.length < 3) return [];
-
-  const total = keys.length;
-  const radius = 70;
-  const centerX = 100;
-  const centerY = 100;
-
-  return keys.map((key, i) => {
-    const value = parseFloat(props.data.性格[key]) || 0;
-    const normalized = Math.min(value / 20, 1);
-
-    const angle = (Math.PI * 2 * i) / total - Math.PI / 2;
-    const x = centerX + radius * normalized * Math.cos(angle);
-    const y = centerY + radius * normalized * Math.sin(angle);
-    const labelRadius = radius + 15;
-    const lx = centerX + labelRadius * Math.cos(angle);
-    const ly = centerY + labelRadius * Math.sin(angle);
-
-    return { x, y, lx, ly, label: key };
-  });
-});
-
-const radarPoints = computed(() => radarDataPoints.value.map(p => `${p.x},${p.y}`).join(' '));
-
-const radarGrid = computed(() => {
-  const count = radarDataPoints.value.length;
-  if (count < 3) return { outer: '', mid: '', inner: '', axes: [] };
-  const makePoly = (r) => {
-    let points = [];
-    for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count - Math.PI / 2;
-      points.push(`${100 + r * Math.cos(angle)},${100 + r * Math.sin(angle)}`);
-    }
-    return points.join(' ');
-  };
-  const axes = [];
-  for (let i = 0; i < count; i++) {
-    const angle = (Math.PI * 2 * i) / count - Math.PI / 2;
-    axes.push({ x: 100 + 70 * Math.cos(angle), y: 100 + 70 * Math.sin(angle) });
-  }
-  return { outer: makePoly(70), mid: makePoly(46), inner: makePoly(23), axes };
-});
-
 const openItemModal = () => { alert('物品弹窗接口预留'); };
 </script>
 
@@ -345,16 +283,6 @@ const openItemModal = () => { alert('物品弹窗接口预留'); };
 .status-curse { color: #9C27B0; border-left-color: #9C27B0; background-image: linear-gradient(90deg, transparent, rgba(156, 39, 176, 0.25), transparent); background-size: 200% 100%; animation: streaming-light 5s ease-in infinite; }
 .status-injury { color: #2E7D32; border-left-color: #2E7D32; background-image: linear-gradient(90deg, transparent, rgba(46, 125, 50, 0.3), transparent); background-size: 200% 100%; animation: streaming-light 4.5s linear infinite; }
 
-/* --- 雷达图 --- */
-.personality-container { display: flex; flex-direction: column; align-items: center; }
-.radar-chart-wrapper { width: 220px; height: 220px; margin-bottom: 10px; }
-.radar-svg { width: 100%; height: 100%; overflow: visible; }
-.radar-grid { fill: none; stroke: rgba(255,255,255,0.1); stroke-width: 1; }
-.radar-axis { stroke: rgba(255,255,255,0.1); stroke-width: 1; stroke-dasharray: 4; }
-.radar-area { fill: rgba(212, 175, 55, 0.2); stroke: var(--c-gold); stroke-width: 2; }
-.radar-point { fill: var(--c-gold); }
-.radar-label { fill: var(--c-text-dim); font-size: 10px; }
-.summary { font-style: italic; color: var(--c-gold); margin-top: 10px; }
 
 /* --- 其他通用 --- */
 .text-content { white-space: pre-wrap; line-height: 1.6; color: #ccc; }
