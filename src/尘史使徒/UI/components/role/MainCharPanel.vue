@@ -106,13 +106,7 @@
 
       <!-- ================= 物品页 ================= -->
       <div v-if="currentTab === '物品'" class="tab-content">
-        <button class="action-btn" @click="openItemModal">查看物品详情</button>
-        <div class="simple-inventory">
-          <div v-for="(item, key) in data.物品" :key="key" class="item-row">
-            <span class="item-name">{{ key }}</span>
-            <span v-if="typeof item === 'object'" class="item-count">x{{ item.数量 }}</span>
-          </div>
-        </div>
+        <InventoryModule :data="data.物品" />
       </div>
     </div>
   </div>
@@ -125,6 +119,7 @@ import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModu
 import SpecialStatusModule from '@/尘史使徒/UI/components/role/SpecialStatusModule.vue';
 import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
 import RelationshipModule from '@/尘史使徒/UI/components/role/RelationshipModule.vue';
+import InventoryModule from '@/尘史使徒/UI/view/InventoryModule.vue';
 
 const props = defineProps(['data']);
 const tabs = ['状态', '属性', '档案', '物品'];
@@ -143,8 +138,6 @@ const formatHobbies = (hobbies) => {
   if (Array.isArray(hobbies)) return hobbies.join(', ');
   return Object.keys(hobbies).join(', ');
 };
-
-const openItemModal = () => { alert('物品弹窗接口预留'); };
 </script>
 
 <style scoped>

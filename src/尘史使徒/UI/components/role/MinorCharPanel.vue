@@ -33,7 +33,9 @@
           <p v-else><strong>术之等级:</strong> {{ data.术之等级 || '未知' }}</p>
         </div>
 
-        <button class="action-btn" @click="openItemModal">查看物品</button>
+        <div class="mb-3">
+          <InventoryModule :data="data.物品" />
+        </div>
       </section>
     </div>
   </div>
@@ -43,6 +45,7 @@
 import SpecialStatusModule from './SpecialStatusModule.vue';
 import ArtsModule from './ArtsModule.vue';
 import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
+import InventoryModule from '@/尘史使徒/UI/view/InventoryModule.vue';
 
 const props = defineProps(['data']);
 const openItemModal = () => { alert('物品弹窗接口预留'); };
