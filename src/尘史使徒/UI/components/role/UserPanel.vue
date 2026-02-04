@@ -1,7 +1,7 @@
 <template>
   <div class="char-panel user-panel">
     <header class="panel-header">
-      <h2 class="char-name">{{ data.姓名 || '无名氏' }}</h2>
+      <h2 class="char-name">{{ username }}</h2>
       <div class="char-identity">{{ data.当前身份 }} | {{ data.年龄 }}</div>
     </header>
 
@@ -22,54 +22,13 @@
       <div v-if="currentTab === '状态'" class="tab-content">
         <section class="info-block">
           <h3>生命状态</h3>
-          <div class="stat-grid">
-            <div class="stat-item">
-              <span class="label">生命</span>
-              <div class="bar-container">
-                <div class="bar-fill hp-flow" :style="{width: (data.生命状态?.生命力 || 0) + '%'}"></div>
-                <div class="bar-glare"></div>
-                <span class="bar-text">{{ data.生命状态?.生命力 }}%</span>
-              </div>
-            </div>
-            <div class="stat-item">
-              <span class="label">体力</span>
-              <div class="bar-container">
-                <div class="bar-fill sp-flow" :style="{width: (data.生命状态?.体力 || 0) + '%'}"></div>
-                <div class="bar-glare"></div>
-                <span class="bar-text">{{ data.生命状态?.体力 }}%</span>
-              </div>
-            </div>
-            <div class="stat-item">
-              <span class="label">精神</span>
-              <div class="bar-container">
-                <div class="bar-fill mp-flow" :style="{width: (data.生命状态?.精神力 || 0) + '%'}"></div>
-                <div class="bar-glare"></div>
-                <span class="bar-text">{{ data.生命状态?.精神力 }}%</span>
-              </div>
-            </div>
-          </div>
+          <!-- 引入独立的生命状态模块 -->
+          <LifeStatusModule :data="data.生命状态" />
         </section>
 
-        <section class="info-block" v-if="data.特殊状态">
+        <section v-if="data.特殊状态" class="info-block">
           <h3>特殊状态</h3>
-          <ul class="status-list-styled">
-            <template v-for="(status, name) in data.特殊状态" :key="name">
-              <li :class="getStatusClass(name)">
-                <div class="status-header">
-                  <strong class="status-title">
-                    {{ name }}
-                    <span v-if="status.不可移除" class="unremovable-tag" title="此状态不可移除">[不可移除]</span>
-                  </strong>
-                </div>
-                <div class="status-body">
-                  <p class="status-desc">{{ typeof status === 'string' ? status : status.描述 }}</p>
-                  <p v-if="typeof status !== 'string' && status.效果" class="status-effect">
-                    效果：{{ status.效果 }}
-                  </p>
-                </div>
-              </li>
-            </template>
-          </ul>
+          <SpecialStatusModule :data="data.特殊状态" />
         </section>
       </div>
 
@@ -80,7 +39,6 @@
           <PersonalityModule :data="data.性格" />
         </section>
 
-        <!-- 引入独立的术之等级模块 -->
         <section class="info-block">
           <ArtsModule :arts-data="data.术之等级" />
         </section>
@@ -98,12 +56,7 @@
         </section>
         <section class="info-block">
           <h3>人际关系</h3>
-          <div class="relation-list">
-            <div v-for="(rel, name) in data.人际关系" :key="name" class="rel-card">
-              <strong>{{ name }}</strong>
-              <p>{{ rel.关系总结 }}</p>
-            </div>
-          </div>
+          <RelationshipModule :data="data.人际关系" />
         </section>
       </div>
 
@@ -122,26 +75,19 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
+// 引入拆分后的模块
+import LifeStatusModule from './LifeStatusModule.vue';
 import ArtsModule from './ArtsModule.vue';
-import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModule.vue'; // 引入新组件
+import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModule.vue';
+import SpecialStatusModule from '@/尘史使徒/UI/components/role/SpecialStatusModule.vue';
+import RelationshipModule from '@/尘史使徒/UI/components/role/RelationshipModule.vue';
 
 const props = defineProps(['data']);
+const username = substitudeMacros('{{user}}');
 const tabs = ['状态', '属性', '档案', '物品'];
 const currentTab = ref('状态');
 
-// --- 特殊状态逻辑 ---
-const getStatusClass = (name) => {
-  const n = name.toString();
-  return {
-    'status-item': true,
-    'status-soul-quality': n.includes('魂质'),
-    'status-pact': n.includes('印记') || n.includes('契约'),
-    'status-blessing': n.includes('祝福'),
-    'status-curse': n.includes('诅咒') || n.includes('侵染'),
-    'status-injury': n.includes('伤病')
-  };
-};
 const openItemModal = () => { alert('物品弹窗接口预留'); };
 </script>
 
@@ -175,114 +121,6 @@ const openItemModal = () => { alert('物品弹窗接口预留'); };
 
 .info-block { margin-bottom: 25px; background: var(--c-bg-dark); padding: 20px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
 .info-block h3 { color: var(--c-gold); border-left: 3px solid var(--c-gold); padding-left: 10px; margin-top: 0; font-family: var(--font-title); margin-bottom: 15px; }
-/* --- 生命状态 (极简平面 + 末端浪头) --- */
-.stat-grid { display: flex; flex-direction: column; gap: 15px; }
-.stat-item { display: flex; align-items: center; gap: 15px; }
-.stat-item .label { width: 40px; font-family: var(--font-title); color: var(--c-text-dim); font-weight: bold; }
-
-.bar-container {
-  flex: 1; height: 16px; /* 稍微变细，符合平面化审美 */
-  background: rgba(255, 255, 255, 0.1); /* 纯平背景，无边框无阴影 */
-  border-radius: 2px; /* 微圆角或直角 */
-  position: relative;
-  overflow: visible; /* 允许末端特效溢出一点点 */
-}
-
-/* 彻底移除玻璃反光 */
-.bar-glare { display: none; }
-
-.bar-text {
-  position: absolute; width: 100%; text-align: right; right: 5px; top: -18px; /* 文字移到进度条上方，保持条的纯净 */
-  font-size: 0.75rem; color: var(--c-text-dim);
-  font-family: monospace; letter-spacing: 0.5px;
-}
-
-.bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  position: relative;
-  transition: width 0.3s ease-out;
-  /* 纯色背景，稍后在各属性中定义 */
-}
-
-/* --- 末端流水特效 (平面版) --- */
-/* 这是进度条末端的“浪头” */
-.bar-fill::after {
-  content: '';
-  position: absolute;
-  top: 0; bottom: 0;
-  right: 0;
-  width: 15px; /* 浪头长度 */
-
-  /* 关键：使用渐变模拟水流冲刷的半透明尾巴 */
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.6) 80%, rgba(255,255,255,0.9) 100%);
-
-  /* 稍微一点点外发光，增加能量感，但不做立体 */
-  box-shadow: 2px 0 5px currentColor;
-
-  /* 修正圆角，只在右侧 */
-  border-radius: 0 2px 2px 0;
-
-  /* 动画：模拟水流的不稳定抖动 */
-  animation: water-tip-flicker 2s infinite;
-}
-
-/* 增加一点内部的粒子流动感（可选，非常淡） */
-.bar-fill::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-  background-image: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.1) 50%, transparent 100%);
-  background-size: 200% 100%;
-  animation: flat-flow 3s infinite linear;
-  z-index: 1;
-}
-
-@keyframes water-tip-flicker {
-  0%, 100% { opacity: 0.8; width: 15px; }
-  50% { opacity: 1; width: 20px; } /* 浪头伸缩 */
-}
-
-@keyframes flat-flow {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
-}
-
-/* --- 纯平配色 (Flat UI Colors) --- */
-/* HP: 纯红 */
-.hp-flow {
-  background-color: #e74c3c;
-  color: #ffadad; /* 用于末端光晕 */
-}
-
-/* SP: 纯金 */
-.sp-flow {
-  background-color: #f1c40f;
-  color: #fff5cc; /* 用于末端光晕 */
-}
-
-/* MP: 纯蓝 */
-.mp-flow {
-  background-color: #3498db;
-  color: #b3e0ff; /* 用于末端光晕 */
-}
-
-
-
-/* --- 特殊状态 (带特效) --- */
-.status-list-styled { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
-.status-item { padding: 10px 15px; border-left: 4px solid #555; background: rgba(255, 255, 255, 0.03); transition: all 0.3s ease; position: relative; overflow: hidden; }
-.status-title { display: flex; justify-content: space-between; font-size: 1.05rem; margin-bottom: 5px; }
-.unremovable-tag { font-size: 0.7em; color: #ff6b6b; opacity: 0.8; }
-.status-desc { margin: 0; font-size: 0.95rem; color: var(--c-text-dim); }
-.status-effect { margin: 5px 0 0 0; font-size: 0.9rem; color: #ffb74d; }
-
-@keyframes streaming-light { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
-.status-soul-quality { color: #0096FF; border-left-color: #0096FF; background-image: linear-gradient(90deg, transparent, rgba(0, 150, 255, 0.2), transparent); background-size: 200% 100%; animation: streaming-light 4s ease-in-out infinite; }
-.status-pact { color: #FFD700; border-left-color: #FFD700; background-image: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.2), transparent); background-size: 200% 100%; animation: streaming-light 3.5s linear infinite; }
-.status-blessing { color: #4CAF50; border-left-color: #4CAF50; background-image: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.2), transparent); background-size: 200% 100%; animation: streaming-light 6s ease-in-out infinite; }
-.status-curse { color: #9C27B0; border-left-color: #9C27B0; background-image: linear-gradient(90deg, transparent, rgba(156, 39, 176, 0.25), transparent); background-size: 200% 100%; animation: streaming-light 5s ease-in infinite; }
-.status-injury { color: #2E7D32; border-left-color: #2E7D32; background-image: linear-gradient(90deg, transparent, rgba(46, 125, 50, 0.3), transparent); background-size: 200% 100%; animation: streaming-light 4.5s linear infinite; }
-
 
 /* --- 其他通用 --- */
 .text-content { white-space: pre-wrap; line-height: 1.6; color: #ccc; }

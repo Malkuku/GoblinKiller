@@ -1,18 +1,28 @@
-<!-- components/role/MainCharPanel.vue -->
 <template>
   <div class="char-panel main-char-panel">
     <header class="panel-header">
-      <h2 class="char-name">{{ data.姓名 }}</h2>
-      <!-- 普通模式只显示基础身份，全视模式显示更多 -->
-      <div class="char-identity">
-        {{ data.当前身份 }} | {{ data.年龄 }}
-        <span v-if="isOmniscient" class="omni-tag">【全视开启】</span>
+      <div class="header-content">
+        <div>
+          <h2 class="char-name">{{ data.姓名 || '未知角色' }}</h2>
+          <div class="char-identity">{{ data.当前身份 }} | {{ data.年龄 }}</div>
+        </div>
+        <!-- 详情模式开关按钮 -->
+        <button
+          class="detail-toggle-btn"
+          :class="{ active: showDetails }"
+          title="切换详情模式"
+          @click="toggleDetails"
+        >
+          <span class="icon">👁️</span>
+          <span class="text">{{ showDetails ? '详情开启' : '详情关闭' }}</span>
+        </button>
       </div>
     </header>
 
+    <!-- 内部导航 (与User模块一致) -->
     <div class="sub-nav">
       <button
-        v-for="tab in visibleTabs"
+        v-for="tab in tabs"
         :key="tab"
         :class="['sub-nav-item', { active: currentTab === tab }]"
         @click="currentTab = tab"
@@ -22,145 +32,111 @@
     </div>
 
     <div class="panel-content scroll-container">
-
-      <!-- 概览 (所有模式可见，但内容不同) -->
-      <div v-if="currentTab === '概览'" class="tab-content">
+      <!-- ================= 状态页 ================= -->
+      <div v-if="currentTab === '状态'" class="tab-content">
         <section class="info-block">
-          <h3>基础信息</h3>
-          <p><strong>外貌:</strong> {{ data.外貌?.join('，') }}</p>
-          <p><strong>背景:</strong> {{ data.背景?.join('。') }}</p>
-
-          <!-- 全视模式特有 -->
-          <template v-if="isOmniscient">
-            <p><strong>检索词:</strong> {{ data.名称检索词?.join(', ') }}</p>
-            <p><strong>区域:</strong> {{ data.区域检索词?.join(', ') }}</p>
-            <p><strong>当前位置:</strong> {{ formatLoc(data.当前位置) }}</p>
-            <p><strong>当前行动:</strong> {{ data.当前行动 }}</p>
-            <p><strong>当前想法:</strong> {{ data.当前想法 }}</p>
-          </template>
+          <h3>生命状态</h3>
+          <LifeStatusModule :data="data.生命状态" />
         </section>
 
-        <section class="info-block">
-          <h3>性格</h3>
-          <!-- 普通模式：只显示总结 -->
-          <p v-if="!isOmniscient">{{ data.性格?.性格总结?.join('；') }}</p>
-          <!-- 全视模式：显示详细数值 -->
-          <div v-else class="personality-detail">
-            <div v-for="(val, key) in data.性格" :key="key">
-              <span v-if="typeof val === 'number'">{{ key }}: {{ val }}</span>
-            </div>
-            <p class="summary">总结: {{ data.性格?.性格总结?.join('；') }}</p>
-            <p><strong>爱好:</strong> {{ formatHobbies(data.爱好) }}</p>
-          </div>
+        <!-- 详情模式下显示的实时监控信息 -->
+        <section v-if="showDetails" class="info-block detail-block">
+          <h3>实时监控</h3>
+          <p><strong>当前位置:</strong> {{ formatLoc(data.当前位置) }}</p>
+          <p><strong>当前行动:</strong> {{ data.当前行动 || '无' }}</p>
+          <p><strong>当前想法:</strong> <span class="thought-text">{{ data.当前想法 || '...' }}</span></p>
+          <p><strong>检索区域:</strong> {{ data.区域检索词?.join(', ') }}</p>
         </section>
 
-        <section class="info-block">
-          <h3>状态</h3>
-          <div class="stat-grid">
-            <div class="stat-item"><span>生命:</span> {{ data.生命状态?.生命力 }}</div>
-            <div class="stat-item"><span>体力:</span> {{ data.生命状态?.体力 }}</div>
-            <div class="stat-item"><span>精神:</span> {{ data.生命状态?.精神力 }}</div>
-          </div>
-          <div v-if="data.特殊状态" class="mt-2">
-            <strong>特殊状态:</strong>
-            <ul class="status-list">
-              <li v-for="(val, k) in data.特殊状态" :key="k">{{ k }}</li>
-            </ul>
-          </div>
+        <section class="info-block" v-if="data.特殊状态">
+          <h3>特殊状态</h3>
+          <SpecialStatusModule :data="data.特殊状态" />
         </section>
       </div>
 
-      <!-- 详细 (仅全视模式) -->
-      <div v-if="currentTab === '详细' && isOmniscient" class="tab-content">
+      <!-- ================= 属性页 ================= -->
+      <div v-if="currentTab === '属性'" class="tab-content">
         <section class="info-block">
-          <h3>语料库</h3>
-          <div v-for="(lines, mood) in data.语料" :key="mood">
-            <strong>{{ mood }}:</strong> {{ lines.join(' | ') }}
-          </div>
+          <h3>性格倾向</h3>
+          <PersonalityModule :data="data.性格" />
+          <p v-if="showDetails" class="mt-2"><strong>爱好:</strong> {{ formatHobbies(data.爱好) }}</p>
         </section>
+
         <section class="info-block">
-          <h3>性经验</h3>
-          <div v-if="typeof data.性经验 === 'object'">
-            <div v-for="(exp, k) in data.性经验" :key="k">{{ k }}: {{ exp }}</div>
-          </div>
-          <div v-else>{{ data.性经验 }}</div>
+          <ArtsModule :arts-data="data.术之等级" />
         </section>
       </div>
 
-      <!-- 人际 (逻辑复杂) -->
-      <div v-if="currentTab === '人际'" class="tab-content">
-        <div class="relation-list">
-          <template v-for="(rel, targetName) in data.人际关系" :key="targetName">
-            <!--
-              显示条件：
-              1. 全视模式：全部显示
-              2. 普通模式：只显示“在场”的目标角色的关系总结
-            -->
-            <div v-if="shouldShowRelation(targetName)" class="rel-card">
-              <div class="rel-header">
-                <strong>{{ targetName }}</strong>
-              </div>
+      <!-- ================= 档案页 ================= -->
+      <div v-if="currentTab === '档案'" class="tab-content">
+        <section class="info-block">
+          <h3>外貌</h3>
+          <p>{{ data.外貌?.join('。') }}</p>
+        </section>
 
-              <!-- 普通模式：只显示总结 -->
-              <p v-if="!isOmniscient">{{ rel.关系总结 }}</p>
+        <section class="info-block">
+          <h3>背景</h3>
+          <p class="text-content">{{ data.背景?.join('\n') }}</p>
+        </section>
 
-              <!-- 全视模式：显示详细数值 -->
-              <div v-else class="rel-details">
-                <div class="rel-stat"><span>好感:</span> {{ rel.好感度 }}</div>
-                <div class="rel-stat"><span>信任:</span> {{ rel.信任度 }}</div>
-                <div class="rel-stat"><span>情欲:</span> {{ rel.情欲 }}</div>
-                <p class="rel-summary">{{ rel.关系总结 }}</p>
-              </div>
+        <!-- 详情模式下显示的私密档案 -->
+        <template v-if="showDetails">
+          <section class="info-block detail-block">
+            <h3>语料库</h3>
+            <div v-for="(lines, mood) in data.语料" :key="mood" class="corpus-row">
+              <span class="mood-tag">{{ mood }}</span>
+              <span class="corpus-text">{{ lines.join(' | ') }}</span>
             </div>
-          </template>
+          </section>
+
+          <section class="info-block detail-block">
+            <h3>性经验</h3>
+            <div v-if="typeof data.性经验 === 'object'">
+              <div v-for="(exp, k) in data.性经验" :key="k">{{ k }}: {{ exp }}</div>
+            </div>
+            <div v-else>{{ data.性经验 }}</div>
+          </section>
+        </template>
+
+        <section class="info-block">
+          <h3>人际关系</h3>
+          <RelationshipModule :data="data.人际关系" />
+        </section>
+      </div>
+
+      <!-- ================= 物品页 ================= -->
+      <div v-if="currentTab === '物品'" class="tab-content">
+        <button class="action-btn" @click="openItemModal">查看物品详情</button>
+        <div class="simple-inventory">
+          <div v-for="(item, key) in data.物品" :key="key" class="item-row">
+            <span class="item-name">{{ key }}</span>
+            <span v-if="typeof item === 'object'" class="item-count">x{{ item.数量 }}</span>
+          </div>
         </div>
       </div>
-
-      <!-- 物品与术 -->
-      <div v-if="currentTab === '能力与物品'" class="tab-content">
-        <section class="info-block">
-          <h3>术之等级</h3>
-          <div v-if="typeof data.术之等级 === 'object'">
-            <div v-for="(art, name) in data.术之等级" :key="name">
-              {{ name }}: Lv.{{ art.当前等级 }}
-            </div>
-          </div>
-          <div v-else>{{ data.术之等级 }}</div>
-        </section>
-
-        <section class="info-block">
-          <h3>物品</h3>
-          <button class="action-btn" @click="openItemModal">查看物品 (弹窗)</button>
-          <!-- 全视模式可以直接看列表 -->
-          <div v-if="isOmniscient" class="simple-inventory mt-2">
-            <div v-for="(item, key) in data.物品" :key="key">{{ key }}</div>
-          </div>
-        </section>
-      </div>
-
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
-import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import { ref } from 'vue';
+import ArtsModule from './ArtsModule.vue';
+import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModule.vue';
+import SpecialStatusModule from '@/尘史使徒/UI/components/role/SpecialStatusModule.vue';
+import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
+import RelationshipModule from '@/尘史使徒/UI/components/role/RelationshipModule.vue';
 
 const props = defineProps(['data']);
-const store = useStatStore();
+const tabs = ['状态', '属性', '档案', '物品'];
+const currentTab = ref('状态');
 
-// 判断全视模式：系统设置开启
-const isOmniscient = computed(() => store.stat_data?.system?.['全知视角'] === true);
+// 详情模式（原全视视角）控制
+const showDetails = ref(false);
+const toggleDetails = () => {
+  showDetails.value = !showDetails.value;
+};
 
-const tabs = ['概览', '人际', '能力与物品'];
-const visibleTabs = computed(() => {
-  if (isOmniscient.value) {
-    return ['概览', '详细', '人际', '能力与物品'];
-  }
-  return tabs;
-});
-const currentTab = ref('概览');
-
+// 辅助函数
 const formatLoc = (loc) => loc ? `[${loc.x}, ${loc.y}, ${loc.z}]` : '未知';
 const formatHobbies = (hobbies) => {
   if (!hobbies) return '无';
@@ -168,29 +144,79 @@ const formatHobbies = (hobbies) => {
   return Object.keys(hobbies).join(', ');
 };
 
-// 核心逻辑：普通模式下，人际关系是否可见
-const shouldShowRelation = (targetName) => {
-  if (isOmniscient.value) return true;
-
-  // 检查目标是否在场
-  const mainChars = store.stat_data?.角色?.['主要角色'] || {};
-  const minorChars = store.stat_data?.角色?.['次要角色'] || {};
-  const user = store.stat_data?.角色?.user;
-
-  if (targetName === user?.姓名) return true; // 与玩家的关系总是可见
-  if (mainChars[targetName]?.['在场']) return true;
-  if (minorChars[targetName]?.['在场']) return true;
-
-  return false;
-};
-
 const openItemModal = () => { alert('物品弹窗接口预留'); };
 </script>
 
 <style scoped>
-/* 复用 UserPanel 的样式，增加特定样式 */
-.omni-tag { color: #ff4444; font-size: 0.8em; margin-left: 10px; border: 1px solid #ff4444; padding: 2px 5px; }
-.rel-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; font-size: 0.9em; color: var(--c-text-dim); margin-top: 5px; }
-.rel-summary { grid-column: 1 / -1; color: var(--c-text-main); margin-top: 5px; font-style: italic; }
+/* --- 基础变量 (与UserPanel保持一致) --- */
+.char-panel {
+  --c-gold: #d4af37;
+  --c-text: #e0e0e0;
+  --c-text-dim: #a0a0a0;
+  --c-bg-dark: rgba(0, 0, 0, 0.4);
+  --c-detail-bg: rgba(50, 20, 20, 0.3); /* 详情块的背景色 */
+  --font-title: 'Cinzel', serif;
+  --font-body: 'EB Garamond', serif;
+
+  height: 100%; display: flex; flex-direction: column; padding: 20px; color: var(--c-text);
+  font-family: var(--font-body);
+}
+
+/* 头部布局调整 */
+.panel-header { border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 15px; margin-bottom: 15px; }
+.header-content { display: flex; justify-content: space-between; align-items: flex-start; }
+.char-name { font-family: var(--font-title); color: var(--c-gold); font-size: 2rem; margin: 0; }
+.char-identity { color: var(--c-text-dim); margin-top: 5px; }
+
+/* 详情开关按钮 */
+.detail-toggle-btn {
+  background: rgba(0,0,0,0.3);
+  border: 1px solid var(--c-text-dim);
+  color: var(--c-text-dim);
+  padding: 5px 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.3s;
+  font-family: var(--font-title);
+  font-size: 0.8rem;
+}
+.detail-toggle-btn:hover { border-color: var(--c-gold); color: var(--c-gold); }
+.detail-toggle-btn.active {
+  background: rgba(212, 175, 55, 0.1);
+  border-color: var(--c-gold);
+  color: var(--c-gold);
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.2);
+}
+
+/* 导航 */
+.sub-nav { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.sub-nav-item { background: none; border: none; color: var(--c-text-dim); padding: 8px 16px; cursor: pointer; font-family: var(--font-title); transition: 0.3s; border-bottom: 2px solid transparent; font-size: 1.1rem; }
+.sub-nav-item.active { color: var(--c-gold); border-bottom-color: var(--c-gold); }
+.sub-nav-item:hover { color: #fff; }
+
+.scroll-container { flex: 1; overflow-y: auto; padding-right: 10px; }
+.scroll-container::-webkit-scrollbar { width: 6px; }
+.scroll-container::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.2); border-radius: 3px; }
+
+.info-block { margin-bottom: 25px; background: var(--c-bg-dark); padding: 20px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
+.info-block h3 { color: var(--c-gold); border-left: 3px solid var(--c-gold); padding-left: 10px; margin-top: 0; font-family: var(--font-title); margin-bottom: 15px; }
+
+/* 详情模式专用块样式 */
+.detail-block {
+  border: 1px dashed rgba(212, 175, 55, 0.3);
+  background: linear-gradient(to right, rgba(0,0,0,0.4), rgba(30,30,30,0.4));
+}
+.thought-text { font-style: italic; color: #aaa; }
+.corpus-row { margin-bottom: 8px; font-size: 0.9em; }
+.mood-tag { color: var(--c-gold); font-weight: bold; margin-right: 8px; }
+
+/* --- 通用 --- */
+.text-content { white-space: pre-wrap; line-height: 1.6; color: #ccc; }
 .mt-2 { margin-top: 10px; }
+.action-btn { width: 100%; padding: 10px; background: rgba(255,215,0,0.1); border: 1px solid #FFD700; color: #FFD700; cursor: pointer; transition: 0.2s; }
+.action-btn:hover { background: #FFD700; color: #000; }
+.simple-inventory .item-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.simple-inventory .item-count { color: #888; }
 </style>
