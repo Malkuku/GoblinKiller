@@ -1,295 +1,206 @@
+<!-- views/RoleView.vue -->
 <template>
-  <div class="characters-view-container">
-    <!-- 1. 顶层选项卡 -->
-    <div class="tabs">
-      <button class="tab-button" :class="{ active: activeTab === 'main' }" @click="selectTab('main')">命运之人</button>
-      <button class="tab-button" :class="{ active: activeTab === 'minor' }" @click="selectTab('minor')">
-        独特之人
-      </button>
-    </div>
+  <div class="role-view-container">
+    <!-- 左侧：角色列表导航 -->
+    <aside class="role-sidebar">
+      <div class="role-list-header">倒影</div>
+      <div class="role-list scroll-wrapper">
 
-    <div v-if="activeList.length > 0" class="content-wrapper">
-      <!-- 2. 分页导航 -->
-      <nav class="pagination-nav">
-        <ul>
-          <li v-for="(char, index) in activeList" :key="char.name">
-            <button class="char-button" :class="{ active: index === currentIndex }" @click="selectCharacter(index)">
-              <!-- 核心逻辑：如果角色隐藏，则显示'未知' -->
-              {{ getDisplayName(char) }}
-            </button>
-          </li>
-        </ul>
-      </nav>
+        <!-- 玩家 -->
+        <div
+          class="role-item user-item"
+          :class="{ active: selectedId === 'user' }"
+          @click="selectRole('user', 'user')"
+        >
+          <span class="icon">♟</span>
+          <span class="name">{{ '我' }}</span>
+        </div>
 
-      <!-- 3. 角色面板展示区 -->
-      <div class="panel-display-area">
-        <transition name="fade-main" mode="out-in">
-          <div :key="currentCharacterData.name">
-            <!-- A. 渲染主要角色面板 -->
-            <CharacterPanel
-              v-if="activeTab === 'main'"
-              :character-name="currentCharacterData.name"
-              :character-data="currentCharacterData.data"
-              :is-omniscient="isOmniscient"
-              :is-current-user="currentCharacterData.name === currentUserKey"
-            />
-            <!-- B. 渲染次要角色面板 (或未知提示) -->
-            <template v-else-if="activeTab === 'minor'">
-              <!-- B1. 如果角色隐藏，显示未知提示 -->
-              <div v-if="currentCharacterData.data.隐藏" class="unknown-character-notice">
-                <h2 class="unknown-title">身份不明</h2>
-                <p>此人潜藏于阴影之中，目的不明。</p>
-              </div>
-              <!-- B2. 否则，正常显示次要角色面板 -->
-              <MinorCharacterPanel
-                v-else
-                :character-name="currentCharacterData.name"
-                :character-data="currentCharacterData.data"
-              />
-            </template>
-          </div>
-        </transition>
+        <div class="divider"></div>
+
+        <!-- 主要角色 -->
+        <div class="category-title">主要角色</div>
+        <div
+          v-for="(char, id) in visibleMainChars"
+          :key="id"
+          class="role-item main-item"
+          :class="{ active: selectedId === id }"
+          @click="selectRole(id, 'main')"
+        >
+          <span class="status-dot" :class="{ present: char.在场 }"></span>
+          <span class="name">{{ char.姓名 }}</span>
+        </div>
+
+        <!-- 次要角色 -->
+        <div class="category-title">次要角色</div>
+        <div
+          v-for="(char, id) in visibleMinorChars"
+          :key="id"
+          class="role-item minor-item"
+          :class="{ active: selectedId === id }"
+          @click="selectRole(id, 'minor')"
+        >
+          <span class="status-dot" :class="{ present: char.在场 }"></span>
+          <span class="name">{{ char.姓名 }}</span>
+        </div>
+
       </div>
-    </div>
+    </aside>
 
-    <div v-else class="loading-state">没有值得我留意的独特之人，机遇如同蛾般难以捉摸...</div>
+    <!-- 右侧：详细内容展示区 -->
+    <main class="role-content">
+      <transition name="fade" mode="out-in">
+        <component
+          :is="currentComponent"
+          :key="selectedId"
+          :data="currentData"
+        />
+      </transition>
+    </main>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
-import MinorCharacterPanel from '@/尘史使徒/UI/components/MinorCharacterPanel.vue';
-import CharacterPanel from '@/尘史使徒/UI/components/CharacterPanel.vue';
+import UserPanel from '@/尘史使徒/UI/components/role/UserPanel.vue';
+import MainCharPanel from '@/尘史使徒/UI/components/role/MainCharPanel.vue';
+import MinorCharPanel from '@/尘史使徒/UI/components/role/MinorCharPanel.vue';
 
-const statStore = useStatStore();
+const store = useStatStore();
 
-// --- 状态管理 ---
-const activeTab = ref('main'); // 'main' 或 'minor'
-const mainCharCurrentIndex = ref(0);
-const minorCharCurrentIndex = ref(0);
+// 状态
+const selectedId = ref('user');
+const selectedType = ref('user'); // 'user', 'main', 'minor'
 
-// --- 计算属性 ---
-const isOmniscient = computed(() => statStore.stat_data?.全知视角 === true);
-const currentUserKey = "user";
+// 数据获取
+const userData = computed(() => store.stat_data?.角色?.user);
+const isOmniscient = computed(() => store.stat_data?.system?.['全知视角'] === true);
 
-// 将角色对象转换为数组，并根据“已出场”状态进行过滤
-const mainCharactersList = computed(() => {
-  const mainChars = statStore.stat_data?.角色?.主要角色;
-  const appearedChars = statStore.stat_data?.角色?.已出场角色;
-
-  if (!mainChars) {
-    return [];
+// 过滤逻辑：在场 OR 全视模式开启
+const filterChars = (chars) => {
+  if (!chars) return {};
+  const result = {};
+  for (const [key, char] of Object.entries(chars)) {
+    if (char.在场 || isOmniscient.value) {
+      result[key] = char;
+    }
   }
-
-  return Object.entries(mainChars)
-    .filter(([name]) => {
-      // 如果是全知视角，则显示所有主要角色
-      // 否则，只显示在“已出场角色”中为 true 的角色
-      return isOmniscient.value || (appearedChars && appearedChars[name] === true);
-    })
-    .map(([name, data]) => ({ name, data }));
-});
-
-const minorCharactersList = computed(() =>
-  statStore.stat_data?.角色?.次要角色
-    ? Object.entries(statStore.stat_data.角色.次要角色)
-      .filter(([name]) => name !== '$template') // 过滤掉 $template
-      .map(([name, data]) => ({ name, data }))
-    : []
-);
-
-// 根据当前激活的 tab 返回对应的角色列表
-const activeList = computed(() => activeTab.value === 'main' ? mainCharactersList.value : minorCharactersList.value);
-
-// 根据当前激活的 tab 返回对应的索引
-const currentIndex = computed(() => activeTab.value === 'main' ? mainCharCurrentIndex.value : minorCharCurrentIndex.value);
-
-// 获取当前需要展示的角色数据
-const currentCharacterData = computed(() => activeList.value[currentIndex.value]);
-
-const getDisplayName = (char) => {
-  if(activeTab.value === 'minor' && char.data.隐藏){
-    return '未知';
-  }else if(activeTab.value === 'main' && char.name === 'user'){
-    return substitudeMacros('{{user}}');
-  }
-  return char.name
+  return result;
 };
 
-// --- 方法 ---
-function selectTab(tabName) {
-  activeTab.value = tabName;
-}
+const visibleMainChars = computed(() => filterChars(store.stat_data?.角色?.['主要角色']));
+const visibleMinorChars = computed(() => filterChars(store.stat_data?.角色?.['次要角色']));
 
-function selectCharacter(index) {
-  if (activeTab.value === 'main') {
-    mainCharCurrentIndex.value = index;
-  } else {
-    minorCharCurrentIndex.value = index;
-  }
-}
+// 选择逻辑
+const selectRole = (id, type) => {
+  selectedId.value = id;
+  selectedType.value = type;
+};
 
-// --- 侦听器 ---
-// 当过滤后的主角色列表变化时，检查当前索引是否越界，如果是则重置为0
-// 这可以防止因列表项减少而导致访问不存在的索引而出错
-watch(mainCharactersList, (newList) => {
-  if (mainCharCurrentIndex.value >= newList.length) {
-    mainCharCurrentIndex.value = 0;
+// 动态组件判定
+const currentComponent = computed(() => {
+  switch (selectedType.value) {
+    case 'user': return UserPanel;
+    case 'main': return MainCharPanel;
+    case 'minor': return MinorCharPanel;
+    default: return UserPanel;
   }
 });
+
+// 当前选中角色的数据
+const currentData = computed(() => {
+  if (selectedType.value === 'user') return userData.value;
+  if (selectedType.value === 'main') return store.stat_data?.角色?.['主要角色']?.[selectedId.value];
+  if (selectedType.value === 'minor') return store.stat_data?.角色?.['次要角色']?.[selectedId.value];
+  return {};
+});
+
+// 初始化：如果没有数据，或者重置时
+watch(() => store.stat_data, (newVal) => {
+  if (newVal && !selectedId.value) {
+    selectedId.value = 'user';
+  }
+}, { immediate: true });
+
 </script>
 
 <style scoped>
-.characters-view-container {
+.role-view-container {
   display: flex;
-  flex-direction: column;
   height: 100%;
-}
-
-/* 选项卡样式 */
-.tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--border-color);
-}
-.tab-button {
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  padding: 0.75rem 1.5rem;
-  font-family: 'Cinzel', serif;
-  font-size: 1.1rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  transform: translateY(1px);
-}
-.tab-button:hover {
-  color: var(--text-primary);
-}
-.tab-button.active {
-  color: var(--accent-primary);
-  border-bottom-color: var(--accent-primary);
-}
-
-/* 主要内容区布局 */
-.content-wrapper {
-  display: grid;
-  grid-template-columns: 220px 1fr; /* 左侧分页导航，右侧内容 */
-  gap: 1.5rem;
-  flex-grow: 1;
-  overflow: hidden;
-}
-
-/* 分页导航样式 */
-.pagination-nav {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 1rem 0;
-  overflow-y: auto;
-}
-.pagination-nav ul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-.char-button {
   width: 100%;
-  background: none;
-  border: none;
-  border-left: 3px solid transparent;
-  padding: 0.8rem 1.5rem;
-  text-align: left;
-  font-family: 'EB Garamond', serif;
-  font-size: 1rem;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-.char-button:hover {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-}
-.char-button.active {
-  background-color: var(--bg-primary);
-  color: var(--accent-primary);
-  border-left-color: var(--accent-danger);
-  font-weight: bold;
+  background: rgba(0,0,0,0.2);
 }
 
-/* 角色面板展示区 */
-.panel-display-area {
-  overflow-y: auto;
-  padding-right: 10px; /* 防止滚动条紧贴内容 */
-}
-
-/* 未知角色提示 */
-.unknown-character-notice {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 3rem;
-  text-align: center;
-  height: 100%;
+/* 左侧列表样式 */
+.role-sidebar {
+  width: 200px;
+  border-right: 1px solid var(--c-border);
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-.unknown-title {
-  font-family: 'Cinzel', serif;
-  font-size: 1.8rem;
-  color: var(--text-secondary);
-  margin-bottom: 1rem;
-}
-.unknown-character-notice p {
-  font-style: italic;
-  color: var(--text-secondary);
-  max-width: 40ch;
+  background: rgba(0,0,0,0.1);
 }
 
-.loading-state {
-  color: var(--text-secondary);
-  font-style: italic;
+.role-list-header {
+  padding: 15px;
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  color: var(--c-gold);
+  border-bottom: 1px solid var(--c-border);
   text-align: center;
-  padding: 4rem 0;
 }
 
-/* 响应式适配 */
-@media (max-width: 900px) {
-  .content-wrapper {
-    grid-template-columns: 1fr; /* 垂直布局 */
-    grid-template-rows: auto 1fr;
-  }
-  .pagination-nav ul {
-    display: flex;
-    flex-wrap: wrap; /* 按钮换行 */
-    gap: 0.5rem;
-  }
-  .char-button {
-    width: auto;
-    border-left: none;
-    border-bottom: 2px solid transparent;
-    border-radius: 4px;
-  }
-  .char-button.active {
-    border-bottom-color: var(--accent-danger);
-  }
-  .panel-display-area {
-    padding-right: 0;
-  }
+.role-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 0;
 }
 
-/* 切换动画 */
-.fade-main-enter-active,
-.fade-main-leave-active {
-  transition: opacity 0.2s ease;
+.category-title {
+  padding: 10px 15px 5px;
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
-.fade-main-enter-from,
-.fade-main-leave-to {
-  opacity: 0;
+
+.role-item {
+  padding: 10px 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
 }
+
+.role-item:hover {
+  background: var(--c-hover-bg);
+}
+
+.role-item.active {
+  background: linear-gradient(90deg, var(--c-hover-bg), transparent);
+  border-left-color: var(--c-gold);
+  color: var(--c-gold);
+}
+
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #555;
+}
+.status-dot.present { background: #4caf50; box-shadow: 0 0 5px #4caf50; }
+
+.divider { height: 1px; background: var(--c-border); margin: 10px 15px; opacity: 0.3; }
+
+/* 右侧内容区 */
+.role-content {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* 动画 */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
