@@ -73,6 +73,7 @@ $(() => {
   window.addEventListener('pagehide', unloadUI); // 再添加新的
 
   // 注册事件监听器
+  useUiStore().getModeSetting();
   useStatStore().registerListener()
   useStatStore().initData()
   useMessageStore().registerListener()

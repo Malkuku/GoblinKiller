@@ -216,5 +216,4 @@ export interface EventData {
  */
 export interface SystemSettings {
   "全知视角": boolean;
-  "theme": string;
 }

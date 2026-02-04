@@ -1,6 +1,6 @@
 <!-- Layout.vue -->
 <template>
-  <div v-if="visible"  class="ac-layout" :data-theme="currentTheme">
+  <div v-if="visible" :class="{ 'dark-mode': uiStore.darkMode }" class="ac-layout">
     <!-- 背景遮罩 -->
     <div class="animus-background"></div>
 
@@ -9,7 +9,7 @@
       <!-- 控制区：Desktop在顶部 -->
       <div class="sidebar-controls">
         <button class="control-btn theme-btn" @click="toggleTheme">
-          {{ currentTheme === 'dark' ? '☀' : '☾' }}
+          {{  uiStore.darkMode === true ? '☀' : '☾' }}
         </button>
         <button class="control-btn close-btn" @click="close">✕</button>
       </div>
@@ -61,12 +61,12 @@ import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 const statStore = useStatStore();
 const shopStore = useShopStore();
 const questStore = useQuestStore();
-const UIStore = useUiStore();
+const uiStore = useUiStore();
 const router = useRouter();
 const route = useRoute();
 
-const visible = computed(() => UIStore.showUI);
-const close = () => { UIStore.showUI = false; };
+const visible = computed(() => uiStore.showUI);
+const close = () => { uiStore.showUI = false; };
 
 const baseNavItems = [
   { name: '视界', path: '/世界信息', icon: '👁' },
@@ -98,10 +98,9 @@ watch(
   },
 );
 
-const currentTheme = computed(() => statStore.stat_data?.theme || 'dark');
 const toggleTheme = async () => {
-  const theme = currentTheme.value === 'dark' ? 'light' : 'dark';
-  await ERAUtil.UpdateByObject({ theme: theme });
+  uiStore.darkMode = !uiStore.darkMode;
+  await uiStore.saveModeSetting();
 };
 </script>
 

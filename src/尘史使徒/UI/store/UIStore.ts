@@ -4,9 +4,6 @@ export const useUiStore = defineStore('KatDustUI', () => {
   //是否显示UI
   const showUI = ref(false);
 
-  // 收集的路径列表
-  const collectedPaths = ref<string[]>([]);
-
   // 黑夜模式
   const darkMode = ref(false);
 
@@ -35,7 +32,6 @@ export const useUiStore = defineStore('KatDustUI', () => {
 
   return {
     showUI,
-    collectedPaths,
     darkMode,
     getModeSetting,
     saveModeSetting,

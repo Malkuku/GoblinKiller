@@ -1,6 +1,6 @@
 <!-- Vision.vue -->
 <template>
-  <div class="vision-container" :class="{ 'danger-mode': isDanger }">
+  <div class="vision-container" :class="{ 'danger-mode': isDanger ,'dark-mode': uiStore.darkMode }">
 
     <!-- 1. 地图层 (交互核心) -->
     <div class="map-viewport" ref="viewportRef"
@@ -132,6 +132,9 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
+
+const uiStore = useUiStore();
 
 // =====================
 // 图标数据 (保持原样)
