@@ -1,15 +1,23 @@
 <!-- Layout.vue -->
 <template>
-  <div v-if="visible" class="ac-layout" :data-theme="currentTheme">
-    <!-- 背景遮罩与噪点纹理 -->
+  <div v-if="visible"  class="ac-layout" :data-theme="currentTheme">
+    <!-- 背景遮罩 -->
     <div class="animus-background"></div>
 
-    <!-- 侧边导航栏 (Sidebar) -->
+    <!-- 导航区域：Desktop是侧栏，Mobile是顶栏 -->
     <aside class="ac-sidebar">
-      <!-- 顶部装饰线 -->
-      <div class="sidebar-line top"></div>
+      <!-- 控制区：Desktop在顶部 -->
+      <div class="sidebar-controls">
+        <button class="control-btn theme-btn" @click="toggleTheme">
+          {{ currentTheme === 'dark' ? '☀' : '☾' }}
+        </button>
+        <button class="control-btn close-btn" @click="close">✕</button>
+      </div>
 
-      <!-- 导航列表区域 (可滑动) -->
+      <!-- 装饰线 -->
+      <div class="sidebar-line"></div>
+
+      <!-- 导航列表 (可滑动) -->
       <nav class="ac-nav-container">
         <div class="nav-scroll-wrapper">
           <router-link
@@ -26,16 +34,8 @@
         </div>
       </nav>
 
-      <!-- 底部控制区 -->
-      <div class="sidebar-controls">
-        <button class="control-btn theme-btn" @click="toggleTheme" title="切换主题">
-          {{ currentTheme === 'dark' ? '☀' : '☾' }}
-        </button>
-        <button class="control-btn close-btn" @click="close" title="关闭">✕</button>
-      </div>
-
-      <!-- 侧边装饰线 -->
-      <div class="sidebar-border-right"></div>
+      <!-- 边框装饰 -->
+      <div class="sidebar-border"></div>
     </aside>
 
     <!-- 主内容区域 -->
@@ -68,7 +68,6 @@ const route = useRoute();
 const visible = computed(() => UIStore.showUI);
 const close = () => { UIStore.showUI = false; };
 
-// --- 导航逻辑 ---
 const baseNavItems = [
   { name: '视界', path: '/世界信息', icon: '👁' },
   { name: '倒影', path: '/角色', icon: '♟' },
@@ -86,7 +85,6 @@ const navItems = computed(() => {
   return items;
 });
 
-// 优先级跳转
 watch(
   [() => questStore.hasQuestData, () => shopStore.hasShopData],
   ([hasQuest, hasShop]) => {
@@ -100,7 +98,6 @@ watch(
   },
 );
 
-// 主题切换
 const currentTheme = computed(() => statStore.stat_data?.theme || 'dark');
 const toggleTheme = async () => {
   const theme = currentTheme.value === 'dark' ? 'light' : 'dark';
@@ -122,12 +119,18 @@ const toggleTheme = async () => {
   --font-body: 'EB Garamond', serif;
   --sidebar-width: 220px;
 
-  position: fixed; inset: 0; z-index: 9999;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
   display: flex;
-  /* 关键修改：改为行布局 */
+  /* 默认电脑端：行布局（左右） */
   flex-direction: row;
-  font-family: var(--font-body); color: var(--c-text-main);
+  font-family: var(--font-body);
+  color: var(--c-text-main);
   overflow: hidden;
+  /* 强制高度，防止移动端塌陷 */
+  height: 100vh;
+  width: 100vw;
 }
 
 .ac-layout[data-theme='light'] {
@@ -143,126 +146,75 @@ const toggleTheme = async () => {
   position: absolute; inset: 0;
   background-color: var(--c-bg-overlay);
   backdrop-filter: blur(8px); z-index: -1;
-  background-image: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%);
 }
 
-/* --- 侧边栏样式 --- */
+/* --- 通用组件样式 --- */
 .ac-sidebar {
-  width: var(--sidebar-width);
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  background: rgba(0,0,0,0.1); /* 轻微加深侧边栏背景 */
+  background: rgba(0,0,0,0.1);
   flex-shrink: 0;
-}
-
-.sidebar-border-right {
-  position: absolute; right: 0; top: 0; bottom: 0; width: 1px;
-  background: linear-gradient(to bottom, transparent, var(--c-border) 10%, var(--c-border) 90%, transparent);
+  display: flex;
+  position: relative;
 }
 
 .ac-nav-container {
   flex: 1;
-  /* 关键：min-height: 0 允许 flex 子项滚动 */
   min-height: 0;
+  min-width: 0;
   display: flex;
-  flex-direction: column;
-  padding-top: 20px;
 }
 
 .nav-scroll-wrapper {
-  /* 关键：设置滚动 */
-  overflow-y: auto;
-  overflow-x: hidden;
-  height: 100%;
-  padding: 0 10px;
-
-  /* 隐藏滚动条但保留功能 */
+  overflow: auto;
   scrollbar-width: none; /* Firefox */
-  -ms-overflow-style: none;  /* IE 10+ */
+  -ms-overflow-style: none;  /* IE */
 }
-.nav-scroll-wrapper::-webkit-scrollbar {
-  display: none; /* Chrome/Safari */
-}
+.nav-scroll-wrapper::-webkit-scrollbar { display: none; }
 
 .ac-nav-item {
   position: relative;
   text-decoration: none;
   color: var(--c-text-dim);
   font-family: var(--font-title);
-  font-size: 1.1rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 15px 20px;
-  margin-bottom: 5px;
   transition: all 0.3s ease;
   display: flex;
   align-items: center;
-  gap: 12px;
-  border-radius: 4px;
+  justify-content: center;
+  gap: 10px;
+  white-space: nowrap;
 }
 
-.ac-nav-item:hover {
+.ac-nav-item:hover, .ac-nav-item.active {
   color: var(--c-text-main);
   background-color: var(--c-hover-bg);
 }
+.ac-nav-item.active { color: var(--c-gold); }
 
-.ac-nav-item.active {
-  color: var(--c-gold);
-  background-color: var(--c-hover-bg);
-  text-shadow: 0 0 8px rgba(164, 139, 87, 0.2);
-}
-
-/* 激活指示器：改为左侧竖条 */
 .active-indicator {
   position: absolute;
-  left: 0; top: 50%;
-  width: 3px; height: 0%;
   background-color: var(--c-gold);
-  transform: translateY(-50%);
-  transition: height 0.3s ease;
+  transition: all 0.3s ease;
   box-shadow: 0 0 8px var(--c-gold);
 }
 
-.ac-nav-item.active .active-indicator {
-  height: 70%;
-}
-
-/* 底部控制区 */
 .sidebar-controls {
-  padding: 20px;
   display: flex;
+  align-items: center;
   justify-content: center;
-  gap: 15px;
-  border-top: 1px solid var(--c-border);
-  background: rgba(0,0,0,0.05);
+  gap: 10px;
 }
 
 .control-btn {
-  width: 40px; height: 40px;
-  background: transparent;
-  border: 1px solid var(--c-border);
-  color: var(--c-text-dim);
-  cursor: pointer;
-  font-family: var(--font-title);
-  font-size: 1.2rem;
+  background: transparent; border: 1px solid var(--c-border);
+  color: var(--c-text-dim); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.3s;
-  border-radius: 50%;
+  transition: all 0.3s; border-radius: 50%;
 }
+.control-btn:hover { color: var(--c-gold); border-color: var(--c-gold); }
 
-.control-btn:hover {
-  color: var(--c-gold);
-  border-color: var(--c-gold);
-  transform: rotate(90deg); /* 简单的悬停动画 */
-}
-
-/* --- 主内容区域 --- */
 .ac-main {
   flex: 1;
-  min-width: 0; /* 防止内容撑开 */
   height: 100%;
   position: relative;
   overflow: hidden;
@@ -270,19 +222,126 @@ const toggleTheme = async () => {
   flex-direction: column;
 }
 
+/* =========================================
+   桌面端样式 (Desktop) - 侧边栏模式
+   ========================================= */
+@media (min-width: 769px) {
+  .ac-sidebar {
+    width: var(--sidebar-width);
+    height: 100%;
+    flex-direction: column;
+    padding-top: 20px;
+  }
+
+  .sidebar-border {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 1px;
+    background: linear-gradient(to bottom, transparent, var(--c-border), transparent);
+  }
+
+  .ac-nav-container {
+    flex-direction: column;
+  }
+
+  .nav-scroll-wrapper {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 0 10px;
+  }
+
+  .ac-nav-item {
+    padding: 15px 20px;
+    margin-bottom: 5px;
+    justify-content: flex-start;
+    border-radius: 4px;
+  }
+
+  /* 桌面端指示器：左侧竖条 */
+  .active-indicator {
+    left: 0; top: 50%; width: 3px; height: 0%;
+    transform: translateY(-50%);
+  }
+  .ac-nav-item.active .active-indicator { height: 70%; }
+
+  .sidebar-controls {
+    padding: 20px;
+    border-top: 1px solid var(--c-border);
+  }
+  .control-btn { width: 40px; height: 40px; font-size: 1.2rem; }
+}
+
+/* =========================================
+   移动端样式 (Mobile) - 顶部导航栏模式
+   ========================================= */
+@media (max-width: 768px) {
+  .ac-layout {
+    /* 关键：改为垂直布局，Sidebar 变 Topbar */
+    flex-direction: column;
+  }
+
+  .ac-sidebar {
+    width: 100%;
+    height: 60px; /* 固定高度 */
+    flex-direction: row;
+    align-items: center;
+    padding: 0;
+    background: var(--c-bg-overlay); /* 确保背景不透明 */
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 10;
+  }
+
+  .sidebar-border {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 1px;
+    background: var(--c-border);
+  }
+
+  .ac-nav-container {
+    flex-direction: row;
+    overflow: hidden; /* 容器隐藏溢出 */
+    mask-image: linear-gradient(90deg, transparent, #000 10px, #000 90%, transparent);
+  }
+
+  .nav-scroll-wrapper {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 10px;
+    width: 100%;
+    overflow-x: auto; /* 允许横向滑动 */
+  }
+
+  .ac-nav-item {
+    padding: 0 15px;
+    height: 60px;
+    font-size: 0.9rem;
+    border-radius: 0;
+  }
+
+  /* 移动端隐藏部分文字或图标以节省空间，这里选择保留两者但缩小间距 */
+  .ac-nav-item .icon { font-size: 1.1rem; }
+  .ac-nav-item .text { font-size: 0.9rem; }
+
+  /* 移动端指示器：底部横条 */
+  .active-indicator {
+    bottom: 0; left: 50%; width: 0%; height: 3px;
+    transform: translateX(-50%);
+  }
+  .ac-nav-item.active .active-indicator { width: 60%; }
+
+  .sidebar-controls {
+    padding: 0 10px;
+    border-left: 1px solid var(--c-border);
+    height: 100%;
+    background: rgba(0,0,0,0.2); /* 稍微区分控制区 */
+  }
+
+  .control-btn { width: 32px; height: 32px; font-size: 1rem; border: none; }
+}
+
 /* 动画过渡 */
-.animus-fade-enter-active,
-.animus-fade-leave-active {
+.animus-fade-enter-active, .animus-fade-leave-active {
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
-
-.animus-fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
-}
-
-.animus-fade-leave-to {
-  opacity: 0;
-  transform: translateY(-10px);
-}
+.animus-fade-enter-from { opacity: 0; transform: translateY(10px); }
+.animus-fade-leave-to { opacity: 0; transform: translateY(-10px); }
 </style>
