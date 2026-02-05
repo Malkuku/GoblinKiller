@@ -69,11 +69,10 @@ const visible = computed(() => uiStore.showUI);
 const close = () => { uiStore.showUI = false; };
 
 const baseNavItems = [
+  { name: '未途', path: '/选项', icon: '❖' },
   { name: '视界', path: '/世界信息', icon: '👁' },
   { name: '倒影', path: '/角色', icon: '♟' },
-  { name: '器法', path: '/器与术', icon: '⚔' },
   { name: '道寻', path: '/任务', icon: '⚖' },
-  { name: '未途', path: '/选项', icon: '❖' },
   { name: '祈奉', path: '/设置', icon: '⚙' },
   { name: '绯廊', path: '/图片', icon: '🖼' },
 ];
