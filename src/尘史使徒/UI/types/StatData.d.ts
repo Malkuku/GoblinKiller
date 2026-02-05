@@ -48,7 +48,6 @@ export interface CharacterData {
   "当前身份": string;
   "当前行动"?: string;
   "当前想法"?: string;
-  "当前位置": Coordinates3D;
   "外貌": string[];
   "背景": string[];
   "性格"?: PersonalityData; // 部分次要角色可能只有性格标签
@@ -64,12 +63,6 @@ export interface CharacterData {
   "术之等级": Record<string, ArtLevelData> | string; // 可能是对象或"与xx共享"
   "物品": Record<string, ItemData | string>; // 可能是对象或"与xx共享"
   "简介"?: string; // 次要角色可能有
-}
-
-export interface Coordinates3D {
-  "x": number[];
-  "y": number[];
-  "z": number[];
 }
 
 export interface PersonalityData {
