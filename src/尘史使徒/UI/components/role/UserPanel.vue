@@ -76,7 +76,7 @@ import ArtsModule from './ArtsModule.vue';
 import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModule.vue';
 import SpecialStatusModule from '@/尘史使徒/UI/components/role/SpecialStatusModule.vue';
 import RelationshipModule from '@/尘史使徒/UI/components/role/RelationshipModule.vue';
-import InventoryModule from '@/尘史使徒/UI/view/InventoryModule.vue';
+import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
 
 const props = defineProps(['data']);
 const username = substitudeMacros('{{user}}');

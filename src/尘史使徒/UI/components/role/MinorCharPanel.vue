@@ -45,7 +45,7 @@
 import SpecialStatusModule from './SpecialStatusModule.vue';
 import ArtsModule from './ArtsModule.vue';
 import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
-import InventoryModule from '@/尘史使徒/UI/view/InventoryModule.vue';
+import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
 
 const props = defineProps(['data']);
 const openItemModal = () => { alert('物品弹窗接口预留'); };

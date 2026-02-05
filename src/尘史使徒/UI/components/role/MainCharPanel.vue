@@ -119,7 +119,7 @@ import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModu
 import SpecialStatusModule from '@/尘史使徒/UI/components/role/SpecialStatusModule.vue';
 import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
 import RelationshipModule from '@/尘史使徒/UI/components/role/RelationshipModule.vue';
-import InventoryModule from '@/尘史使徒/UI/view/InventoryModule.vue';
+import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
 
 const props = defineProps(['data']);
 const tabs = ['状态', '属性', '档案', '物品'];
