@@ -146,6 +146,14 @@ const getItemStyle = (name, type) => {
   const t = (type || '').toLowerCase();
 
   if (n.includes('蛾')) return 'style-moth';
+
+  if (
+    n.includes('证明') || n.includes('证书') || n.includes('执照') ||
+    n.includes('徽') || n.includes('印') || n.includes('章') ||
+    n.includes('钥') || n.includes('令') || n.includes('邀请') ||
+    t === '证明' || t === '信物'
+  ) return 'style-proof';
+
   if (n.includes('书') || n.includes('录') || n.includes('篇') || t === '密传') return 'style-lore';
   if (n.includes('刃') || n.includes('剑') || n.includes('刀') || n.includes('枪') || n.includes('斧')) return 'style-weapon';
   if (n.includes('仪式') || n.includes('阵') || n.includes('祭') || t === '仪式') return 'style-ritual';
@@ -228,6 +236,10 @@ const closeDetail = () => {
   --rgb-med: 155, 246, 255;
   --rgb-weapon: 255, 80, 80;
   --rgb-tool: 160, 196, 255;
+
+  /* 新增：证明/信物 (琥珀金/橙色) */
+  --rgb-proof: 255, 160, 50;
+
   --rgb-def: 140, 140, 140;
 
   position: relative;
@@ -312,6 +324,23 @@ const closeDetail = () => {
 .style-currency { border-color: rgba(var(--rgb-curr), 0.4); } .style-currency .card-bg-effect { background: radial-gradient(circle at center, rgba(var(--rgb-curr), 0.8), transparent 90%); } .style-currency .item-name-visual { color: rgb(var(--rgb-curr)); }
 .style-medicine { border-color: rgba(var(--rgb-med), 0.4); } .style-medicine .card-bg-effect { background: radial-gradient(circle at center, rgba(var(--rgb-med), 0.8), transparent 90%); } .style-medicine .item-name-visual { color: rgb(var(--rgb-med)); }
 .style-tool { border-color: rgba(var(--rgb-tool), 0.4); } .style-tool .card-bg-effect { background: radial-gradient(circle at center, rgba(var(--rgb-tool), 0.8), transparent 90%); } .style-tool .item-name-visual { color: rgb(var(--rgb-tool)); }
+
+/* 新增：证明/信物样式 */
+.style-proof {
+  border-color: rgba(var(--rgb-proof), 0.6);
+}
+.style-proof .card-bg-effect {
+  /* 模拟一种印章或边框的内发光效果 */
+  background: radial-gradient(circle at center, transparent 30%, rgba(var(--rgb-proof), 0.15) 100%);
+  border: 1px solid rgba(var(--rgb-proof), 0.1);
+  inset: 2px;
+}
+.style-proof .item-name-visual {
+  color: rgb(var(--rgb-proof));
+  /* 稍微加一点字间距，显得正式 */
+  letter-spacing: 1px;
+}
+
 .style-default { border-color: rgba(var(--rgb-def), 0.3); } .style-default .card-bg-effect { background: linear-gradient(to bottom, rgba(255,255,255,0.05), transparent); }
 
 /* --- 详情面板 (重大修改) --- */
@@ -337,6 +366,10 @@ const closeDetail = () => {
 /* 顶部边框颜色 */
 .detail-panel.style-moth { border-top: 4px solid #888; }
 .detail-panel.style-lore { border-top: 4px solid rgb(var(--rgb-lore)); }
+
+/* 新增 */
+.detail-panel.style-proof { border-top: 4px solid rgb(var(--rgb-proof)); }
+
 .detail-panel.style-weapon { border-top: 4px solid rgb(var(--rgb-weapon)); }
 .detail-panel.style-ritual { border-top: 4px solid rgb(var(--rgb-ritual)); }
 .detail-panel.style-currency { border-top: 4px solid rgb(var(--rgb-curr)); }

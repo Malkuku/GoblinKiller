@@ -116,10 +116,10 @@
           </div>
           <div class="tooltip-footer">
             <button v-if="hasChildren(tooltip.data)" class="action-btn primary" @click="enterArea(tooltip.data)">
-              ENTER REGION
+              进入地区
             </button>
             <button class="action-btn secondary" @click="handleTravel(tooltip.data)">
-              TRAVEL HERE
+              前往此处
             </button>
           </div>
         </div>
@@ -145,7 +145,7 @@ const iconPaths = {
   'City': 'M4 21V8l7-5 7 5v13H4zm4-9h2v4H8v-4zm6 0h2v4h-2v-4z',
   'Palace': 'M2 22h20M12 2L2 7v2h20V7L12 2zM5 22V9m14 13V9M9 22V9m6 13V9',
   'District': 'M12 2L2 12l10 10 10-10L12 2zM7 7l10 10M17 7L7 17',
-  'Villa_Icon': 'M3 21h18M12 3L2 10h3v11h14V10h3L12 3zm-2 8h4v4h-4v-4z',
+  'Villa': 'M3 21h18M12 3L2 10h3v11h14V10h3L12 3zm-2 8h4v4h-4v-4z',
   'Hill': 'M2 20h20L12 4 2 20zm5.5-4.5l4.5-7 4.5 7h-9z',
   'Mountain': 'M2 22h20L12 2 2 22zm5-5l5-10 5 10H7z',
   'Forest': 'M12 2L2 22h20L12 2zm0 6l-4 8h8l-4-8z',
@@ -158,22 +158,21 @@ const iconPaths = {
   'Plaza': 'M3 3h18v18H3V3zm4 4v10h10V7H7zm3 3h4v4h-4v-4z',
   'Sewer': 'M4 8h16M4 12h16M4 16h16M8 4v16M16 4v16',
   'Chapel': 'M12 22V10M12 2a3 3 0 0 1 3 3c0 2-3 5-3 5s-3-3-3-5a3 3 0 0 1 3-3z',
-  'Temple_Icon': 'M12 2v4m0 12v4M2 12h4m12 0h4m-2.5-6.5l-2.8 2.8m-5.4 5.4l-2.8 2.8m0-11l2.8 2.8m5.4 5.4l2.8 2.8M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+  'Temple': 'M12 2v4m0 12v4M2 12h4m12 0h4m-2.5-6.5l-2.8 2.8m-5.4 5.4l-2.8 2.8m0-11l2.8 2.8m5.4 5.4l2.8 2.8M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
   'Graveyard': 'M12 3v18M8 8h8M6 21h12',
   'Camp': 'M3 21h18L12 3 3 21zm9-5v5',
   'BlackMarket': 'M12 2a7 7 0 0 0-7 7v5l3 3h8l3-3V9a7 7 0 0 0-7-7zm-3 9a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm6 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z',
   'Slum': 'M4 21h16M4 10l8-7 8 7v11h-4v-6h-4v6H4V10zm2 4h2v2H6v-2z',
   'Academy': 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5H6.5a2.5 2.5 0 0 1 0-5H20',
-  'Industry_Icon': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-6a4 4 0 1 1 0-8 4 4 0 0 1 0 8z',
-  'Furnace_Icon': 'M4 20h16v-8H4v8zm2-8V8l6-4 6 4v4M8 16h8v2H8v-2z',
+  'Industry': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-6a4 4 0 1 1 0-8 4 4 0 0 1 0 8z',
+  'Furnace': 'M4 20h16v-8H4v8zm2-8V8l6-4 6 4v4M8 16h8v2H8v-2z',
   'Factory': 'M2 22h20M18 10l-4-4-4 4V6L6 2v20h12V10z',
   'Mine': 'M18 2l2 2-8 8 2 2-2 2-2-2-8 8-2-2 8-8-2-2 2-2 2 2 8-8z',
   'Tower': 'M12 2L6 22h12L12 2zm0 4v2m0 4v2',
   'Port': 'M12 2v17m0 0a5 5 0 0 1-5-5H5a7 7 0 0 0 14 0h-2a5 5 0 0 1-5 5zM9 5h6',
-  'Dock_Icon': 'M4 18h16M6 18V8l6-4 6 4v10M9 14h6',
+  'Dock': 'M4 18h16M6 18V8l6-4 6 4v10M9 14h6',
   'Market': 'M12 3v18M3 8l5-2 4 2M12 8l4-2 5 2M8 8v8a3 3 0 0 0 6 0V8',
-  'Market_Icon': 'M12 3v18M3 8l5-2 4 2M12 8l4-2 5 2M8 8v8a3 3 0 0 0 6 0V8',
-  'Inn_Icon': 'M5 20h14M5 10v10M19 10v10M3 10h18M7 5h10v5H7V5z',
+  'Inn': 'M5 20h14M5 10v10M19 10v10M3 10h18M7 5h10v5H7V5z',
 };
 const getIconPath = (type) => {
   if (!type) return iconPaths['Default'];
