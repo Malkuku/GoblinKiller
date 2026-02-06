@@ -1,109 +1,116 @@
 <template>
-  <div class="gallery-container">
-    <!-- 1. 顶部模式切换 (SFW / NSFW) -->
-    <div class="gallery-tabs">
-      <button
-        class="tab-btn"
-        :class="{ active: currentMode === 'sfw' }"
-        @click="switchMode('sfw')"
-      >
-        皮囊 (SFW)
-      </button>
-      <button
-        class="tab-btn danger"
-        :class="{ active: currentMode === 'nsfw' }"
-        @click="switchMode('nsfw')"
-      >
-        血肉 (NSFW)
-      </button>
-    </div>
-
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-state">
-      <div class="spinner"></div>
-      <p>正在读取世界书记录...</p>
-    </div>
-
-    <!-- 内容区域 -->
-    <div v-else class="gallery-content">
-      <div v-if="currentData.length === 0" class="empty-state">
-        未找到相关的世界书条目 (需包含 [{{ currentMode }}_img] 标签)
+  <div class="animus-gallery-container">
+    <!-- 顶部控制栏：模式切换 -->
+    <header class="gallery-header">
+      <div class="header-title">
+        <span class="icon">🖼</span> 绯廊 <span class="subtitle">// VISUAL ARCHIVE</span>
       </div>
+      <div class="mode-switcher">
+        <button
+          class="mode-btn"
+          :class="{ active: currentMode === 'sfw' }"
+          @click="switchMode('sfw')"
+        >
+          [ SFW_DATA ]
+        </button>
+        <button
+          class="mode-btn"
+          :class="{ active: currentMode === 'nsfw' }"
+          @click="switchMode('nsfw')"
+        >
+          [ NSFW_DATA ]
+        </button>
+      </div>
+    </header>
 
-      <div v-else>
-        <!-- 2. 角色分页导航 -->
-        <div class="char-nav">
-          <button class="nav-arrow" disabled>&lt;</button>
+    <!-- 加载中状态 -->
+    <div v-if="loading" class="loading-screen">
+      <div class="spinner"></div>
+      <div class="loading-text">SYNCHRONIZING ARCHIVES...</div>
+    </div>
 
-          <div class="char-select-wrapper">
-            <select v-model="activeCharIndex" class="char-select">
-              <option
-                v-for="(char, index) in currentData"
-                :key="index"
-                :value="index"
-              >
-                {{ char.name }}
-              </option>
-            </select>
-            <span class="select-arrow">▼</span>
+    <!-- 主内容区 -->
+    <div v-else class="gallery-layout">
+
+      <!-- 左侧：角色列表 -->
+      <aside class="char-sidebar">
+        <div class="sidebar-header">SUBJECTS //</div>
+        <div class="char-list">
+          <div
+            v-for="(char, index) in currentData"
+            :key="char.name"
+            class="char-item"
+            :class="{ active: activeCharIndex === index }"
+            @click="activeCharIndex = index"
+          >
+            <span class="char-marker">►</span>
+            <span class="char-name">{{ char.name }}</span>
           </div>
-
-          <button class="nav-arrow" disabled>&gt;</button>
+          <div v-if="currentData.length === 0" class="empty-tip">NO DATA FOUND</div>
         </div>
+      </aside>
 
-        <!-- 3. 当前角色展示区域 -->
-        <div :key="activeChar.name" class="character-block">
-          <div class="actions-grid">
-            <!-- 动作列表 -->
+      <!-- 右侧：动作与图片展示 -->
+      <main class="content-area">
+        <div v-if="activeChar" class="char-detail">
+          <h2 class="detail-title">
+            {{ activeChar.name }}
+            <span class="action-count">/ {{ activeChar.actions.length }} RECORDS</span>
+          </h2>
+          <div class="detail-line"></div>
+
+          <!-- 动作列表 -->
+          <div class="action-grid">
             <div
               v-for="action in activeChar.actions"
               :key="action.name"
               class="action-card"
-              :class="{ 'is-expanded': getActionState(activeChar.name, action.name).expanded }"
+              :class="{ expanded: getActionState(activeChar.name, action.name).expanded }"
             >
-              <!-- 头部：点击展开/收起 -->
+              <!-- 动作标题栏 (点击展开/收起) -->
               <div class="action-header" @click="toggleAction(activeChar.name, action.name)">
                 <span class="action-name">{{ action.name }}</span>
-                <span class="action-meta">
-                  <span class="count-badge">{{ action.max }} 枚</span>
-                  <span class="arrow-icon">▼</span>
+                <span class="toggle-icon">
+                  {{ getActionState(activeChar.name, action.name).expanded ? '▼' : '▶' }}
                 </span>
               </div>
 
               <!-- 展开后的图片区域 -->
-              <div v-if="getActionState(activeChar.name, action.name).expanded" class="image-viewer">
+              <div v-if="getActionState(activeChar.name, action.name).expanded" class="action-body">
 
-                <!-- 图片显示容器 (点击放大) -->
-                <div
-                  class="img-wrapper"
-                  title="点击放大图片"
-                  @click="openLightbox(getCurrentImageUrl(activeChar.name, action))"
-                >
-                  <div v-if="imgLoading" class="img-spinner"></div>
+                <!-- 图片容器 -->
+                <div class="img-viewer">
+                  <!-- 加载/错误提示 -->
+                  <div v-if="imgLoading" class="img-status loading">
+                    <div class="mini-spinner"></div>
+                  </div>
+                  <div v-if="imgError" class="img-status error">DATA CORRUPTED</div>
+
+                  <!-- 图片本体 -->
                   <img
                     :src="getCurrentImageUrl(activeChar.name, action)"
-                    :alt="action.name"
                     @load="onImgLoad"
-                    loading="lazy"
                     @error="onImgError"
-                    v-show="!imgError"
+                    @click="openLightbox(getCurrentImageUrl(activeChar.name, action))"
+                    class="gallery-img"
+                    alt="Archive Image"
                   />
-                  <div v-if="imgError" class="img-error">
-                    图片加载失败<br>
-                    <small>{{ getCurrentImageUrl(activeChar.name, action) }}</small>
-                  </div>
-                  <!-- 放大提示图标 -->
-                  <div class="zoom-hint">🔍</div>
+
+                  <!-- 装饰角落 -->
+                  <div class="corner top-left"></div>
+                  <div class="corner top-right"></div>
+                  <div class="corner bottom-left"></div>
+                  <div class="corner bottom-right"></div>
                 </div>
 
-                <!-- 翻页控制栏 & 下载按钮 -->
-                <div class="viewer-controls">
+                <!-- 控制栏 -->
+                <div class="img-controls">
                   <button
                     class="ctrl-btn"
-                    :disabled="getCurrentIndex(activeChar.name, action.name) <= 1"
+                    :disabled="getCurrentIndex(activeChar.name, action.name) <= action.min"
                     @click="changePage(activeChar.name, action.name, -1)"
                   >
-                    &lt;
+                    &lt; PREV
                   </button>
 
                   <span class="page-indicator">
@@ -115,15 +122,10 @@
                     :disabled="getCurrentIndex(activeChar.name, action.name) >= action.max"
                     @click="changePage(activeChar.name, action.name, 1)"
                   >
-                    &gt;
+                    NEXT &gt;
                   </button>
 
-                  <div class="divider"></div>
-                  <button
-                    class="ctrl-btn download-btn"
-                    title="下载当前图片"
-                    @click="downloadImage(activeChar.name, action)"
-                  >
+                  <button class="ctrl-btn download-btn" @click="downloadImage(activeChar.name, action)">
                     ⬇
                   </button>
                 </div>
@@ -131,44 +133,54 @@
             </div>
           </div>
         </div>
-      </div>
+
+        <div v-else class="no-selection">
+          SELECT A SUBJECT TO VIEW ARCHIVES
+        </div>
+      </main>
     </div>
 
-    <!-- 4. 全屏图片灯箱 (Lightbox) - 已升级支持缩放 -->
+    <!-- 灯箱 (全屏查看) -->
     <transition name="fade">
       <div
         v-if="lightbox.show"
         class="lightbox-overlay"
-        @click.self="closeLightbox"
-        @wheel.prevent="onWheel"
-        @mousedown="onMouseDown"
         @mousemove="onMouseMove"
         @mouseup="onMouseUp"
-        @mouseleave="onMouseUp"
-        @touchstart.prevent="onTouchStart"
-        @touchmove.prevent="onTouchMove"
+        @touchmove="onTouchMove"
         @touchend="onTouchEnd"
       >
         <!-- 关闭按钮 -->
-        <button class="close-btn" @click="closeLightbox">&times;</button>
+        <button class="lightbox-close" @click="closeLightbox">✕ CLOSE VIEW</button>
 
-        <!-- 图片内容 -->
-        <img
-          ref="lightboxImg"
-          class="lightbox-content"
-          :src="lightbox.url"
-          alt="Full size preview"
-          draggable="false"
-        />
+        <!-- 图片容器 -->
+        <div
+          class="lightbox-container"
+          @wheel.prevent="onWheel"
+          @mousedown="onMouseDown"
+          @touchstart="onTouchStart"
+        >
+          <img
+            ref="lightboxImg"
+            :src="lightbox.url"
+            class="lightbox-image"
+            draggable="false"
+          />
+        </div>
 
-        <!-- 提示文字 -->
-        <div class="lightbox-tip">滚轮/双指缩放 · 拖拽移动</div>
+        <!-- 操作提示 -->
+        <div class="lightbox-hint">
+          SCROLL TO ZOOM // DRAG TO PAN
+        </div>
       </div>
     </transition>
   </div>
 </template>
 
 <script setup>
+// =========================================================================
+// 逻辑部分完全保持原样，仅确保 import 路径正确
+// =========================================================================
 import { ref, computed, onMounted, reactive } from 'vue';
 import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
 
@@ -450,128 +462,180 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.gallery-container {
-  padding: 10px;
-  max-width: 1000px;
-  margin: 0 auto;
-}
-
-/* --- Tabs --- */
-.gallery-tabs {
+/* 继承 Layout 变量 */
+.animus-gallery-container {
+  height: 100%;
+  width: 100%;
   display: flex;
-  gap: 15px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border-color);
-  padding-bottom: 10px;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
+  color: var(--c-text-main);
+  font-family: var(--font-body);
 }
 
-.tab-btn {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  padding: 8px 20px;
-  cursor: pointer;
-  font-family: 'Cinzel', serif;
-  transition: all 0.3s ease;
-  border-radius: 4px;
-}
-
-.tab-btn.active {
-  background-color: var(--bg-secondary);
-  color: var(--accent-primary);
-  border-color: var(--accent-primary);
-}
-
-.tab-btn.danger.active {
-  color: var(--accent-danger);
-  border-color: var(--accent-danger);
-}
-
-/* --- Character Navigation --- */
-.char-nav {
+/* 顶部 Header */
+.gallery-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--bg-secondary);
-  padding: 10px 20px;
-  border-radius: 8px;
-  margin-bottom: 25px;
-  border: 1px solid var(--border-color);
-  box-shadow: 0 4px 6px var(--shadow-color);
+  padding-bottom: 15px;
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
-.nav-arrow {
-  background: none;
-  border: none;
-  color: var(--accent-primary);
-  font-family: 'Cinzel', serif;
-  font-weight: bold;
-  cursor: pointer;
+.header-title {
+  font-family: var(--font-title);
+  font-size: 1.5rem;
+  color: var(--c-text-main);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--c-gold);
+  opacity: 0.7;
+  letter-spacing: 2px;
+}
+
+.mode-switcher {
+  display: flex;
+  gap: 10px;
+}
+
+.mode-btn {
+  background: transparent;
+  border: 1px solid var(--c-border);
+  color: var(--c-text-dim);
+  font-family: var(--font-title);
   padding: 5px 15px;
-  transition: opacity 0.3s;
-}
-
-.nav-arrow:disabled { opacity: 0.3; cursor: not-allowed; }
-
-.char-select-wrapper {
-  position: relative;
-  flex-grow: 1;
-  max-width: 300px;
-  margin: 0 15px;
-}
-
-.char-select {
-  width: 100%;
-  appearance: none;
-  -webkit-appearance: none;
-  background-color: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  padding: 8px 30px 8px 15px;
-  border-radius: 4px;
-  font-family: 'Cinzel', serif;
-  font-size: 1.1rem;
-  font-weight: bold;
   cursor: pointer;
-  outline: none;
-  text-align: center;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+}
+
+.mode-btn:hover {
+  border-color: var(--c-gold);
+  color: var(--c-gold);
+  background: var(--c-hover-bg);
+}
+
+.mode-btn.active {
+  background: var(--c-gold);
+  color: #000;
+  border-color: var(--c-gold);
+  font-weight: bold;
+}
+
+/* 主布局 */
+.gallery-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0; /* 防止溢出 */
+  gap: 20px;
+}
+
+/* 左侧边栏 */
+.char-sidebar {
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--c-border);
+  padding-right: 10px;
+}
+
+.sidebar-header {
+  font-family: var(--font-title);
+  color: var(--c-gold);
+  font-size: 0.8rem;
+  margin-bottom: 10px;
+  opacity: 0.8;
+}
+
+.char-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-gold) transparent;
+}
+
+.char-item {
+  padding: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(164, 139, 87, 0.1);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-title);
+  font-size: 0.9rem;
+  color: var(--c-text-dim);
+}
+
+.char-item:hover {
+  background: var(--c-hover-bg);
+  color: var(--c-text-main);
+  padding-left: 15px;
+}
+
+.char-item.active {
+  color: var(--c-gold);
+  border-left: 2px solid var(--c-gold);
+  background: linear-gradient(90deg, var(--c-hover-bg), transparent);
+}
+
+.char-marker {
+  font-size: 0.6rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.char-item.active .char-marker {
+  opacity: 1;
+}
+
+/* 右侧内容区 */
+.content-area {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-gold) transparent;
+}
+
+.detail-title {
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  color: var(--c-text-main);
+  margin: 0;
+}
+
+.action-count {
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+  margin-left: 10px;
+}
+
+.detail-line {
+  height: 1px;
+  background: linear-gradient(90deg, var(--c-gold), transparent);
+  margin: 10px 0 20px 0;
+  opacity: 0.5;
+}
+
+/* 动作卡片 */
+.action-card {
+  border: 1px solid var(--c-border);
+  margin-bottom: 15px;
+  background: rgba(0, 0, 0, 0.2);
   transition: border-color 0.3s;
 }
 
-.char-select:hover, .char-select:focus { border-color: var(--accent-primary); }
-
-.select-arrow {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
-
-/* --- Actions Grid --- */
-.actions-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 15px;
-}
-
-.action-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.action-card.is-expanded {
-  grid-column: span 2;
-  border-color: var(--accent-primary);
-  box-shadow: 0 4px 15px var(--shadow-color);
-}
-@media (max-width: 768px) {
-  .action-card.is-expanded { grid-column: span 1; }
+.action-card:hover {
+  border-color: rgba(164, 139, 87, 0.6);
 }
 
 .action-header {
@@ -580,178 +644,243 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
-  background-color: rgba(0,0,0,0.1);
+  background: rgba(164, 139, 87, 0.05);
 }
 
-.action-header:hover { background-color: rgba(255,255,255,0.05); }
-.action-name { font-weight: bold; color: var(--text-primary); }
+.action-name {
+  font-family: var(--font-title);
+  font-weight: bold;
+  color: var(--c-text-main);
+}
 
-.action-meta { display: flex; align-items: center; gap: 10px; }
-.count-badge {
+.toggle-icon {
+  color: var(--c-gold);
   font-size: 0.8rem;
-  color: var(--text-secondary);
-  background: var(--bg-primary);
-  padding: 2px 6px;
-  border-radius: 4px;
 }
 
-.arrow-icon { font-size: 0.8rem; transition: transform 0.3s; }
-.is-expanded .arrow-icon { transform: rotate(180deg); }
-
-/* --- Image Viewer --- */
-.image-viewer {
+.action-body {
   padding: 15px;
-  background-color: var(--bg-primary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  border-top: 1px solid var(--c-border);
+  animation: slide-down 0.3s ease-out;
 }
 
-.img-wrapper {
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 图片查看器 */
+.img-viewer {
+  position: relative;
   width: 100%;
   min-height: 300px;
-  max-height: 500px;
+  background: rgba(0, 0, 0, 0.3);
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #000;
-  border-radius: 4px;
-  overflow: hidden;
-  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.05);
   margin-bottom: 15px;
-  cursor: zoom-in;
+  overflow: hidden;
 }
 
-.img-wrapper img {
+.gallery-img {
   max-width: 100%;
   max-height: 500px;
   object-fit: contain;
-  animation: fadeImg 0.3s ease;
+  cursor: zoom-in;
+  transition: transform 0.3s;
 }
 
-.zoom-hint {
+.gallery-img:hover {
+  transform: scale(1.02);
+}
+
+/* 状态提示 */
+.img-status {
   position: absolute;
-  bottom: 10px;
-  right: 10px;
-  background: rgba(0,0,0,0.6);
-  color: #fff;
-  padding: 5px;
-  border-radius: 4px;
-  opacity: 0;
-  transition: opacity 0.3s;
-  pointer-events: none;
-}
-.img-wrapper:hover .zoom-hint { opacity: 1; }
-
-.img-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid var(--text-secondary);
-  border-top-color: var(--accent-primary);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: var(--c-text-dim);
+  font-family: var(--font-title);
+  z-index: 2;
 }
 
-.img-error { color: var(--accent-danger); text-align: center; padding: 20px; }
+.img-status.error { color: var(--c-accent-danger, #a83232); }
 
-/* --- Controls --- */
-.viewer-controls { display: flex; align-items: center; gap: 20px; }
+/* 控制栏 */
+.img-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+}
 
 .ctrl-btn {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--c-border);
+  color: var(--c-gold);
+  padding: 5px 15px;
+  font-family: var(--font-title);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all 0.2s;
+  font-size: 0.8rem;
 }
 
-.ctrl-btn:hover:not(:disabled) { background-color: var(--accent-primary); color: #fff; }
-.ctrl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.page-indicator { font-family: 'Cinzel', serif; font-size: 1.1rem; color: var(--text-secondary); }
+.ctrl-btn:hover:not(:disabled) {
+  background: var(--c-gold);
+  color: #000;
+}
 
-.divider { width: 1px; height: 25px; background-color: var(--border-color); margin: 0 5px; }
-.download-btn { border-color: var(--text-secondary); }
-.download-btn:hover { background-color: var(--text-secondary); color: var(--bg-primary); }
+.ctrl-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: transparent;
+}
 
-/* --- Lightbox (Fullscreen Zoom) --- */
+.page-indicator {
+  font-family: var(--font-title);
+  color: var(--c-text-main);
+  min-width: 60px;
+  text-align: center;
+}
+
+/* 装饰角落 */
+.corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--c-gold);
+  border-style: solid;
+  pointer-events: none;
+}
+.top-left { top: 0; left: 0; border-width: 2px 0 0 2px; }
+.top-right { top: 0; right: 0; border-width: 2px 2px 0 0; }
+.bottom-left { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
+.bottom-right { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
+
+/* 灯箱样式 */
 .lightbox-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0, 0, 0, 0.95);
-  z-index: 9999;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(10, 12, 16, 0.98);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
   align-items: center;
+  justify-content: center;
+}
+
+.lightbox-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
-  touch-action: none; /* 禁止移动端默认滚动 */
-  backdrop-filter: blur(5px);
-}
-
-.lightbox-content {
-  max-width: 95vw;
-  max-height: 95vh;
-  object-fit: contain;
-  box-shadow: 0 0 30px rgba(0,0,0,0.9);
-  border: 1px solid #d4af37;
-
-  /* 缩放关键样式 */
-  transform-origin: center center;
-  will-change: transform;
   cursor: grab;
-  user-select: none;
-  -webkit-user-drag: none;
 }
 
-.lightbox-content:active {
+.lightbox-container:active {
   cursor: grabbing;
 }
 
-.close-btn {
+.lightbox-image {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  will-change: transform;
+}
+
+.lightbox-close {
   position: absolute;
   top: 20px;
-  right: 30px;
-  background: none;
-  border: none;
-  color: #e0e0e0;
-  font-size: 50px;
-  font-weight: 300;
-  line-height: 1;
+  right: 20px;
+  z-index: 10001;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--c-gold);
+  color: var(--c-gold);
+  padding: 8px 16px;
+  font-family: var(--font-title);
   cursor: pointer;
-  z-index: 10000;
-  text-shadow: 0 2px 5px rgba(0,0,0,0.8);
-  transition: color 0.2s, transform 0.2s;
+  transition: all 0.3s;
 }
 
-.close-btn:hover {
-  color: #d4af37;
-  transform: scale(1.1);
+.lightbox-close:hover {
+  background: var(--c-gold);
+  color: #000;
 }
 
-.lightbox-tip {
+.lightbox-hint {
   position: absolute;
   bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: rgba(255,255,255,0.5);
-  font-size: 12px;
+  color: var(--c-text-dim);
+  font-family: var(--font-title);
+  font-size: 0.8rem;
+  letter-spacing: 2px;
   pointer-events: none;
-  z-index: 10000;
+  opacity: 0.7;
 }
 
-/* --- Animations --- */
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes fadeImg { from { opacity: 0; } to { opacity: 1; } }
+/* 加载动画 */
+.loading-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+}
+
+.spinner, .mini-spinner {
+  border: 2px solid transparent;
+  border-top-color: var(--c-gold);
+  border-right-color: var(--c-gold);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.spinner { width: 50px; height: 50px; }
+.mini-spinner { width: 30px; height: 30px; }
+
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+  .gallery-layout {
+    flex-direction: column;
+  }
+
+  .char-sidebar {
+    width: 100%;
+    height: 150px; /* 固定高度 */
+    border-right: none;
+    border-bottom: 1px solid var(--c-border);
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+  }
+
+  .gallery-header {
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .mode-switcher {
+    width: 100%;
+  }
+
+  .mode-btn {
+    flex: 1;
+    text-align: center;
+  }
+
+  .content-area {
+    padding-right: 0;
+  }
+}
+
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
-.loading-state, .empty-state { text-align: center; padding: 50px; color: var(--text-secondary); }
 </style>
