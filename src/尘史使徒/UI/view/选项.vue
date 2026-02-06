@@ -27,10 +27,8 @@
           <!-- 正文 -->
           <div class="text-body" v-html="displayHtml"></div>
 
-          <!-- 打字机光标 (正在流式传输时显示) -->
+          <!-- 打字机光标 -->
           <span v-if="isStreaming" class="typing-cursor">_</span>
-
-          <!-- 旧的等待动画已移除 -->
         </div>
       </div>
     </div>
@@ -72,10 +70,7 @@
             @click="toggleOptionsPanel"
             :disabled="isTavernBusy"
           >
-            <!-- 生成中显示齿轮/罗盘图标，否则显示菜单图标 -->
             <span class="toggle-icon">{{ isTavernBusy ? '۞' : '❖' }}</span>
-
-            <!-- 角标：仅在非忙碌且有选项时显示 -->
             <span v-if="cachedOptions.length > 0 && !isTavernBusy" class="options-badge">{{ cachedOptions.length }}</span>
           </button>
         </div>
@@ -106,7 +101,6 @@
         <!-- 发送按钮 -->
         <button class="send-btn" @click="sendMessage" :disabled="isTavernBusy">
           <span v-if="!isTavernBusy" class="send-icon">➤</span>
-          <!-- 这里的 spinner 可以保留作为双重提示，或者隐藏 -->
           <div v-else class="mini-dot"></div>
         </button>
       </div>
@@ -131,7 +125,6 @@ const pollingInterval = ref<any>(null);
 const fontSize = ref(18);
 const showOptionsPanel = ref(false);
 
-// isTavernBusy 直接控制界面状态
 const isTavernBusy = ref(false);
 let sendButtonObserver: MutationObserver | null = null;
 
@@ -141,7 +134,12 @@ const OP_TAG_REGEX = /<op>([\s\S]*?)<\/op>/gi;
 
 const displayHtml = computed(() => {
   if (!rawHtml.value) return '';
-  return rawHtml.value.replace(OPTIONS_BLOCK_REGEX, '');
+  let content = rawHtml.value.replace(OPTIONS_BLOCK_REGEX, '');
+  content = content.trim();
+  if (content.length >= 2 && content.startsWith('"') && content.endsWith('"')) {
+    content = content.slice(1, -1);
+  }
+  return content;
 });
 
 // --- 监听器 ---
@@ -160,7 +158,7 @@ const changeFontSize = (delta: number) => {
 };
 
 const toggleOptionsPanel = () => {
-  if (isTavernBusy.value) return; // 忙碌时禁止打开
+  if (isTavernBusy.value) return;
   if (cachedOptions.value.length > 0) {
     showOptionsPanel.value = !showOptionsPanel.value;
   }
@@ -175,9 +173,22 @@ const handleOptionClick = (option: string) => {
   }, 50);
 };
 
+// 轮询核心：同时检查消息和按钮状态
 const fetchLatestMessage = () => {
   try {
-    const chatContainer = window.parent.document.getElementById('chat');
+    const parentDoc = window.parent.document;
+
+    // 1. 检查按钮状态 (修复卡顿的关键：每次轮询都重新获取 DOM 检查)
+    const tavernSendBtn = parentDoc.getElementById('send_but');
+    if (tavernSendBtn) {
+      checkTavernBusy(tavernSendBtn);
+    } else {
+      // 如果找不到按钮，可能是在加载中，或者被隐藏了，暂时认为是忙碌
+      // 但为了防止死锁，如果长时间找不到，这里可以不做操作，依赖 sendMessage 的 finally
+    }
+
+    // 2. 检查消息内容
+    const chatContainer = parentDoc.getElementById('chat');
     if (!chatContainer) return;
 
     const lastMessageDiv = chatContainer.querySelector('.last_mes .mes_text');
@@ -201,11 +212,10 @@ const fetchLatestMessage = () => {
       }
     }
   } catch (e) {
-    console.warn('获取父窗口消息失败', e);
+    console.warn('轮询父窗口失败', e);
   }
 };
 
-// 1. 修改：解析选项时去除首尾引号
 const parseOptions = (htmlContent: string): string[] => {
   if (!htmlContent) return [];
   const match = htmlContent.match(OPTIONS_BLOCK_REGEX);
@@ -213,7 +223,6 @@ const parseOptions = (htmlContent: string): string[] => {
 
   return Array.from(match[1].matchAll(OP_TAG_REGEX), m => {
     let text = m[1].trim();
-    // 去除首尾的双引号或单引号
     text = text.replace(/^["']|["']$/g, '');
     return text;
   });
@@ -231,17 +240,13 @@ const scrollToBottom = () => {
 };
 
 const sendMessage = async () => {
-  if (!userInput.value.trim()) return;
-
   const textToSend = userInput.value;
 
-  // 清理 UI
+  isTavernBusy.value = true; // 立即触发动画
+
   cachedOptions.value = [];
   showOptionsPanel.value = false;
   userInput.value = '';
-
-  // 注意：这里不需要手动设置 isTavernBusy = true
-  // 因为下面的 click() 会触发酒馆的生成状态，Observer 会自动捕获并更新 isTavernBusy
 
   try {
     const parentDoc = window.parent.document;
@@ -253,15 +258,19 @@ const sendMessage = async () => {
       stInput.dispatchEvent(new Event('input', { bubbles: true }));
       await new Promise(r => setTimeout(r, 50));
       stSendBtn.click();
+    } else {
+      console.warn("未找到酒馆发送按钮");
+      isTavernBusy.value = false;
     }
   } catch (e) {
     console.error('发送消息错误:', e);
+    isTavernBusy.value = false;
   } finally {
     scrollToBottom();
   }
 };
 
-// 2. 监听酒馆按钮状态 (核心驱动动画)
+// 监听器逻辑优化
 const setupTavernObserver = () => {
   const parentDoc = window.parent.document;
   const tavernSendBtn = parentDoc.getElementById('send_but');
@@ -269,8 +278,13 @@ const setupTavernObserver = () => {
   if (tavernSendBtn) {
     checkTavernBusy(tavernSendBtn);
 
+    // 断开旧的，防止重复
+    if (sendButtonObserver) sendButtonObserver.disconnect();
+
     sendButtonObserver = new MutationObserver((mutations) => {
-      checkTavernBusy(tavernSendBtn);
+      // 每次变化都重新获取一次元素，确保引用最新
+      const currentBtn = parentDoc.getElementById('send_but');
+      if (currentBtn) checkTavernBusy(currentBtn);
     });
 
     sendButtonObserver.observe(tavernSendBtn, {
@@ -280,13 +294,22 @@ const setupTavernObserver = () => {
   }
 };
 
+// 状态检查逻辑
 const checkTavernBusy = (btn: HTMLElement) => {
   const style = window.getComputedStyle(btn);
   const isHidden = style.display === 'none' || style.visibility === 'hidden';
   const isDisabled = btn.hasAttribute('disabled');
 
-  // 只要按钮不可用或隐藏，就视为忙碌
-  isTavernBusy.value = isHidden || isDisabled;
+  const busy = isHidden || isDisabled;
+
+  if (isTavernBusy.value !== busy) {
+    isTavernBusy.value = busy;
+    // 如果状态变了，说明可能 DOM 刷新了，重新挂载一下 Observer 以防万一
+    if (!busy && sendButtonObserver) {
+      // 可选：这里可以重新 setupTavernObserver() 如果发现 DOM 元素引用变了
+      // 但由于我们在 fetchLatestMessage 里有轮询，这里不做复杂操作也行
+    }
+  }
 };
 
 // --- 生命周期 ---
@@ -300,9 +323,11 @@ onMounted(() => {
     if (ops.length > 0) cachedOptions.value = ops;
   }
 
+  // 启动轮询 (包含消息同步 + 按钮状态同步)
   fetchLatestMessage();
   pollingInterval.value = setInterval(fetchLatestMessage, 200);
 
+  // 启动监听器 (作为即时响应补充)
   setupTavernObserver();
 
   setTimeout(() => {
@@ -412,12 +437,12 @@ onUnmounted(() => {
 }
 .options-toggle-btn.active { background: var(--c-gold); color: #1a1a1a; }
 
-/* 2. 选项按钮滚动动画 */
+/* 选项按钮滚动动画 */
 .options-toggle-btn.is-rolling {
   border-color: var(--c-gold);
   color: var(--c-gold);
   cursor: default;
-  animation: none; /* 移除呼吸灯，改为内部图标旋转 */
+  animation: none;
 }
 .options-toggle-btn.is-rolling .toggle-icon {
   display: inline-block;
@@ -463,11 +488,11 @@ onUnmounted(() => {
   transform: translateX(5px);
 }
 
-/* --- Input Area Stack (Input vs Waiting Animation) --- */
+/* --- Input Area Stack --- */
 .input-area-stack {
   flex: 1;
   position: relative;
-  height: 56px; /* 固定高度防止切换时抖动 */
+  height: 56px;
 }
 
 .story-input {
@@ -481,7 +506,7 @@ onUnmounted(() => {
 }
 .story-input:focus { outline: none; background: rgba(0, 0, 0, 0.4); border-bottom-color: var(--c-gold); }
 
-/* 2. 忙碌状态下的输入框样式 */
+/* 忙碌状态下的输入框样式 */
 .story-input.busy-state {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   background: rgba(0, 0, 0, 0.1);
