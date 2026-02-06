@@ -1,12 +1,48 @@
-// stores/questStore.js
+// stores/QuestStore.js
 import { defineStore } from 'pinia';
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore'; // 引入 MessageStore
 
 export const useQuestStore = defineStore('quest', () => {
   const statStore = useStatStore();
+  const messageStore = useMessageStore(); // 获取消息仓库实例
 
-  // 辅助函数：将 Record<string, T> 转换为 Array<T & { title: string }>
+  // --- 1. 布告栏数据 (新进委托) ---
+  const questBoardData = ref({});
+
+  // 核心逻辑移至此处：监听消息变化，自动解析
+  watch(() => messageStore.message, (newMsg) => {
+    if (!newMsg) return;
+
+    // 正则匹配 <questVariable>...</questVariable>
+    const regex = /<questVariable>([\s\S]*?)<\/questVariable>/i;
+    const match = newMsg.match(regex);
+
+    if (match && match[1]) {
+      try {
+        const jsonStr = match[1].trim();
+
+        // 更新状态
+        questBoardData.value = JSON.parse(jsonStr);
+        console.log('[QuestStore] 检测到新委托，布告栏已更新');
+      } catch (e) {
+        console.error('[QuestStore] 解析任务数据失败:', e);
+      }
+    }
+  },{immediate:true});
+
+  // Action: 清空布告栏 (接取后调用)
+  const clearQuestBoardData = () => {
+    questBoardData.value = {};
+  };
+
+  // Getter: 是否有新任务待接取
+  const hasBoardData = computed(() => {
+    return questBoardData.value && Object.keys(questBoardData.value).length > 0;
+  });
+
+  // --- 2. 已接取任务 (来自 StatStore) ---
   const transformData = (record) => {
     if (!record) return [];
     return Object.entries(record).map(([key, value]) => ({
@@ -15,40 +51,19 @@ export const useQuestStore = defineStore('quest', () => {
     }));
   };
 
-  // 1. 主线任务 (Main Quest)
-  const mainQuests = computed(() => {
-    return transformData(statStore.stat_data?.主线);
-  });
+  const mainQuests = computed(() => transformData(statStore.stat_data?.主线));
+  const tasks = computed(() => transformData(statStore.stat_data?.任务));
+  const events = computed(() => transformData(statStore.stat_data?.事件));
 
-  // 2. 支线/委托任务 (Tasks)
-  const tasks = computed(() => {
-    return transformData(statStore.stat_data?.任务);
-  });
-
-  // 3. 世界事件 (Events)
-  const events = computed(() => {
-    return transformData(statStore.stat_data?.事件);
-  });
-
-  // 判断是否有任何任务数据（用于 Layout 导航栏显示）
-  const hasQuestData = computed(() => {
-    return (
-      mainQuests.value.length > 0 ||
-      tasks.value.length > 0 ||
-      events.value.length > 0
-    );
-  });
-
-  // 统计当前活跃任务数量（用于角标等）
-  const activeCount = computed(() => {
-    return mainQuests.value.length + tasks.value.length;
-  });
+  const activeCount = computed(() => mainQuests.value.length + tasks.value.length);
 
   return {
+    questBoardData,
+    hasBoardData,
+    clearQuestBoardData,
     mainQuests,
     tasks,
     events,
-    hasQuestData,
     activeCount
   };
 });
