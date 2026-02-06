@@ -182,9 +182,6 @@ const fetchLatestMessage = () => {
     const tavernSendBtn = parentDoc.getElementById('send_but');
     if (tavernSendBtn) {
       checkTavernBusy(tavernSendBtn);
-    } else {
-      // 如果找不到按钮，可能是在加载中，或者被隐藏了，暂时认为是忙碌
-      // 但为了防止死锁，如果长时间找不到，这里可以不做操作，依赖 sendMessage 的 finally
     }
 
     // 2. 检查消息内容
@@ -270,7 +267,7 @@ const sendMessage = async () => {
   }
 };
 
-// 监听器逻辑优化
+// 监听器逻辑
 const setupTavernObserver = () => {
   const parentDoc = window.parent.document;
   const tavernSendBtn = parentDoc.getElementById('send_but');
@@ -278,11 +275,9 @@ const setupTavernObserver = () => {
   if (tavernSendBtn) {
     checkTavernBusy(tavernSendBtn);
 
-    // 断开旧的，防止重复
     if (sendButtonObserver) sendButtonObserver.disconnect();
 
     sendButtonObserver = new MutationObserver((mutations) => {
-      // 每次变化都重新获取一次元素，确保引用最新
       const currentBtn = parentDoc.getElementById('send_but');
       if (currentBtn) checkTavernBusy(currentBtn);
     });
@@ -294,7 +289,6 @@ const setupTavernObserver = () => {
   }
 };
 
-// 状态检查逻辑
 const checkTavernBusy = (btn: HTMLElement) => {
   const style = window.getComputedStyle(btn);
   const isHidden = style.display === 'none' || style.visibility === 'hidden';
@@ -304,11 +298,6 @@ const checkTavernBusy = (btn: HTMLElement) => {
 
   if (isTavernBusy.value !== busy) {
     isTavernBusy.value = busy;
-    // 如果状态变了，说明可能 DOM 刷新了，重新挂载一下 Observer 以防万一
-    if (!busy && sendButtonObserver) {
-      // 可选：这里可以重新 setupTavernObserver() 如果发现 DOM 元素引用变了
-      // 但由于我们在 fetchLatestMessage 里有轮询，这里不做复杂操作也行
-    }
   }
 };
 
@@ -323,11 +312,9 @@ onMounted(() => {
     if (ops.length > 0) cachedOptions.value = ops;
   }
 
-  // 启动轮询 (包含消息同步 + 按钮状态同步)
   fetchLatestMessage();
   pollingInterval.value = setInterval(fetchLatestMessage, 200);
 
-  // 启动监听器 (作为即时响应补充)
   setupTavernObserver();
 
   setTimeout(() => {
@@ -397,6 +384,74 @@ onUnmounted(() => {
   line-height: 1.8; color: var(--c-text-main);
   font-family: 'EB Garamond', serif; transition: font-size 0.2s ease;
 }
+
+/* ========================================= */
+/* === 核心修改：对话特效 (记忆碎片风格) === */
+/* ========================================= */
+
+.text-body :deep(q) {
+  quotes: none;
+
+  /* 布局：保持行内，但允许背景填充 */
+  display: inline;
+
+  /* 背景：均匀的微光，不再是左右渐变 */
+  background: rgba(255, 255, 255, 0.05);
+
+  /* 边框：极细的金色边框，增加精致感 */
+  border: 1px solid rgba(164, 139, 87, 0.15);
+  border-radius: 4px; /* 圆角，像一个标签 */
+
+  /* 间距：让文字呼吸 */
+  padding: 2px 6px;
+  margin: 0 2px;
+
+  /* 字体：更亮，带辉光 */
+  color: #fff5e6;
+  font-family: 'EB Garamond', serif;
+  font-style: italic;
+  text-shadow: 0 0 2px rgba(0,0,0,0.5); /* 增加可读性 */
+
+  /* 阴影：轻微浮起 */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+
+  /* 确保跨行样式统一 */
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+
+  transition: all 0.3s ease;
+}
+
+/* 悬停特效：变亮，边框变金 */
+.text-body :deep(q):hover {
+  background: rgba(164, 139, 87, 0.15);
+  border-color: rgba(164, 139, 87, 0.4);
+  text-shadow: 0 0 5px rgba(164, 139, 87, 0.5);
+  cursor: default;
+}
+
+/* 前置符号：『 */
+.text-body :deep(q)::before {
+  content: "『";
+  color: var(--c-gold);
+  margin-right: 3px;
+  font-weight: bold;
+  opacity: 0.8;
+  text-shadow: none; /* 符号不需要文字辉光，保持清晰 */
+}
+
+/* 后置符号：』 */
+.text-body :deep(q)::after {
+  content: "』";
+  color: var(--c-gold);
+  margin-left: 3px;
+  font-weight: bold;
+  opacity: 0.8;
+  text-shadow: none;
+}
+
+/* ========================================= */
+
 .text-body :deep(p) { margin-bottom: 1em; text-align: justify; }
 .text-body :deep(em) { color: var(--c-gold); font-style: italic; }
 .text-body :deep(strong) { color: #fff; font-weight: 600; }
@@ -464,6 +519,34 @@ onUnmounted(() => {
   border-radius: 4px; box-shadow: 0 5px 20px rgba(0,0,0,0.5);
   display: flex; flex-direction: column; z-index: 50;
   backdrop-filter: blur(10px); overflow: hidden;
+}
+
+/* 移动端选项弹窗适配 */
+@media (max-width: 768px) {
+  .options-popup-menu {
+    width: calc(100vw - 30px);
+  }
+
+  .option-item {
+    padding: 12px;
+    font-size: 1.05rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .options-popup-menu {
+    width: calc(100vw - 20px);
+  }
+
+  .options-header {
+    padding: 8px 12px;
+    font-size: 0.85rem;
+  }
+
+  .option-item {
+    padding: 10px;
+    font-size: 1rem;
+  }
 }
 .options-header {
   padding: 10px 15px; background: rgba(164, 139, 87, 0.1);
