@@ -26,6 +26,10 @@ export const router = createRouter({
           component: () => import('../view/任务.vue'),
         },
         {
+          path: '仓库',
+          component: () => import('../view/仓库.vue'),
+        },
+        {
           path: '商店',
           component: () => import('../view/商店.vue'),
         },

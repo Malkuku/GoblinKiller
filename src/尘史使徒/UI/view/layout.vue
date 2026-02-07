@@ -80,6 +80,7 @@ const baseNavItems = [
   { name: '未途', path: '/选项', icon: '❖' },
   { name: '视界', path: '/世界信息', icon: '👁' },
   { name: '倒影', path: '/角色', icon: '♟' },
+  { name: '器具', path: '/仓库', icon: '▨' },
   { name: '道寻', path: '/任务', icon: '⚖' },
   { name: '绯廊', path: '/图片', icon: '🖼' },
   { name: '卷索', path: '/世界情报', icon: '§' },
