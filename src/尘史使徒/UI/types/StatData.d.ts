@@ -208,5 +208,10 @@ export interface EventData {
  * 系统设置
  */
 export interface SystemSettings {
-  "全知视角": boolean;
+  "关注角色列表":{
+    "主要角色": string[];
+    "次要角色": string[];
+  },
+  "当前版本":number;
+  "当前剧本":string;
 }
