@@ -29,6 +29,8 @@ export const useQuestStore = defineStore('quest', () => {
       } catch (e) {
         console.error('[QuestStore] 解析任务数据失败:', e);
       }
+    }else{
+      questBoardData.value = {};
     }
   },{immediate:true});
 
