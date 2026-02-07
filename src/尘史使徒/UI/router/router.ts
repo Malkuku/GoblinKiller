@@ -30,6 +30,10 @@ export const router = createRouter({
           component: () => import('../view/商店.vue'),
         },
         {
+          path: '世界情报',
+          component: () => import('../view/世界情报.vue'),
+        },
+        {
           path: '图片',
           component: () => import('../view/图片展示.vue'),
         },

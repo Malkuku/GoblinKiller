@@ -189,7 +189,7 @@ const filteredTasks = computed(() => questStore.tasks.filter(t => t.title !== '$
 const filteredEvents = computed(() => questStore.events.filter(e => e.title !== '$template'));
 
 const tabs = computed(() => [
-  { id: 'main', name: '主线誓约', icon: '⚖', count: filteredMainQuests.value.length },
+  { id: 'main', name: '主律', icon: '⚖', count: filteredMainQuests.value.length },
   { id: 'tasks', name: '尘世委托', icon: '📜', count: filteredTasks.value.length },
   { id: 'events', name: '因果事件', icon: '⚡', count: filteredEvents.value.length },
 ]);

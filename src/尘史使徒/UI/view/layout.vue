@@ -81,15 +81,16 @@ const baseNavItems = [
   { name: '视界', path: '/世界信息', icon: '👁' },
   { name: '倒影', path: '/角色', icon: '♟' },
   { name: '道寻', path: '/任务', icon: '⚖' },
-  { name: '祈奉', path: '/设置', icon: '⚙' },
   { name: '绯廊', path: '/图片', icon: '🖼' },
+  { name: '卷索', path: '/世界情报', icon: '§' },
+  { name: '祈奉', path: '/设置', icon: '⚙' },
 ];
 
 const navItems = computed(() => {
   const items = [...baseNavItems];
   // 商店仍然作为独立项，但任务接取已合并
   if (shopStore.hasShopData) {
-    items.unshift({ name: '置物', path: '/商店', icon: '💰' });
+    items.unshift({ name: '置物', path: '/商店', icon: '◑' });
   }
   return items;
 });
