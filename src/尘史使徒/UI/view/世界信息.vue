@@ -63,7 +63,7 @@
         </div>
       </div>
 
-      <!-- 底部右侧：世界状态 HUD (从Layout移入) -->
+      <!-- 底部右侧：世界状态 HUD -->
       <div class="world-hud" v-if="worldInfo">
         <div class="hud-content">
           <!-- 危险警报 -->
@@ -130,14 +130,16 @@
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 
+const router = useRouter();
 const uiStore = useUiStore();
 
 // =====================
-// 图标数据 (保持原样)
+// 图标数据
 // =====================
 const iconPaths = {
   'Default': 'M12 2L2 12l10 10 10-10L12 2zm0 4v2m0 8v2m-4-6h2m4 0h2',
@@ -188,7 +190,7 @@ const getIconPath = (type) => {
 const store = useStatStore();
 const { stat_data } = storeToRefs(store);
 
-// --- 世界信息 (从 Layout 迁移而来) ---
+// --- 世界信息 ---
 const worldInfo = computed(() => stat_data.value?.['世界'] || {});
 const isDanger = computed(() => worldInfo.value?.['危险场景'] === true);
 
@@ -310,18 +312,35 @@ const currentDisplayNodes = computed(() => {
   return rawNodes;
 });
 
+// --- 修复1: 动态缩放与居中 ---
 const updateBaseScale = () => {
   if (!viewportRef.value || !currentDisplayNodes.value.length) return;
+
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   currentDisplayNodes.value.forEach(node => {
     minX = Math.min(minX, node.displayX); maxX = Math.max(maxX, node.displayX);
     minY = Math.min(minY, node.displayY); maxY = Math.max(maxY, node.displayY);
   });
+
   if (maxX - minX < 1) { minX -= 5; maxX += 5; }
   if (maxY - minY < 1) { minY -= 5; maxY += 5; }
+
+  const padding = 0.8; // 留白 20%
   const scaleX = viewportRef.value.clientWidth / (maxY - minY);
   const scaleY = viewportRef.value.clientHeight / (maxX - minX);
-  baseScale.value = Math.min(Math.max(Math.min(scaleX, scaleY) * 0.6, 0.5), 150);
+
+  const newScale = Math.min(Math.max(Math.min(scaleX, scaleY) * padding, 0.5), 150);
+  baseScale.value = newScale;
+
+  // 计算中心点偏移 (解决进入新区域位置不对的问题)
+  const midX = (minX + maxX) / 2;
+  const midY = (minY + maxY) / 2;
+
+  // 节点的 CSS 定位逻辑是: left = 50% + y*scale, top = 50% - x*scale
+  // 为了让 (midX, midY) 处于屏幕中心，我们需要反向平移
+  transform.x = -midY * newScale;
+  transform.y = midX * newScale;
+  transform.k = 1;
 };
 
 // =====================
@@ -373,7 +392,7 @@ const goUpOneLevel = () => {
 };
 
 const resetView = () => {
-  transform.k = 1; transform.x = 0; transform.y = 0;
+  // 注意：这里不再重置 transform.x/y 为 0，因为 updateBaseScale 会计算正确的偏移
   closeTooltip();
   nextTick(updateBaseScale);
 };
@@ -384,17 +403,63 @@ const handleNodeClick = (node) => {
   tooltip.visible = true;
 };
 
-const handleTravel = (targetNode) => {
-  const option = `<user>打算前往${targetNode.name}`;
-  try {
-    const input = window.parent.document.querySelector('#send_textarea');
-    if (input) {
-      input.value = input.value.trim() ? `${input.value.trim()} ${option}` : option;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
+// --- 修复2: 路径计算逻辑 ---
+// 辅助：获取从根节点到目标节点的完整路径栈
+const findPathStack = (root, targetName, currentStack = []) => {
+  if (!root) return null;
+  for (const [key, value] of Object.entries(root)) {
+    if (key === targetName) {
+      return [...currentStack, key];
     }
-    closeTooltip();
-  } catch (error) { console.error("Interaction Error:", error); }
+    if (value['子地图']) {
+      const res = findPathStack(value['子地图'], targetName, [...currentStack, key]);
+      if (res) return res;
+    }
+  }
+  return null;
+};
+
+// 核心：计算导航路径 (LCA算法)
+const getNavigationPath = (startName, endName) => {
+  if (!stat_data.value?.地图) return [endName];
+  const rootMap = stat_data.value.地图;
+
+  const pathStart = findPathStack(rootMap, startName);
+  const pathEnd = findPathStack(rootMap, endName);
+
+  if (!pathStart || !pathEnd) return [endName]; // 找不到路径则直接返回目标
+
+  // 寻找最近公共祖先索引
+  let i = 0;
+  while(i < pathStart.length && i < pathEnd.length && pathStart[i] === pathEnd[i]) {
+    i++;
+  }
+
+  // 路径 = (起点到分叉点的逆序) + (分叉点到终点)
+  // 注意：通常不需要包含分叉点本身作为步骤，除非它是换乘站。
+  // 这里我们生成：离开A -> 离开B -> 进入C -> 进入D
+  const upPath = pathStart.slice(i).reverse();
+  const downPath = pathEnd.slice(i);
+
+  const fullPath = [...upPath, ...downPath];
+  return fullPath.length > 0 ? fullPath : [endName];
+};
+
+const handleTravel = (targetNode) => {
+  const startName = playerLocationName.value || '未知位置';
+  const targetName = targetNode.name;
+
+  if (startName === targetName) return;
+
+  const route = getNavigationPath(startName, targetName);
+  const pathStr = route.join(' -> ');
+
+  const option = `<user>计划前往${targetName}，路径：${pathStr}`;
+
+  // 修复逻辑：使用 store 传递输入并跳转路由
+  uiStore.setPendingInput(option);
+  closeTooltip();
+  router.push('/选项');
 };
 
 // 鼠标/触摸逻辑
