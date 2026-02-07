@@ -50,32 +50,63 @@
 <script setup>
 import { computed, watch, reactive, provide } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import { storeToRefs } from 'pinia'; // 引入 storeToRefs 以保证响应性
 import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 
 const shopStore = useShopStore();
 const questStore = useQuestStore();
 const uiStore = useUiStore();
+const statStore = useStatStore();
 const router = useRouter();
 const route = useRoute();
+
+// 使用 storeToRefs 解构，确保在 computed 和 watch 中能监听到深层变化
+const { stat_data } = storeToRefs(statStore);
+const { hasShopData } = storeToRefs(shopStore);
+const { hasBoardData } = storeToRefs(questStore);
 
 const visible = computed(() => uiStore.showUI);
 const close = () => { uiStore.showUI = false; };
 
-// --- 红点通知接口 ---
+// --- 红点通知系统 ---
 const notifications = reactive({});
 const setNotification = (path, active) => {
   notifications[path] = active;
 };
 provide('setNotification', setNotification);
 
-// 监听任务布告栏状态 -> 控制 '/任务' 路由的红点
-watch(() => questStore.hasBoardData, (hasNew) => {
-  setNotification('/任务', hasNew);
+watch(() => route.path, (newPath) => {
+  // 只要用户进入了某个页面，就强制关闭该页面的红点
+  if (notifications[newPath]) {
+    setNotification(newPath, false);
+  }
 }, { immediate: true });
 
-// 基础导航项
+// 监听任务状态
+watch(hasBoardData, (hasNew) => {
+  // 只有当前不在任务页时，才显示红点
+  if (route.path !== '/任务') {
+    setNotification('/任务', hasNew);
+  }
+});
+
+// 监听剧本数据 (动态路由的红点逻辑)
+// 必须加 deep: true，否则 stat_data 内部属性变化时 watch 不会触发
+watch(stat_data, (data) => {
+  const isNewGame = !data?.system?.当前剧本;
+  // 只有当前不在设置页时，才显示红点
+  if (route.path !== '/开场设置') {
+    setNotification('/开场设置', isNewGame);
+  }
+}, { deep: true, immediate: true });
+
+
+// ==========================================
+// 修复 3: 动态菜单项 (解决“菜单项不消失”)
+// ==========================================
 const baseNavItems = [
   { name: '未途', path: '/选项', icon: '❖' },
   { name: '视界', path: '/世界信息', icon: '👁' },
@@ -83,16 +114,25 @@ const baseNavItems = [
   { name: '器具', path: '/仓库', icon: '▨' },
   { name: '道寻', path: '/任务', icon: '⚖' },
   { name: '绯廊', path: '/图片', icon: '🖼' },
-  { name: '卷索', path: '/世界情报', icon: '§' },
+  { name: '卷索', path: '/世界情报', icon: '⨳' },
   { name: '祈奉', path: '/设置', icon: '⚙' },
 ];
 
 const navItems = computed(() => {
+  // computed 会在依赖变化时重新执行，生成全新的数组
+  // 所以只要条件变为 false，unshift 就不会执行，菜单项自然就“消失”了
   const items = [...baseNavItems];
-  // 商店仍然作为独立项，但任务接取已合并
-  if (shopStore.hasShopData) {
+
+  // 使用解构出来的 ref (hasShopData.value) 确保响应性
+  if (hasShopData.value) {
     items.unshift({ name: '置物', path: '/商店', icon: '◑' });
   }
+
+  // 使用解构出来的 ref (stat_data.value) 确保响应性
+  if (!stat_data.value?.system?.当前剧本) {
+    items.unshift({ name: '启程', path: '/开场设置', icon: '◈'});
+  }
+
   return items;
 });
 
@@ -101,6 +141,8 @@ const toggleTheme = async () => {
   await uiStore.saveModeSetting();
 };
 </script>
+
+
 
 <style scoped>
 /* 保持原有样式，新增 .nav-badge */
