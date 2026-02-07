@@ -29,7 +29,7 @@ export const useShopStore = defineStore('shop', () => {
     }
     try {
       // 提取 <shopVariable>...</shopVariable> 之间的内容
-      const match = msg.match(/<shopVariable>((?:(?!<shopVariable>)[\s\S])*?)<\/shopVariable>(?![\s\S]*<shopVariable>[\s\S]*<\/shopVariable>)/);
+      const match = msg.match(/<shopVariable>((?:(?!<shopVariable>)[\s\S])*?)<\/shopVariable>(?![\s\S]*<shopVariable>[\s\S]*<\/shopVariable>)/i);
       if (match && match[1]) {
         const jsonStr = match[1].trim();
         // 只有当内容发生变化时才重新解析，避免重复渲染

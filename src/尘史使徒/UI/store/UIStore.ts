@@ -7,6 +7,25 @@ export const useUiStore = defineStore('KatDustUI', () => {
   // 黑夜模式
   const darkMode = ref(false);
 
+  // --- 新增：待处理的输入框内容 ---
+  const pendingInput = ref('');
+
+  /**
+   * 设置待处理输入（用于跨页面传递输入框内容）
+   */
+  const setPendingInput = (text: string) => {
+    pendingInput.value = text;
+  };
+
+  /**
+   * 消费待处理输入（读取并清空）
+   */
+  const consumePendingInput = () => {
+    const text = pendingInput.value;
+    pendingInput.value = '';
+    return text;
+  };
+
   /**
    * 尝试从变量中获取UI设置
    */
@@ -33,6 +52,9 @@ export const useUiStore = defineStore('KatDustUI', () => {
   return {
     showUI,
     darkMode,
+    pendingInput, // 导出
+    setPendingInput, // 导出
+    consumePendingInput, // 导出
     getModeSetting,
     saveModeSetting,
   };

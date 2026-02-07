@@ -33,8 +33,28 @@
       </div>
     </div>
 
+    <!-- 新增：跳转按钮组 (任务 & 商店) -->
+    <!-- 使用 transition-group 让按钮可以堆叠出现 -->
+    <transition-group name="slide-up" tag="div" class="link-btn-group">
+
+      <!-- 任务跳转按钮 -->
+      <button v-if="showQuestLink" key="quest" class="jump-btn quest-btn" @click="navigateToQuest">
+        <span class="icon">📜</span>
+        <span class="text">检测到新的委托契约</span>
+        <span class="arrow">➔</span>
+      </button>
+
+      <!-- 商店跳转按钮 -->
+      <button v-if="showShopLink" key="shop" class="jump-btn shop-btn" @click="navigateToShop">
+        <span class="icon">⚖</span>
+        <span class="text">检测到交易契机</span>
+        <span class="arrow">➔</span>
+      </button>
+
+    </transition-group>
+
     <!-- 底部交互区域 -->
-    <div class="interaction-panel" v-show="!isInitializing">
+    <div v-show="!isInitializing" class="interaction-panel">
 
       <div class="input-wrapper">
         <!-- 选项菜单按钮 -->
@@ -110,13 +130,21 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
+import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
+import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
+import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 
+const router = useRouter();
 const messageStore = useMessageStore();
+const questStore = useQuestStore();
+const shopStore = useShopStore();
+const uiStore = useUiStore();
 const scrollContainer = ref<HTMLElement | null>(null);
 
 // --- 状态管理 ---
-const rawHtml = ref('');
+const rawHtml = ref(''); // 用于显示的渲染后HTML
 const cachedOptions = ref<string[]>([]);
 const userInput = ref('');
 const isStreaming = ref(false);
@@ -125,6 +153,10 @@ const pollingInterval = ref<any>(null);
 const fontSize = ref(18);
 const showOptionsPanel = ref(false);
 
+// 跳转按钮控制
+const showQuestLink = ref(false);
+const showShopLink = ref(false);
+
 const isTavernBusy = ref(false);
 let sendButtonObserver: MutationObserver | null = null;
 
@@ -132,10 +164,27 @@ let sendButtonObserver: MutationObserver | null = null;
 const OPTIONS_BLOCK_REGEX = /<options>([\s\S]*?)<\/options>/i;
 const OP_TAG_REGEX = /<op>([\s\S]*?)<\/op>/gi;
 
+// 新增：任务和商店的正则定义
+const QUEST_BLOCK_REGEX = /<questVariable>([\s\S]*?)<\/questVariable>/i;
+const SHOP_BLOCK_REGEX = /<shopVariable>([\s\S]*?)<\/shopVariable>/i;
+
 const displayHtml = computed(() => {
   if (!rawHtml.value) return '';
-  let content = rawHtml.value.replace(OPTIONS_BLOCK_REGEX, '');
+
+  let content = rawHtml.value;
+
+  // 1. 移除选项块 (视觉上移除)
+  content = content.replace(OPTIONS_BLOCK_REGEX, '');
+
+  // 2. 移除任务块 (防止显示在正文)
+  content = content.replace(QUEST_BLOCK_REGEX, '');
+
+  // 3. 移除商店块 (防止显示在正文)
+  content = content.replace(SHOP_BLOCK_REGEX, '');
+
   content = content.trim();
+
+  // 去除首尾可能的引号
   if (content.length >= 2 && content.startsWith('"') && content.endsWith('"')) {
     content = content.slice(1, -1);
   }
@@ -173,18 +222,31 @@ const handleOptionClick = (option: string) => {
   }, 50);
 };
 
+// 跳转逻辑
+const navigateToQuest = () => {
+  router.push('/任务');
+};
+
+const navigateToShop = () => {
+  router.push('/商店');
+};
+
 // 轮询核心：同时检查消息和按钮状态
 const fetchLatestMessage = () => {
   try {
     const parentDoc = window.parent.document;
 
-    // 1. 检查按钮状态 (修复卡顿的关键：每次轮询都重新获取 DOM 检查)
+    // 1. 检查按钮状态
     const tavernSendBtn = parentDoc.getElementById('send_but');
     if (tavernSendBtn) {
       checkTavernBusy(tavernSendBtn);
     }
 
-    // 2. 检查消息内容
+    // 2. 同步原始消息 (Logic) - 替代原有的HTML正则匹配逻辑
+    // 确保 messageStore 中的数据是最新的，从而触发上面的 watch
+    messageStore.getMessage();
+
+    // 3. 检查消息内容 (Visuals) - 仅用于显示
     const chatContainer = parentDoc.getElementById('chat');
     if (!chatContainer) return;
 
@@ -193,12 +255,8 @@ const fetchLatestMessage = () => {
     if (lastMessageDiv) {
       const currentHtml = lastMessageDiv.innerHTML;
 
-      const foundOptions = parseOptions(currentHtml);
-      if (foundOptions.length > 0) {
-        if (JSON.stringify(foundOptions) !== JSON.stringify(cachedOptions.value)) {
-          cachedOptions.value = foundOptions;
-        }
-      }
+      // 注意：这里不再从 currentHtml 解析 options/quest/shop
+      // 所有的逻辑判断都已移交至 messageStore.message 的 watcher
 
       if (currentHtml !== rawHtml.value) {
         rawHtml.value = currentHtml;
@@ -213,9 +271,9 @@ const fetchLatestMessage = () => {
   }
 };
 
-const parseOptions = (htmlContent: string): string[] => {
-  if (!htmlContent) return [];
-  const match = htmlContent.match(OPTIONS_BLOCK_REGEX);
+const parseOptions = (content: string): string[] => {
+  if (!content) return [];
+  const match = content.match(OPTIONS_BLOCK_REGEX);
   if (!match || !match[1]) return [];
 
   return Array.from(match[1].matchAll(OP_TAG_REGEX), m => {
@@ -301,13 +359,59 @@ const checkTavernBusy = (btn: HTMLElement) => {
   }
 };
 
+
+// --- 核心修改：监听 messageStore.message (原始文本) 而非 rawHtml ---
+watch(
+  [
+    () => messageStore.message, // 监听原始文本
+    () => questStore.hasBoardData,
+    () => shopStore.shopData
+  ],
+  ([rawText, hasQuestData, shopData]) => {
+    if (!rawText) return;
+
+    // 1. 解析选项 (从原始文本)
+    const foundOptions = parseOptions(rawText);
+    if (JSON.stringify(foundOptions) !== JSON.stringify(cachedOptions.value)) {
+      cachedOptions.value = foundOptions;
+      console.log('📜 检测到选项更新:', foundOptions);
+    }
+
+    // 2. 检测任务
+    const questMatch = rawText.match(QUEST_BLOCK_REGEX);
+    console.log('📜 任务标签匹配结果:', questMatch ? '✅ 匹配成功' : '❌ 未匹配');
+    if (questMatch && hasQuestData) {
+      showQuestLink.value = true;
+    } else {
+      showQuestLink.value = false;
+    }
+
+    // 3. 检测商店
+    const shopMatch = rawText.match(SHOP_BLOCK_REGEX);
+    const hasShopData = shopData && Object.keys(shopData).length > 0;
+    console.log('⚖ 商店标签匹配结果:', shopMatch ? '✅ 匹配成功' : '❌ 未匹配');
+
+    if (shopMatch && hasShopData) {
+      showShopLink.value = true;
+    } else {
+      showShopLink.value = false;
+    }
+  },
+  { immediate: true }
+);
+
+
+
 // --- 生命周期 ---
 onMounted(() => {
   const savedSize = localStorage.getItem('animus_font_size');
   if (savedSize) fontSize.value = parseInt(savedSize);
 
+  // 注册监听器并获取初始消息
+  messageStore.getMessage();
+
+  // 如果 store 中已有消息，立即触发一次解析 (虽然 watcher immediate: true 也会处理)
   if (messageStore.message) {
-    rawHtml.value = messageStore.message;
     const ops = parseOptions(messageStore.message);
     if (ops.length > 0) cachedOptions.value = ops;
   }
@@ -321,6 +425,12 @@ onMounted(() => {
     isInitializing.value = false;
     scrollToBottom();
   }, 800);
+
+  // 检查是否有从任务/商店页面带回来的确认信息
+  const pendingText = uiStore.consumePendingInput();
+  if (pendingText) {
+    userInput.value = pendingText;
+  }
 });
 
 onUnmounted(() => {
@@ -391,38 +501,22 @@ onUnmounted(() => {
 
 .text-body :deep(q) {
   quotes: none;
-
-  /* 布局：保持行内，但允许背景填充 */
   display: inline;
-
-  /* 背景：均匀的微光，不再是左右渐变 */
   background: rgba(255, 255, 255, 0.05);
-
-  /* 边框：极细的金色边框，增加精致感 */
   border: 1px solid rgba(164, 139, 87, 0.15);
-  border-radius: 4px; /* 圆角，像一个标签 */
-
-  /* 间距：让文字呼吸 */
+  border-radius: 4px;
   padding: 2px 6px;
   margin: 0 2px;
-
-  /* 字体：更亮，带辉光 */
   color: #fff5e6;
   font-family: 'EB Garamond', serif;
   font-style: italic;
-  text-shadow: 0 0 2px rgba(0,0,0,0.5); /* 增加可读性 */
-
-  /* 阴影：轻微浮起 */
+  text-shadow: 0 0 2px rgba(0,0,0,0.5);
   box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-
-  /* 确保跨行样式统一 */
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-
   transition: all 0.3s ease;
 }
 
-/* 悬停特效：变亮，边框变金 */
 .text-body :deep(q):hover {
   background: rgba(164, 139, 87, 0.15);
   border-color: rgba(164, 139, 87, 0.4);
@@ -430,17 +524,15 @@ onUnmounted(() => {
   cursor: default;
 }
 
-/* 前置符号：『 */
 .text-body :deep(q)::before {
   content: "『";
   color: var(--c-gold);
   margin-right: 3px;
   font-weight: bold;
   opacity: 0.8;
-  text-shadow: none; /* 符号不需要文字辉光，保持清晰 */
+  text-shadow: none;
 }
 
-/* 后置符号：』 */
 .text-body :deep(q)::after {
   content: "』";
   color: var(--c-gold);
@@ -492,7 +584,6 @@ onUnmounted(() => {
 }
 .options-toggle-btn.active { background: var(--c-gold); color: #1a1a1a; }
 
-/* 选项按钮滚动动画 */
 .options-toggle-btn.is-rolling {
   border-color: var(--c-gold);
   color: var(--c-gold);
@@ -521,32 +612,15 @@ onUnmounted(() => {
   backdrop-filter: blur(10px); overflow: hidden;
 }
 
-/* 移动端选项弹窗适配 */
 @media (max-width: 768px) {
-  .options-popup-menu {
-    width: calc(100vw - 30px);
-  }
-
-  .option-item {
-    padding: 12px;
-    font-size: 1.05rem;
-  }
+  .options-popup-menu { width: calc(100vw - 30px); }
+  .option-item { padding: 12px; font-size: 1.05rem; }
 }
 
 @media (max-width: 480px) {
-  .options-popup-menu {
-    width: calc(100vw - 20px);
-  }
-
-  .options-header {
-    padding: 8px 12px;
-    font-size: 0.85rem;
-  }
-
-  .option-item {
-    padding: 10px;
-    font-size: 1rem;
-  }
+  .options-popup-menu { width: calc(100vw - 20px); }
+  .options-header { padding: 8px 12px; font-size: 0.85rem; }
+  .option-item { padding: 10px; font-size: 1rem; }
 }
 .options-header {
   padding: 10px 15px; background: rgba(164, 139, 87, 0.1);
@@ -589,7 +663,6 @@ onUnmounted(() => {
 }
 .story-input:focus { outline: none; background: rgba(0, 0, 0, 0.4); border-bottom-color: var(--c-gold); }
 
-/* 忙碌状态下的输入框样式 */
 .story-input.busy-state {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   background: rgba(0, 0, 0, 0.1);
@@ -625,6 +698,65 @@ onUnmounted(() => {
   animation: pulse 0.5s infinite;
 }
 
+/* --- Jump Buttons (Quest & Shop) --- */
+.link-btn-group {
+  position: absolute;
+  bottom: 100px; /* 位于输入框上方 */
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column-reverse; /* 向上堆叠 */
+  align-items: center;
+  gap: 10px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.jump-btn {
+  pointer-events: auto;
+  background: rgba(20, 22, 28, 0.95);
+  border: 1px solid var(--c-gold);
+  color: var(--c-gold);
+  padding: 10px 25px;
+  border-radius: 30px;
+  font-family: 'Cinzel', serif;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 0 15px rgba(164, 139, 87, 0.3);
+  transition: all 0.3s ease;
+  animation: float 3s ease-in-out infinite;
+}
+
+.jump-btn:hover {
+  background: var(--c-gold);
+  color: #1a1a1a;
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(164, 139, 87, 0.6);
+}
+
+.jump-btn .arrow {
+  font-weight: bold;
+}
+
+/* 商店按钮特殊样式 (可选) */
+.shop-btn {
+  border-color: #ffd700;
+  color: #ffd700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+}
+.shop-btn:hover {
+  background: #ffd700;
+  box-shadow: 0 0 25px rgba(255, 215, 0, 0.5);
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
 /* --- Animations --- */
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { from { transform: scale(0.8); opacity: 0.5; } to { transform: scale(1.2); opacity: 1; } }
@@ -650,7 +782,6 @@ onUnmounted(() => {
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
 .slide-up-enter-from, .slide-up-leave-to { opacity: 0; transform: translateY(20px) scale(0.95); }
 
-/* 输入框切换动画 */
 .fade-input-enter-active, .fade-input-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-input-enter-from { opacity: 0; transform: translateY(5px); }
 .fade-input-leave-to { opacity: 0; transform: translateY(-5px); }

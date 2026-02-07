@@ -1,791 +1,830 @@
 <template>
-  <div class="shop-container">
-    <header class="shop-header">
-      <div class="header-top-row">
-        <h2 class="shop-title">交易</h2>
-        <!-- 玩家资产显示 -->
-        <div class="player-wealth">
-          <span class="wealth-label">持有:</span>
-          <span class="wealth-value">{{ formatCurrencyFromObject(playerMoneyObj) }}</span>
-        </div>
-      </div>
+  <div class="shop-view" @click="handleGlobalClick">
+    <!-- 全局遮罩：用于点击空白处关闭资产详情 -->
+    <div v-if="showAssetDetail" class="click-mask" @click.stop="showAssetDetail = false"></div>
 
-      <!-- 分页/分类 Tab -->
-      <div class="shop-tabs">
-        <button
-          class="tab-btn"
-          :class="{ active: currentTab === '购买' }"
-          @click="currentTab = '购买'"
-        >
-          购买物资
-        </button>
-        <button
-          class="tab-btn"
-          :class="{ active: currentTab === '出售' }"
-          @click="currentTab = '出售'"
-        >
-          出售物品
-        </button>
-      </div>
-    </header>
-
-    <!-- 商品列表 -->
-    <transition-group v-if="hasData" name="list" tag="div" class="items-grid">
-      <div
-        v-for="(item, name) in paginatedShopData"
-        :key="name"
-        class="item-card"
-        :class="[
-          item['方向'] === '出售' ? 'type-sell' : 'type-buy',
-          { 'is-disabled': item['方向'] === '购买' && !canAffordItem(name as string) }
-        ]"
-      >
-        <div class="card-top">
-          <div class="item-name">{{ name }}</div>
-          <div class="item-price" v-html="formatPriceToHtml(item['价格'])"></div>
+    <!-- 顶部资产概览 -->
+    <div class="shop-header">
+      <div class="header-content">
+        <div class="title-group">
+          <h2>交易所</h2>
+          <span class="sub-title">Trade & Barter</span>
         </div>
 
-        <div class="card-body">
-          <!-- 描述改为完整显示，绑定自定义Hover/Click事件 -->
-          <p
-            class="item-desc"
-            @mouseenter="(e) => showTooltip(e, name as string, item)"
-            @mousemove="updateTooltipPosition"
-            @mouseleave="hideTooltip"
-            @click="(e) => showTooltip(e, name as string, item)"
+        <!-- 可点击的资产显示区域 -->
+        <div class="gold-wrapper">
+          <div
+            class="gold-display"
+            @click.stop="showAssetDetail = !showAssetDetail"
+            :class="{ 'active': showAssetDetail }"
           >
-            {{ item['描述'] }}
-          </p>
-          <!-- 原来的 item-meta 已移除，信息移至 Tooltip -->
-        </div>
-
-        <div class="card-footer">
-          <div class="input-group">
-            <button
-              class="qty-btn minus"
-              @click="updateCart(name as string, -1)"
-              :disabled="!cart[name]"
-            >-</button>
-
-            <!-- 手动输入框 -->
-            <input
-              type="number"
-              class="qty-input"
-              :value="cart[name] || 0"
-              @input="(e) => handleInput(e, name as string, item)"
-              @blur="(e) => fixInputQuantity(e, name as string, item)"
-              @keydown.enter="(e) => (e.target as HTMLInputElement).blur()"
-            />
-
-            <button
-              class="qty-btn plus"
-              @click="updateCart(name as string, 1)"
-              :disabled="isAddDisabled(name as string, item)"
-            >+</button>
+            <span class="label">总资产估值</span>
+            <div class="value-row">
+              <span class="currency-symbol">⟡</span>
+              <span class="value">{{ totalGold.toFixed(2) }}</span>
+              <span class="unit">g</span>
+              <span class="dropdown-arrow">▼</span>
+            </div>
           </div>
 
-          <!-- 最大值按钮 -->
-          <button
-            class="max-btn"
-            @click="setMaxQuantity(name as string, item)"
-            :disabled="isAddDisabled(name as string, item) && (!cart[name] || cart[name] >= calculateMax(name as string, item))"
+          <!-- 资产详情悬浮窗 -->
+          <Transition name="fade-slide">
+            <div v-if="showAssetDetail" class="asset-dropdown" @click.stop>
+              <div class="dropdown-header">货币构成</div>
+              <div class="currency-list">
+                <div v-for="(info, name) in currencyBreakdown" :key="name" class="currency-row">
+                  <div class="c-name">{{ name }}</div>
+                  <div class="c-calc">
+                    <span class="c-qty">x{{ info.count }}</span>
+                    <span class="c-price">(@{{ info.price }}g)</span>
+                  </div>
+                  <div class="c-total">{{ info.total.toFixed(1) }}g</div>
+                </div>
+                <div v-if="Object.keys(currencyBreakdown).length === 0" class="empty-currency">
+                  身无分文
+                </div>
+              </div>
+              <div class="dropdown-footer">
+                <span>Total</span>
+                <span class="total-val">{{ totalGold.toFixed(2) }}g</span>
+              </div>
+            </div>
+          </Transition>
+        </div>
+      </div>
+    </div>
+
+    <div class="shop-content">
+      <!-- 左侧：出售列表 -->
+      <div class="panel left-panel">
+        <div class="panel-header">
+          <div class="ph-left">
+            <h3>行囊</h3>
+            <span class="hint">Inventory</span>
+          </div>
+          <div class="ph-right icon-sell">出售</div>
+        </div>
+        <div class="scroll-area custom-scrollbar">
+          <div v-if="Object.keys(sellableItems).length === 0" class="empty-tip">
+            <span>🎒</span><br>行囊空空如也
+          </div>
+
+          <div
+            v-for="(item, name) in sellableItems"
+            :key="name"
+            class="item-card"
+            :class="{ 'expanded': expandedItem === name, 'in-queue': getQueueCount(name, 'sell') > 0 }"
           >
-            最大
-          </button>
-        </div>
-      </div>
-    </transition-group>
+            <!-- 核心行 -->
+            <div class="card-main" @click="toggleExpand(name)">
+              <div class="main-left">
+                <div class="item-name">{{ name }}</div>
+                <div class="item-meta">
+                  <span class="meta-tag stock">持: {{ item.userItem.数量 }}</span>
+                  <span class="meta-tag dur" v-if="item.userItem.耐久">耐: {{ item.userItem.耐久 }}</span>
+                </div>
+              </div>
+              <div class="main-right">
+                <div class="price-tag gain">+{{ item.shopInfo.价格 }}g</div>
+              </div>
+            </div>
 
-    <div v-else class="empty-state">
-      <p>暂无交易信息...</p>
-    </div>
+            <!-- 详情折叠区 -->
+            <div class="card-details" v-if="expandedItem === name">
+              <div class="desc-text">{{ item.shopInfo.描述 }}</div>
+              <div class="effect-text" v-if="item.shopInfo.作用">
+                <span class="label">作用:</span> {{ item.shopInfo.作用 }}
+              </div>
+            </div>
 
-    <!-- 分页控制器 -->
-    <div class="pagination-controls" v-if="hasData && totalPages > 1">
-      <button
-        class="page-btn"
-        @click="currentPage--"
-        :disabled="currentPage === 1"
-      >
-        &lt;
-      </button>
-      <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-      <button
-        class="page-btn"
-        @click="currentPage++"
-        :disabled="currentPage === totalPages"
-      >
-        &gt;
-      </button>
-    </div>
-
-    <!-- 底部结算浮层 -->
-    <transition name="slide-up">
-      <div class="checkout-bar" v-if="totalItems > 0">
-        <div class="checkout-info">
-          <div class="summary-row">
-            <span>已选: {{ totalItems }}</span>
-            <span class="divider">|</span>
-            <span :class="{ 'text-danger': !isTransactionValid }">
-              总计: <span v-html="formatCurrencyFromCopper(totalTransactionCostInCopper)"></span>
-            </span>
-          </div>
-          <div class="balance-preview" v-if="totalTransactionCostInCopper > 0">
-            剩余: <span v-html="formatCurrencyFromCopper(playerTotalCopper - totalTransactionCostInCopper)"></span>
+            <!-- 操作栏 -->
+            <div class="card-actions">
+              <div class="qty-control">
+                <button class="q-btn minus" @click.stop="updateQueue(name, 'sell', -1, item.userItem.数量)">−</button>
+                <div class="q-display" :class="{ 'has-val': getQueueCount(name, 'sell') > 0 }">
+                  {{ getQueueCount(name, 'sell') }}
+                </div>
+                <button class="q-btn plus" @click.stop="updateQueue(name, 'sell', 1, item.userItem.数量)">+</button>
+              </div>
+              <button class="max-btn" @click.stop="setQueueMax(name, 'sell', item.userItem.数量)">全部</button>
+            </div>
           </div>
         </div>
-
-        <button
-          class="confirm-btn"
-          @click="submitTransaction"
-          :disabled="!isTransactionValid"
-        >
-          {{ isTransactionValid ? '确认' : '不足' }}
-        </button>
       </div>
-    </transition>
 
-    <!-- 自定义 Tooltip -->
-    <div
-      v-if="tooltip.visible"
-      class="custom-tooltip"
-      :style="{ top: tooltip.y + 'px', left: tooltip.x + 'px' }"
-    >
-      <div class="tooltip-header">{{ tooltip.name }}</div>
-      <div class="tooltip-content">
-        <div class="tooltip-row"><span class="t-label">作用:</span> {{ tooltip.effect }}</div>
-        <div class="tooltip-row" v-if="tooltip.durability"><span class="t-label">耐久:</span> {{ tooltip.durability }}</div>
+      <!-- 中间装饰 -->
+      <div class="divider-visual">
+        <div class="line"></div>
+        <div class="icon">⚖</div>
+        <div class="line"></div>
+      </div>
+
+      <!-- 右侧：购买列表 -->
+      <div class="panel right-panel">
+        <div class="panel-header">
+          <div class="ph-left">
+            <h3>货架</h3>
+            <span class="hint">Market</span>
+          </div>
+          <div class="ph-right icon-buy">购买</div>
+        </div>
+        <div class="scroll-area custom-scrollbar">
+          <div v-if="Object.keys(buyableItems).length === 0" class="empty-tip">
+            <span>🔒</span><br>暂无商品
+          </div>
+
+          <div
+            v-for="(item, name) in buyableItems"
+            :key="name"
+            class="item-card"
+            :class="{ 'expanded': expandedItem === name, 'in-queue': getQueueCount(name, 'buy') > 0 }"
+          >
+            <!-- 核心行 -->
+            <div class="card-main" @click="toggleExpand(name)">
+              <div class="main-left">
+                <div class="item-name">{{ name }}</div>
+                <div class="item-meta">
+                  <span class="meta-tag stock">存: {{ item.最大数量 }}</span>
+                  <span class="meta-tag dur">耐: {{ item.最大耐久 }}</span>
+                </div>
+              </div>
+              <div class="main-right">
+                <div class="price-tag cost">-{{ item.价格 }}g</div>
+              </div>
+            </div>
+
+            <!-- 详情 -->
+            <div class="card-details" v-if="expandedItem === name">
+              <div class="desc-text">{{ item.描述 }}</div>
+              <div class="effect-text" v-if="item.作用">
+                <span class="label">作用:</span> {{ item.作用 }}
+              </div>
+            </div>
+
+            <!-- 操作栏 -->
+            <div class="card-actions">
+              <div class="qty-control">
+                <button class="q-btn minus" @click.stop="updateQueue(name, 'buy', -1, item.最大数量)">−</button>
+                <div class="q-display" :class="{ 'has-val': getQueueCount(name, 'buy') > 0 }">
+                  {{ getQueueCount(name, 'buy') }}
+                </div>
+                <button class="q-btn plus" @click.stop="updateQueue(name, 'buy', 1, item.最大数量)">+</button>
+              </div>
+              <button class="max-btn" @click.stop="setQueueMax(name, 'buy', item.最大数量)">最大</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
+
+    <!-- 底部交易结算栏 -->
+    <Transition name="slide-up">
+      <div class="trade-bar-wrapper" v-if="queueTotalCount > 0">
+        <div class="trade-bar">
+          <div class="trade-info">
+            <div class="info-block">
+              <span class="lbl">预计变动</span>
+              <div class="val-group">
+                <span class="v-gain" v-if="pendingGain > 0">+{{ pendingGain.toFixed(1) }}</span>
+                <span class="v-cost" v-if="pendingCost > 0">-{{ pendingCost.toFixed(1) }}</span>
+                <span class="v-neutral" v-if="pendingGain === 0 && pendingCost === 0">0</span>
+              </div>
+            </div>
+            <div class="separator"></div>
+            <div class="info-block result-block">
+              <span class="lbl">交易后余额</span>
+              <span class="val final" :class="finalBalance < 0 ? 'danger' : 'safe'">
+                {{ finalBalance.toFixed(1) }}g
+              </span>
+            </div>
+          </div>
+
+          <div class="trade-btns">
+            <button class="btn-clear" @click="clearQueue">清空</button>
+            <button
+              class="btn-confirm"
+              :disabled="finalBalance < 0"
+              @click="submitTransaction"
+            >
+              <span class="btn-text">{{ finalBalance < 0 ? '资金不足' : '确认交易' }}</span>
+              <span class="btn-badge">{{ queueTotalCount }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { computed, reactive, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
-import type { ShopItem } from '@/尘史使徒/UI/store/ShopStore';
+import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 
+const router = useRouter();
 const shopStore = useShopStore();
 const statStore = useStatStore();
+const uiStore = useUiStore();
 
-const shopData = computed(() => shopStore.shopData);
-const hasData = computed(() => shopStore.hasShopData);
+// --- 状态管理 ---
+const expandedItem = ref<string | null>(null);
+const showAssetDetail = ref(false);
+const transactionQueue = reactive<Record<string, { type: 'buy' | 'sell', count: number, price: number, info: any }>>({});
 
-// 当前选中的 Tab
-const currentTab = ref<'购买' | '出售'>('购买');
+// --- 交互逻辑 ---
+const handleGlobalClick = () => {
+  // 备用：如果点击遮罩层不够，这里可以处理全局点击关闭
+};
 
-// 根据 Tab 过滤商品
-const filteredShopData = computed(() => {
-  const targetDir = currentTab.value;
-  const result: Record<string, ShopItem> = {};
-  for (const [key, val] of Object.entries(shopData.value)) {
-    if (val['方向'] === targetDir) {
-      result[key] = val;
+const toggleExpand = (name: string) => {
+  expandedItem.value = expandedItem.value === name ? null : name;
+};
+
+const getQueueCount = (name: string, type: 'buy' | 'sell') => {
+  const item = transactionQueue[name];
+  if (item && item.type === type) return item.count;
+  return 0;
+};
+
+const updateQueue = (name: string, type: 'buy' | 'sell', delta: number, maxLimit: number) => {
+  const currentCount = getQueueCount(name, type);
+  let newCount = currentCount + delta;
+
+  if (newCount < 0) newCount = 0;
+  if (newCount > maxLimit) newCount = maxLimit;
+
+  if (newCount === 0) {
+    delete transactionQueue[name];
+  } else {
+    let info = {};
+    let price = 0;
+
+    if (type === 'buy') {
+      const item = buyableItems.value[name];
+      info = { ...item };
+      price = item.价格;
+    } else {
+      const item = sellableItems.value[name];
+      info = { ...item.shopInfo, 当前耐久: item.userItem.耐久 };
+      price = item.shopInfo.价格;
+    }
+
+    transactionQueue[name] = { type, count: newCount, price, info };
+  }
+};
+
+const setQueueMax = (name: string, type: 'buy' | 'sell', maxLimit: number) => {
+  updateQueue(name, type, maxLimit, maxLimit);
+};
+
+const clearQueue = () => {
+  for (const key in transactionQueue) delete transactionQueue[key];
+};
+
+// --- 数据获取 ---
+const userInventory = computed(() => statStore.stat_data?.角色?.user?.物品 || {});
+const currencySystem = computed(() => {
+  const economy = statStore.stat_data?.世界经济 || {};
+  for (const key in economy) {
+    if (economy[key].货币体系) return economy[key].货币体系;
+  }
+  return {};
+});
+
+const userCurrencies = computed(() => {
+  const currencies: Record<string, any> = {};
+  const inventory = userInventory.value;
+  const system = currencySystem.value;
+  if (typeof inventory === 'string') return {};
+  for (const itemName in inventory) {
+    if (system[itemName]) currencies[itemName] = inventory[itemName];
+  }
+  return currencies;
+});
+
+// 计算货币详情列表
+const currencyBreakdown = computed(() => {
+  const list: Record<string, { count: number, price: number, total: number }> = {};
+  const currencies = userCurrencies.value;
+  const system = currencySystem.value;
+
+  for (const name in currencies) {
+    const count = currencies[name].数量 || 0;
+    const price = system[name]?.价值 || 0;
+    list[name] = {
+      count,
+      price,
+      total: count * price
+    };
+  }
+  return list;
+});
+
+const totalGold = computed(() => {
+  let total = 0;
+  const list = currencyBreakdown.value;
+  for (const name in list) {
+    total += list[name].total;
+  }
+  return total;
+});
+
+const buyableItems = computed(() => {
+  const result: Record<string, any> = {};
+  const data = shopStore.shopData;
+  for (const key in data) {
+    if (data[key].方向 === '购买') result[key] = data[key];
+  }
+  return result;
+});
+
+const sellableItems = computed(() => {
+  const result: Record<string, any> = {};
+  const shopData = shopStore.shopData;
+  const inventory = userInventory.value;
+  if (typeof inventory === 'string') return {};
+  for (const key in shopData) {
+    if (shopData[key].方向 === '出售' && inventory[key]) {
+      result[key] = { shopInfo: shopData[key], userItem: inventory[key] };
     }
   }
   return result;
 });
 
-// --- 分页逻辑 ---
-const currentPage = ref(1);
-const pageSize = ref(8); // 默认桌面端8条
-
-// 响应式调整每页数量
-const updatePageSize = () => {
-  // 手机端通常宽度小于 768px
-  pageSize.value = window.innerWidth <= 768 ? 4 : 8;
-};
-
-onMounted(() => {
-  updatePageSize();
-  window.addEventListener('resize', updatePageSize);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updatePageSize);
-});
-
-// 切换 Tab 时重置页码
-watch(currentTab, () => {
-  currentPage.value = 1;
-});
-
-// 计算总页数
-const totalPages = computed(() => {
-  const totalItems = Object.keys(filteredShopData.value).length;
-  return Math.ceil(totalItems / pageSize.value) || 1;
-});
-
-// 获取当前页的数据
-const paginatedShopData = computed(() => {
-  const allItems = Object.entries(filteredShopData.value);
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  const slicedItems = allItems.slice(start, end);
-  return Object.fromEntries(slicedItems);
-});
-
-// 获取玩家金钱对象
-const playerMoneyObj = computed(() => statStore.stat_data?.金钱 || { 金索尔: 0, 银里弗: 0, 铜便士: 0 });
-
-// --- 货币核心逻辑 ---
-const toCopper = (gold: number, silver: number, copper: number) => {
-  return (gold * 1000) + (silver * 10) + copper;
-};
-
-const playerTotalCopper = computed(() => {
-  const m = playerMoneyObj.value;
-  return toCopper(m.金索尔 || 0, m.银里弗 || 0, m.铜便士 || 0);
-});
-
-const formatCurrencyFromCopper = (totalCopper: number) => {
-  const isNegative = totalCopper < 0;
-  let absCopper = Math.abs(totalCopper);
-  const gold = Math.floor(absCopper / 1000);
-  const silver = Math.floor((absCopper % 1000) / 10);
-  const copper = Math.floor(absCopper % 10);
-
-  let html = '';
-  if (isNegative) html += '<span style="color:var(--accent-danger)">-</span>';
-  if (gold > 0) html += `<span class="c-gold">${gold}金</span>`;
-  if (silver > 0) html += `<span class="c-silver">${silver}银</span>`;
-  if (copper > 0) html += `<span class="c-copper">${copper}铜</span>`;
-  if (html === '') html = '<span class="c-copper">0铜</span>';
-  return html;
-};
-
-const formatCurrencyFromObject = (money: {金索尔:number, 银里弗:number, 铜便士:number}) => {
-  const gold = money.金索尔;
-  const silver = money.银里弗;
-  const copper = money.铜便士;
-  let text = [];
-  if (gold > 0) text.push(`${gold}金`);
-  if (silver > 0) text.push(`${silver}银`);
-  if (copper > 0) text.push(`${copper}铜`);
-  return text.length > 0 ? text.join(' ') : "0";
-};
-
-const formatPriceToHtml = (priceInSilver: number) => {
-  return formatCurrencyFromCopper(priceInSilver * 10);
-};
-
-// --- Tooltip 逻辑 ---
-const tooltip = ref({
-  visible: false,
-  x: 0,
-  y: 0,
-  name: '',
-  effect: '',
-  durability: '' as string | number
-});
-
-const showTooltip = (e: MouseEvent, name: string, item: ShopItem) => {
-  tooltip.value = {
-    visible: true,
-    x: e.clientX + 15,
-    y: e.clientY + 15,
-    name: name,
-    effect: item['作用'] || '无特殊作用',
-    durability: item['最大耐久'] || 0
-  };
-};
-
-const updateTooltipPosition = (e: MouseEvent) => {
-  if (!tooltip.value.visible) return;
-  tooltip.value.x = e.clientX + 15;
-  tooltip.value.y = e.clientY + 15;
-};
-
-const hideTooltip = () => {
-  tooltip.value.visible = false;
-};
-
-// --- 购物车逻辑 ---
-
-const cart = ref<Record<string, number>>({});
-
-const totalItems = computed(() => Object.values(cart.value).reduce((a, b) => a + b, 0));
-
-const totalTransactionCostInCopper = computed(() => {
-  let totalCost = 0;
-  for (const [name, count] of Object.entries(cart.value)) {
-    const item = shopData.value[name];
-    if (!item) continue;
-    const itemPriceCopper = item['价格'] * 10;
-    if (item['方向'] === '购买') {
-      totalCost += itemPriceCopper * count;
-    } else {
-      totalCost -= itemPriceCopper * count;
-    }
+// --- 结算计算 ---
+const pendingCost = computed(() => {
+  let cost = 0;
+  for (const key in transactionQueue) {
+    if (transactionQueue[key].type === 'buy') cost += transactionQueue[key].count * transactionQueue[key].price;
   }
-  return totalCost;
+  return cost;
 });
 
-const isTransactionValid = computed(() => {
-  return playerTotalCopper.value >= totalTransactionCostInCopper.value;
+const pendingGain = computed(() => {
+  let gain = 0;
+  for (const key in transactionQueue) {
+    if (transactionQueue[key].type === 'sell') gain += transactionQueue[key].count * transactionQueue[key].price;
+  }
+  return gain;
 });
 
-const canAffordItem = (name: string) => {
-  const item = shopData.value[name];
-  if (!item) return false;
-  return playerTotalCopper.value >= (item['价格'] * 10);
-};
+const finalBalance = computed(() => totalGold.value + pendingGain.value - pendingCost.value);
+const queueTotalCount = computed(() => {
+  let count = 0;
+  for (const key in transactionQueue) count += transactionQueue[key].count;
+  return count;
+});
 
-// --- 数量输入与限制逻辑 ---
-
-// 计算某个商品的最大可操作数量
-const calculateMax = (name: string, item: ShopItem) => {
-  const maxStock = item['最大数量'] || 99;
-
-  // 如果是出售（玩家卖给商店），理论上受限于玩家背包，但这里暂无背包数据，仅受限于商店接收上限
-  if (item['方向'] === '出售') {
-    return maxStock;
-  }
-
-  // 如果是购买，受限于金钱
-  const priceCopper = item['价格'] * 10;
-  if (priceCopper <= 0) return maxStock;
-
-  // 计算当前剩余预算（排除掉购物车里其他商品的花费）
-  const currentQty = cart.value[name] || 0;
-  const currentSpentOnThis = currentQty * priceCopper;
-
-  const otherItemsCost = totalTransactionCostInCopper.value - currentSpentOnThis;
-  const availableMoney = playerTotalCopper.value - otherItemsCost;
-
-  const maxAffordable = Math.floor(availableMoney / priceCopper);
-
-  return Math.min(maxStock, maxAffordable);
-};
-
-// 判断加号是否禁用
-const isAddDisabled = (name: string, item: ShopItem) => {
-  const currentQty = cart.value[name] || 0;
-  const max = calculateMax(name, item);
-  return currentQty >= max;
-};
-
-// 更新购物车（按钮点击）
-const updateCart = (name: string, delta: number) => {
-  const current = cart.value[name] || 0;
-  const next = current + delta;
-
-  if (next <= 0) {
-    delete cart.value[name];
-  } else {
-    cart.value[name] = next;
-  }
-};
-
-// 设置为最大值
-const setMaxQuantity = (name: string, item: ShopItem) => {
-  const max = calculateMax(name, item);
-  if (max > 0) {
-    cart.value[name] = max;
-  }
-};
-
-// 处理输入框实时输入 (仅限制非数字)
-const handleInput = (e: Event, name: string, item: ShopItem) => {
-  const val = (e.target as HTMLInputElement).value;
-  if (val === '') return;
-};
-
-// 处理输入框失焦 (修正数值)
-const fixInputQuantity = (e: Event, name: string, item: ShopItem) => {
-  const input = e.target as HTMLInputElement;
-  let val = parseInt(input.value);
-
-  if (isNaN(val) || val < 0) val = 0;
-
-  const max = calculateMax(name, item);
-  if (val > max) val = max;
-
-  if (val === 0) {
-    delete cart.value[name];
-    input.value = '0'; // 视觉归零
-  } else {
-    cart.value[name] = val;
-    input.value = val.toString(); // 修正显示
-  }
-};
-
-// --- 提交逻辑 ---
-const formatPriceToString = (priceInSilver: number) => {
-  const totalCopper = priceInSilver * 10;
-  const gold = Math.floor(totalCopper / 1000);
-  const silver = Math.floor((totalCopper % 1000) / 10);
-  const copper = Math.floor(totalCopper % 10);
-  let text = [];
-  if (gold > 0) text.push(`${gold}金`);
-  if (silver > 0) text.push(`${silver}银`);
-  if (copper > 0) text.push(`${copper}铜`);
-  return text.length > 0 ? text.join('') : "0铜";
-};
-
+// --- 提交 ---
 const submitTransaction = () => {
-  if (!isTransactionValid.value) return;
-  const logs = Object.entries(cart.value).map(([name, quantity]) => {
-    const item = shopData.value[name];
-    const totalPriceStr = formatPriceToString(item['价格'] * quantity);
-    return {
-      "名称": name,
-      "描述": item['描述'],
-      "作用": item['作用'] || "无特殊作用", // 防止 undefined
-      "交易方向": item['方向'],
-      "数量": quantity,
-      "总价": totalPriceStr
-    }
-  });
-
-  if (logs.length === 0) return;
-
-  try {
-    const input = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement;
-    if (input) {
-      const jsonStr = JSON.stringify(logs, null, 2);
-      const outputText = `\n<user>希望进行以下交易：\n<list>\n${jsonStr}\n</list>\n如果顺利，则完成交易，离开当前场景\n`;
-
-      const currentVal = input.value;
-      input.value = currentVal ? currentVal + outputText : outputText;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
-      cart.value = {};
-    }
-  } catch (e) {
-    console.error("交易提交失败", e);
+  const items = [];
+  for (const [name, data] of Object.entries(transactionQueue)) {
+    items.push({
+      物品名称: name,
+      数量: data.count,
+      方向: data.type === 'buy' ? '购买' : '出售',
+      单价: data.price,
+      总价: (data.price * data.count).toFixed(4)+"g黄金",
+      描述: data.info.描述,
+      作用: data.info.作用,
+      耐久信息: data.type === 'sell' ? `当前耐久:${data.info.当前耐久}` : `最大耐久:${data.info.最大耐久}`
+    });
   }
+
+  const log = `<user>打算完成以下批量交易:\n<list>\n${JSON.stringify(items, null, 2)}\n</list>\n交易后预计剩余资产: ${finalBalance.value.toFixed(2)}g\n如果顺利，则离开当前场景\n`;
+  uiStore.setPendingInput(log);
+  clearQueue();
+  router.push('/选项');
 };
 </script>
 
 <style scoped>
-.shop-container {
-  padding-bottom: 80px;
-  font-family: 'Segoe UI', sans-serif;
+/* --- 核心变量 --- */
+.shop-view {
+  --c-bg: #0b0c10;
+  --c-panel-bg: rgba(20, 22, 28, 0.6);
+  --c-panel-border: rgba(255, 255, 255, 0.08);
+
+  --c-gold: #e6c15c;
+  --c-gold-dim: #8a7538;
+  --c-text: #e0e6ed;
+  --c-text-dim: #718096;
+
+  --c-accent-sell: #64ffda;
+  --c-accent-buy: #ff7e67;
+
+  --font-serif: 'Cinzel', serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at top center, #1a1c24 0%, #0b0c10 100%);
+  color: var(--c-text);
+  font-family: var(--font-sans);
+  position: relative;
+  overflow: hidden;
 }
 
-/* 紧凑 Header */
+/* --- 遮罩层 --- */
+.click-mask {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  z-index: 90; cursor: default;
+}
+
+/* --- 顶部 Header --- */
 .shop-header {
-  margin-bottom: 0.5rem;
-  background: rgba(0,0,0,0.2);
-  padding: 0.4rem 0.6rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-}
-
-.header-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.shop-title {
-  font-family: 'Cinzel', serif;
-  font-size: 1.1rem;
-  color: var(--accent-primary);
-  margin: 0;
-}
-
-.player-wealth {
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  background: rgba(0,0,0,0.2);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-.wealth-value { color: #ffd700; font-weight: bold; margin-left: 5px; }
-
-/* Tabs 样式 */
-.shop-tabs {
-  display: flex;
-  gap: 8px;
-}
-
-.tab-btn {
-  flex: 1;
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  padding: 4px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-size: 0.85rem;
-}
-
-.tab-btn.active {
-  background: var(--accent-primary);
-  color: #1a1d24;
-  font-weight: bold;
-  border-color: var(--accent-primary);
-}
-
-/* 紧凑 Grid 布局 */
-.items-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  gap: 0.8rem;
-}
-
-/* 紧凑卡片样式 */
-.item-card {
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden; /* 保持卡片圆角，但内容会撑开 */
-  font-size: 0.85rem;
-}
-
-.item-card.is-disabled { opacity: 0.6; }
-
-.card-top {
-  padding: 0.5rem;
-  background: rgba(0,0,0,0.15);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-shrink: 0;
+  padding: 20px 30px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0));
   border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-
-.item-name {
-  font-weight: bold;
-  color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 65%;
-}
-
-.item-price {
-  font-size: 0.8rem;
-  text-align: right;
-}
-
-.card-body {
-  padding: 0.5rem;
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.item-desc {
-  color: var(--text-secondary);
-  margin: 0;
-  font-size: 0.8rem;
-  line-height: 1.3;
-  /* 完整显示，移除截断 */
-  white-space: normal;
-  cursor: help; /* 提示可交互 */
-}
-
-/* 底部操作区 */
-.card-footer {
-  padding: 0.5rem;
-  background: rgba(0,0,0,0.1);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.input-group {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--bg-primary);
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-}
-
-.qty-btn {
-  background: rgba(255,255,255,0.05);
-  border: none;
-  color: var(--text-primary);
-  width: 24px;
-  height: 24px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.qty-btn:hover:not(:disabled) { background: rgba(255,255,255,0.15); }
-.qty-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-
-.qty-input {
-  width: 100%;
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  text-align: center;
-  font-size: 0.9rem;
-  -moz-appearance: textfield;
-}
-.qty-input::-webkit-outer-spin-button,
-.qty-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-.qty-input:focus { outline: none; background: rgba(255,255,255,0.05); }
-
-.max-btn {
-  width: 100%;
-  background: transparent;
-  border: 1px dashed var(--border-color);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  padding: 2px 0;
-  border-radius: 3px;
-  cursor: pointer;
-}
-.max-btn:hover:not(:disabled) {
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
-}
-.max-btn:disabled { opacity: 0.3; cursor: default; }
-
-/* 分页控制器样式 */
-.pagination-controls {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  margin-top: 15px;
-  padding: 10px;
-}
-
-.page-btn {
-  background: rgba(0,0,0,0.2);
-  border: 1px solid var(--border-color);
-  color: var(--text-primary);
-  width: 32px;
-  height: 32px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-.page-btn:hover:not(:disabled) {
-  background: var(--accent-primary);
-  color: #1a1d24;
-  border-color: var(--accent-primary);
-}
-
-.page-btn:disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-.page-info {
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-/* 结算栏 */
-.checkout-bar {
-  position: fixed;
-  bottom: 15px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 92%;
-  max-width: 400px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--accent-primary);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.9);
-  padding: 0.6rem 1rem;
-  border-radius: 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   z-index: 100;
 }
 
-.checkout-info {
+.header-content {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-end;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.title-group h2 {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  background: linear-gradient(to right, var(--c-gold), #fff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 1px;
+}
+
+.sub-title {
   font-size: 0.85rem;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  margin-left: 2px;
 }
 
-.summary-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: bold;
-}
-.divider { color: var(--text-secondary); opacity: 0.5; }
-
-.balance-preview {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
+/* --- 资产显示与下拉 --- */
+.gold-wrapper {
+  position: relative;
 }
 
-.confirm-btn {
-  background: var(--accent-primary);
-  color: #1a1d24;
-  border: none;
-  padding: 0.4rem 1rem;
-  border-radius: 15px;
-  font-weight: bold;
-  font-size: 0.9rem;
+.gold-display {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 16px;
+  border-radius: 8px;
   cursor: pointer;
-  min-width: 70px;
-}
-.confirm-btn:disabled {
-  background: #444;
-  color: #888;
-  cursor: not-allowed;
+  transition: all 0.3s ease;
+  min-width: 160px;
+  backdrop-filter: blur(5px);
 }
 
-/* 自定义 Tooltip 样式 */
-.custom-tooltip {
-  position: fixed;
-  z-index: 9999;
-  background: rgba(20, 20, 25, 0.95);
-  border: 1px solid var(--accent-primary);
-  border-radius: 6px;
-  padding: 8px 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-  pointer-events: none; /* 防止鼠标移动时闪烁 */
-  min-width: 120px;
-  max-width: 250px;
+.gold-display:hover, .gold-display.active {
+  background: rgba(230, 193, 92, 0.1);
+  border-color: var(--c-gold);
+  box-shadow: 0 0 15px rgba(230, 193, 92, 0.15);
 }
 
-.tooltip-header {
-  font-weight: bold;
-  color: var(--accent-primary);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  padding-bottom: 4px;
-  margin-bottom: 4px;
-  font-size: 0.9rem;
-}
-
-.tooltip-content {
-  font-size: 0.8rem;
-  color: var(--text-primary);
-}
-
-.tooltip-row {
+.gold-display .label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
   margin-bottom: 2px;
 }
 
-.t-label {
-  color: var(--text-secondary);
-  margin-right: 4px;
+.value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  color: var(--c-gold);
 }
 
-/* 货币颜色 */
-:deep(.c-gold) { color: #ffd700; margin-right: 2px; }
-:deep(.c-silver) { color: #c0c0c0; margin-right: 2px; }
-:deep(.c-copper) { color: #cd7f32; }
-:deep(.text-danger) { color: #ff4d4d; }
+.currency-symbol { font-size: 1.2rem; }
+.value { font-family: var(--font-mono); font-size: 1.4rem; font-weight: bold; }
+.unit { font-size: 0.9rem; color: var(--c-gold-dim); }
+.dropdown-arrow { margin-left: auto; font-size: 0.8rem; opacity: 0.7; transition: transform 0.3s; }
+.gold-display.active .dropdown-arrow { transform: rotate(180deg); }
+
+/* 下拉菜单 */
+.asset-dropdown {
+  position: absolute;
+  top: 110%; right: 0;
+  width: 280px;
+  background: rgba(15, 17, 23, 0.95);
+  border: 1px solid var(--c-gold-dim);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+  z-index: 101;
+  padding: 15px;
+  backdrop-filter: blur(10px);
+  transform-origin: top right;
+}
+
+.dropdown-header {
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  letter-spacing: 1px;
+}
+
+.currency-list {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.currency-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.9rem;
+  border-bottom: 1px dashed rgba(255,255,255,0.05);
+}
+.currency-row:last-child { border-bottom: none; }
+
+.c-name { color: #fff; font-weight: 500; }
+.c-calc { font-size: 0.8rem; color: var(--c-text-dim); margin-left: auto; margin-right: 10px; }
+.c-total { font-family: var(--font-mono); color: var(--c-gold); }
+
+.dropdown-footer {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: bold;
+}
+.total-val { color: var(--c-gold); font-family: var(--font-mono); font-size: 1.1rem; }
+
+/* --- 主内容区 --- */
+.shop-content {
+  flex: 1;
+  display: flex;
+  padding: 20px 30px;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  overflow: hidden;
+}
+
+.panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--c-panel-bg);
+  border: 1px solid var(--c-panel-border);
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+  transition: border-color 0.3s;
+}
+
+.panel:hover { border-color: rgba(255,255,255,0.15); }
+
+.panel-header {
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--c-panel-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255,255,255,0.02);
+}
+
+.ph-left h3 { margin: 0; font-family: var(--font-serif); font-size: 1.1rem; color: #fff; }
+.hint { font-size: 0.7rem; color: var(--c-text-dim); text-transform: uppercase; letter-spacing: 1px; }
+
+.ph-right {
+  font-size: 0.75rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.icon-sell { color: var(--c-accent-sell); background: rgba(100, 255, 218, 0.1); }
+.icon-buy { color: var(--c-accent-buy); background: rgba(255, 126, 103, 0.1); }
+
+.scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 15px;
+}
+
+/* --- 卡片样式 --- */
+.item-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.item-card:hover {
+  background: rgba(255,255,255,0.06);
+  transform: translateY(-1px);
+}
+
+.item-card.expanded {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.1);
+}
+
+.item-card.in-queue {
+  border-left: 3px solid var(--c-gold);
+  background: linear-gradient(90deg, rgba(230, 193, 92, 0.05), transparent);
+}
+
+/* 卡片主体 */
+.card-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 15px;
+  cursor: pointer;
+}
+
+.item-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: #f0f0f0;
+  margin-bottom: 4px;
+}
+
+.item-meta { display: flex; gap: 8px; }
+.meta-tag { font-size: 0.75rem; color: var(--c-text-dim); background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px; }
+
+.price-tag {
+  font-family: var(--font-mono);
+  font-weight: bold;
+  font-size: 1rem;
+}
+.gain { color: var(--c-accent-sell); text-shadow: 0 0 10px rgba(100, 255, 218, 0.3); }
+.cost { color: var(--c-accent-buy); text-shadow: 0 0 10px rgba(255, 126, 103, 0.3); }
+
+/* 详情 */
+.card-details {
+  padding: 0 15px 15px 15px;
+  font-size: 0.85rem;
+  color: #a0aec0;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  margin-top: -5px;
+  padding-top: 10px;
+  animation: fadeIn 0.3s ease;
+}
+.desc-text { font-style: italic; margin-bottom: 6px; line-height: 1.4; }
+.effect-text .label { color: var(--c-gold-dim); margin-right: 5px; }
+
+/* 操作栏 */
+.card-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 15px;
+  background: rgba(0,0,0,0.2);
+}
+
+.qty-control {
+  display: flex;
+  align-items: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.q-btn {
+  width: 24px; height: 24px;
+  border: none; background: transparent;
+  color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+  transition: color 0.2s;
+}
+.q-btn:hover { color: var(--c-gold); }
+
+.q-display {
+  min-width: 30px; text-align: center;
+  font-family: var(--font-mono); font-size: 0.9rem;
+  color: var(--c-text-dim);
+}
+.q-display.has-val { color: var(--c-gold); font-weight: bold; }
+
+.max-btn {
+  background: transparent;
+  border: 1px solid var(--c-text-dim);
+  color: var(--c-text-dim);
+  font-size: 0.7rem;
+  padding: 3px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.max-btn:hover { border-color: var(--c-gold); color: var(--c-gold); }
+
+/* --- 底部交易栏 --- */
+.trade-bar-wrapper {
+  position: absolute;
+  bottom: 20px; left: 50%;
+  transform: translateX(-50%);
+  width: 90%; max-width: 800px;
+  z-index: 50;
+}
+
+.trade-bar {
+  background: rgba(22, 24, 30, 0.95);
+  border: 1px solid var(--c-gold);
+  border-radius: 12px;
+  padding: 15px 25px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(230, 193, 92, 0.1);
+  backdrop-filter: blur(10px);
+}
+
+.trade-info { display: flex; align-items: center; gap: 20px; }
+.info-block { display: flex; flex-direction: column; }
+.lbl { font-size: 0.7rem; color: var(--c-text-dim); text-transform: uppercase; margin-bottom: 2px; }
+.val-group { display: flex; gap: 10px; font-family: var(--font-mono); font-weight: bold; font-size: 1.1rem; }
+.v-gain { color: var(--c-accent-sell); }
+.v-cost { color: var(--c-accent-buy); }
+.v-neutral { color: #666; }
+
+.separator { width: 1px; height: 30px; background: rgba(255,255,255,0.1); }
+
+.result-block .final { font-family: var(--font-mono); font-size: 1.4rem; font-weight: bold; }
+.final.safe { color: var(--c-gold); }
+.final.danger { color: #ff4d4d; }
+
+.trade-btns { display: flex; align-items: center; gap: 15px; }
+.btn-clear { background: none; border: none; color: var(--c-text-dim); cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
+.btn-clear:hover { color: #fff; }
+
+.btn-confirm {
+  background: var(--c-gold);
+  color: #1a1c24;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-weight: bold;
+  font-family: var(--font-serif);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 15px rgba(230, 193, 92, 0.3);
+}
+.btn-confirm:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(230, 193, 92, 0.5); background: #ffd700; }
+.btn-confirm:disabled { background: #4a5568; color: #718096; cursor: not-allowed; box-shadow: none; }
+.btn-badge { background: rgba(0,0,0,0.2); color: inherit; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-family: var(--font-mono); }
+
+/* --- 装饰分割线 --- */
+.divider-visual {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  color: var(--c-panel-border); width: 40px;
+}
+.line { flex: 1; width: 1px; background: linear-gradient(to bottom, transparent, var(--c-panel-border), transparent); }
+.icon { padding: 10px 0; font-size: 1.2rem; opacity: 0.5; }
+
+/* --- 滚动条与动画 --- */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+.empty-tip { text-align: center; color: var(--c-text-dim); padding-top: 50px; font-style: italic; opacity: 0.5; }
+.empty-tip span { font-size: 2rem; display: block; margin-bottom: 10px; filter: grayscale(1); }
+
+/* 动画 */
+.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.2s ease; }
+.fade-slide-enter-from, .fade-slide-leave-to { opacity: 0; transform: translateY(-10px); }
+
+.slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.slide-up-enter-from, .slide-up-leave-to { transform: translate(-50%, 100%); opacity: 0; }
+
+@media (max-width: 768px) {
+  .shop-content { flex-direction: column; padding: 10px; padding-bottom: 100px; }
+  .divider-visual { flex-direction: row; width: 100%; height: 40px; }
+  .line { width: auto; height: 1px; flex: 1; background: linear-gradient(to right, transparent, var(--c-panel-border), transparent); }
+  .icon { padding: 0 10px; }
+  .trade-bar-wrapper { width: 95%; bottom: 10px; }
+  .trade-bar { flex-direction: column; gap: 15px; padding: 15px; }
+  .trade-info { width: 100%; justify-content: space-between; }
+  .trade-btns { width: 100%; }
+  .btn-confirm { flex: 1; justify-content: center; }
+  .asset-dropdown { width: 240px; right: -20px; }
+}
 </style>

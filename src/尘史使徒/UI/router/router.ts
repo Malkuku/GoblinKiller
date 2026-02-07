@@ -26,17 +26,17 @@ export const router = createRouter({
           component: () => import('../view/任务.vue'),
         },
         {
-          path: '设置',
-          component: () => import('../view/设置.vue'),
+          path: '商店',
+          component: () => import('../view/商店.vue'),
         },
         {
           path: '图片',
           component: () => import('../view/图片展示.vue'),
         },
         {
-          path: '商店',
-          component: () => import('../view/商店.vue'),
-        }
+          path: '设置',
+          component: () => import('../view/设置.vue'),
+        },
       ],
     },
   ],

@@ -16,7 +16,7 @@ export const useQuestStore = defineStore('quest', () => {
     if (!newMsg) return;
 
     // 正则匹配 <questVariable>...</questVariable>
-    const regex = /<questVariable>([\s\S]*?)<\/questVariable>/i;
+    const regex = /<questVariable>((?:(?!<questVariable>)[\s\S])*?)<\/questVariable>(?![\s\S]*<questVariable>[\s\S]*<\/questVariable>)/i;
     const match = newMsg.match(regex);
 
     if (match && match[1]) {

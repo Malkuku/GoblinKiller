@@ -161,10 +161,14 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, inject } from 'vue';
+import { useRouter } from 'vue-router';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
+import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 import MainQuestCard from '@/尘史使徒/UI/components/task/MainQuestCard.vue';
 
+const router = useRouter();
 const questStore = useQuestStore();
+const uiStore = useUiStore();
 const setNotification = inject('setNotification') as (path: string, active: boolean) => void;
 
 // 数据源
@@ -215,19 +219,19 @@ const confirmQuests = async () => {
   });
 
   try {
-    const input = window.parent.document.querySelector('#send_textarea') as HTMLTextAreaElement;
-    if (input) {
-      const jsonStr = JSON.stringify(logs, null, 2);
-      const outputText = `<user>希望接取以下委托\n<list>\n${jsonStr}\n</list>\n如果顺利，则离开当前场景\n`;
+    const jsonStr = JSON.stringify(logs, null, 2);
+    const outputText = `<user>希望接取以下委托\n<list>\n${jsonStr}\n</list>\n如果顺利，则离开当前场景\n`;
 
-      const currentVal = input.value;
-      input.value = currentVal ? currentVal + outputText : outputText;
-      input.dispatchEvent(new Event('input', { bubbles: true }));
-      input.focus();
+    // 1. 将信息存储到 UI Store
+    uiStore.setPendingInput(outputText);
 
-      selectedQuests.value.clear();
-      questStore.clearQuestBoardData();
-    }
+    // 2. 清理当前状态
+    selectedQuests.value.clear();
+    questStore.clearQuestBoardData();
+
+    // 3. 跳转回正文页面 (假设路由路径为 /选项)
+    router.push('/选项');
+
   } catch (e) {
     console.error('委托提交失败', e);
   } finally {
