@@ -468,7 +468,7 @@ const handleWheel = (e) => {
   const mouseX = e.clientX - rect.left - rect.width / 2;
   const mouseY = e.clientY - rect.top - rect.height / 2;
   const scaleFactor = 1 + (0.1 * -Math.sign(e.deltaY));
-  const newScale = Math.min(Math.max(transform.k * scaleFactor, 0.3), 4.0);
+  const newScale = Math.min(Math.max(transform.k * scaleFactor, 0.1), 10.0);
   transform.x = mouseX - (mouseX - transform.x) * (newScale / transform.k);
   transform.y = mouseY - (mouseY - transform.y) * (newScale / transform.k);
   transform.k = newScale;
