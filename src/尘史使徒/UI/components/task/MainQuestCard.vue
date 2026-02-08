@@ -26,13 +26,7 @@
               <div class="scan-line"></div>
             </div>
           </div>
-          <p class="alert-tip" v-if="data.警惕度 > 0">注意：异常行为已被察觉</p>
         </div>
-
-        <!-- 详情列表 -->
-        <ul v-if="data.详细" class="detail-list">
-          <li v-for="(item, idx) in data.详细" :key="idx">{{ item }}</li>
-        </ul>
       </div>
 
       <!-- 布局 B: 魂质收集模式 (存在 '已交融的魂质' 字段) -->

@@ -200,8 +200,7 @@ export interface TaskData {
 export interface EventData {
   "描述": string;
   "作用": string;
-  "进度": number;
-  "总进度": number;
+  "进度": string;
 }
 
 /**

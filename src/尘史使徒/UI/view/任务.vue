@@ -147,8 +147,7 @@
                 <div class="effect" v-if="evt.作用"><span class="label">影响:</span> {{ evt.作用 }}</div>
               </div>
               <div class="event-progress">
-                <div class="progress-text"><span>SYNC</span><span>{{ Math.round((evt.进度 / evt.总进度) * 100) }}%</span></div>
-                <div class="progress-track"><div class="progress-fill gold" :style="{ width: (evt.进度 / evt.总进度 * 100) + '%' }"></div></div>
+                <div class="progress-text"><span>进度</span><span>{{ evt.进度 }}</span></div>
               </div>
             </div>
           </div>
@@ -169,7 +168,6 @@ import MainQuestCard from '@/尘史使徒/UI/components/task/MainQuestCard.vue';
 const router = useRouter();
 const questStore = useQuestStore();
 const uiStore = useUiStore();
-const setNotification = inject('setNotification') as (path: string, active: boolean) => void;
 
 // 数据源
 const questBoardData = computed(() => questStore.questBoardData);
@@ -230,7 +228,7 @@ const confirmQuests = async () => {
     questStore.clearQuestBoardData();
 
     // 3. 跳转回正文页面 (假设路由路径为 /选项)
-    router.push('/选项');
+    await router.push('/选项');
 
   } catch (e) {
     console.error('委托提交失败', e);
@@ -807,36 +805,24 @@ const confirmQuests = async () => {
 .event-progress {
   width: 250px;
   flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .progress-text {
   display: flex;
   justify-content: space-between;
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   letter-spacing: 1px;
-  margin-bottom: 5px;
-  color: var(--c-text-dim);
-}
-
-.progress-track {
-  height: 6px;
-  background: rgba(255,255,255,0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: var(--c-gold);
-  box-shadow: 0 0 8px var(--c-gold);
-  transition: width 0.5s ease;
+  color: var(--c-gold);
+  gap: 15px;
 }
 
 /* --- Responsive --- */
 @media (max-width: 768px) {
   .quest-view { padding: 15px; }
   .event-row { flex-direction: column; align-items: flex-start; }
-  .event-progress { width: 100%; margin-top: 15px; }
+  .event-progress { width: 100%; margin-top: 15px; justify-content: flex-start; }
   .task-grid, .board-grid { grid-template-columns: 1fr; }
   .signature-bar { width: 90%; justify-content: space-between; }
 }
