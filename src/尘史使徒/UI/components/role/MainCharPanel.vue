@@ -112,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, watch } from 'vue'; // 1. 引入 computed 和 watch
 import ArtsModule from './ArtsModule.vue';
 import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModule.vue';
 import SpecialStatusModule from '@/尘史使徒/UI/components/role/SpecialStatusModule.vue';
@@ -121,8 +121,26 @@ import RelationshipModule from '@/尘史使徒/UI/components/role/RelationshipMo
 import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
 
 const props = defineProps(['data']);
-const tabs = ['状态', '属性', '档案', '物品'];
-const currentTab = ref('状态');
+
+// 2. 修改 tabs 为计算属性
+const tabs = computed(() => {
+  // 当角色名为 '希尔' 时，仅显示 属性 和 档案
+  if (props.data?.姓名 === '希尔') {
+    return ['属性', '档案'];
+  }
+  // 其他角色显示全部
+  return ['状态', '属性', '档案', '物品'];
+});
+
+// 3. 初始化 currentTab，确保初始值在当前 tabs 列表中
+const currentTab = ref(tabs.value.includes('状态') ? '状态' : tabs.value[0]);
+
+// 4. 监听数据变化，防止当前选中的 tab 被隐藏后导致空白
+watch(() => props.data?.姓名, () => {
+  if (!tabs.value.includes(currentTab.value)) {
+    currentTab.value = tabs.value[0];
+  }
+});
 
 // 详情模式（原全视视角）控制
 const showDetails = ref(false);
@@ -131,7 +149,6 @@ const toggleDetails = () => {
 };
 
 // 辅助函数
-const formatLoc = (loc) => loc ? `[${loc.x}, ${loc.y}, ${loc.z}]` : '未知';
 const formatHobbies = (hobbies) => {
   if (!hobbies) return '无';
   if (Array.isArray(hobbies)) return hobbies.join(', ');
