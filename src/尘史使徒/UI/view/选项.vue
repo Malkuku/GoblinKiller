@@ -242,11 +242,10 @@ const fetchLatestMessage = () => {
       checkTavernBusy(tavernSendBtn);
     }
 
-    // 2. 同步原始消息 (Logic) - 替代原有的HTML正则匹配逻辑
-    // 确保 messageStore 中的数据是最新的，从而触发上面的 watch
+    // 2. 同步原始消息
     messageStore.getMessage();
 
-    // 3. 检查消息内容 (Visuals) - 仅用于显示
+    // 3. 检查消息内容
     const chatContainer = parentDoc.getElementById('chat');
     if (!chatContainer) return;
 
@@ -255,13 +254,11 @@ const fetchLatestMessage = () => {
     if (lastMessageDiv) {
       const currentHtml = lastMessageDiv.innerHTML;
 
-      // 注意：这里不再从 currentHtml 解析 options/quest/shop
-      // 所有的逻辑判断都已移交至 messageStore.message 的 watcher
-
       if (currentHtml !== rawHtml.value) {
         rawHtml.value = currentHtml;
         isStreaming.value = true;
-        if (!isInitializing.value) scrollToBottom();
+        // 修改：检测到新消息时不再自动滚动到底部，保持当前阅读位置
+        // if (!isInitializing.value) scrollToBottom();
       } else {
         isStreaming.value = false;
       }
@@ -270,6 +267,7 @@ const fetchLatestMessage = () => {
     console.warn('轮询父窗口失败', e);
   }
 };
+
 
 const parseOptions = (content: string): string[] => {
   if (!content) return [];
@@ -410,7 +408,6 @@ onMounted(() => {
   // 注册监听器并获取初始消息
   messageStore.getMessage();
 
-  // 如果 store 中已有消息，立即触发一次解析 (虽然 watcher immediate: true 也会处理)
   if (messageStore.message) {
     const ops = parseOptions(messageStore.message);
     if (ops.length > 0) cachedOptions.value = ops;
@@ -423,7 +420,10 @@ onMounted(() => {
 
   setTimeout(() => {
     isInitializing.value = false;
-    scrollToBottom();
+    // 修改：初始化完成后，默认显示在最上方
+    if (scrollContainer.value) {
+      scrollContainer.value.scrollTop = 0;
+    }
   }, 800);
 
   // 检查是否有从任务/商店页面带回来的确认信息
@@ -432,6 +432,7 @@ onMounted(() => {
     userInput.value = pendingText;
   }
 });
+
 
 onUnmounted(() => {
   if (pollingInterval.value) clearInterval(pollingInterval.value);
