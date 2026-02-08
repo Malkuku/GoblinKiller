@@ -1,5 +1,6 @@
 <template>
-  <div class="scenario-layout">
+  <!-- 绑定 currentTheme 到根容器，实现全局样式切换 -->
+  <div class="scenario-layout" :class="currentTheme">
     <header class="scenario-header">
       <h1 class="title">剧本选择</h1>
       <div class="subtitle">CHOOSE YOUR DESTINY</div>
@@ -61,84 +62,23 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
 import { router } from '@/尘史使徒/UI/router/router';
 import { ERAEvents } from '@/Constants/ERAEvent';
+import { ScenariosMetadata } from '@/尘史使徒/UI/types/剧本数据';
 
 const selectedScenario = ref('');
 const loading = ref(false);
 const loadingId = ref('');
 
-const scenarios = [
-  {
-    id: 'satiated',
-    name: '餮足之人',
-    worldBookEntry: '<剧本>餮足之人',
-    isReady: true,
-    theme: 'theme-cup',
-    desc: `扮演一位“多情”的兄长，用谎言与真实喂养妹妹。\n然而饥饿永无餮止，迷雾中的困惑尚未解开。\n行走于城市之间，要当心阴影中狩猎异类的眼睛......`,
-    iconPath: `
-      <path fill="currentColor" d="M18 8 C18 8, 16 32, 32 32 C48 32, 46 8, 46 8 H18 Z" opacity="0.8"/>
-      <path fill="none" stroke="currentColor" stroke-width="3" d="M32 32 V 52 M20 52 H44"/>
-      <ellipse cx="32" cy="12" rx="12" ry="3" fill="rgba(255,0,0,0.3)"/>
-    `
-  },
-  {
-    id: 'lantern',
-    name: '辉光学徒',
-    worldBookEntry: '<剧本>辉光学徒',
-    isReady: true,
-    theme: 'theme-lamp',
-    desc: '真理往往伴随着灼烧双目的光芒。你提着灯笼，行走在理智与疯狂的边缘。',
-    iconPath: `
-      <path fill="none" stroke="currentColor" stroke-width="3" d="M22 16 L18 48 L46 48 L42 16 Z"/>
-      <path fill="none" stroke="currentColor" stroke-width="3" d="M22 16 L32 6 L42 16"/>
-      <circle cx="32" cy="32" r="6" fill="currentColor" opacity="0.8"/>
-      <line x1="32" y1="6" x2="32" y2="2" stroke="currentColor" stroke-width="3"/>
-    `
-  },
-  {
-    id: 'folly',
-    name: '虚妄愚行',
-    worldBookEntry: '<剧本>虚妄愚行',
-    isReady: true,
-    theme: 'theme-moth',
-    desc: '如同飞蛾扑火，我们在混乱中寻求某种不存在的答案。你被困在命运的网中。',
-    iconPath: `
-      <path fill="none" stroke="currentColor" stroke-width="2" d="M32 32 L32 2 M32 32 L60 18 M32 32 L54 56 M32 32 L10 56 M32 32 L4 18"/>
-      <path fill="none" stroke="currentColor" stroke-width="1.5" d="M26 12 Q32 16 38 12 M48 24 Q42 32 46 42 M20 48 Q32 40 44 48 M12 30 Q20 32 26 12" opacity="0.6"/>
-      <circle cx="32" cy="32" r="4" fill="currentColor"/>
-    `
-  },
-  {
-    id: 'forgotten',
-    name: '被遗忘者',
-    worldBookEntry: '<剧本>被遗忘者',
-    isReady: true,
-    theme: 'theme-forgotten',
-    desc: '镜中映出的不再是完整的面容。你已被世界遗忘，唯有破碎的记忆指引前路。',
-    iconPath: `
-      <path fill="none" stroke="currentColor" stroke-width="3" d="M16 8 H48 V56 H16 Z"/>
-      <path fill="currentColor" d="M16 8 L30 20 L25 35 L40 30 L48 56 L48 8 Z" opacity="0.3"/>
-      <path fill="none" stroke="currentColor" stroke-width="1" d="M20 12 L35 28 L28 40 L44 36"/>
-    `
-  },
-  {
-    id: 'homecoming',
-    name: '长路归乡',
-    worldBookEntry: '<剧本>长路归乡',
-    isReady: false,
-    theme: 'theme-winter',
-    desc: '寒风呼啸，背包里装着仅剩的温暖。这是一场漫长的告别，也是归乡的旅途。',
-    iconPath: `
-      <rect x="18" y="14" width="28" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="3"/>
-      <path fill="none" stroke="currentColor" stroke-width="3" d="M18 24 H46 M28 14 V10 C28 8 36 8 36 10 V14"/>
-      <rect x="22" y="32" width="8" height="10" fill="currentColor" opacity="0.5"/>
-      <rect x="34" y="32" width="8" height="10" fill="currentColor" opacity="0.5"/>
-    `
-  }
-];
+const scenarios = ScenariosMetadata;
+
+// 计算当前选中的主题类名
+const currentTheme = computed(() => {
+  const active = scenarios.find(s => s.id === selectedScenario.value);
+  return active ? active.theme : '';
+});
 
 const selectScenario = (id) => {
   selectedScenario.value = id;
@@ -222,7 +162,9 @@ const loadScenarioContent = async (entryName) => {
   color: var(--c-text-main);
   font-family: var(--font-body);
   overflow-y: auto;
-  background: #0a0a0a;
+  /* 修改背景：增加径向渐变，颜色由 --theme-glow 控制，实现全局氛围切换 */
+  background: radial-gradient(circle at 50% 20%, var(--theme-glow, transparent) 0%, #0a0a0a 80%);
+  transition: background 0.6s ease;
 }
 
 .scenario-header {
@@ -236,9 +178,12 @@ const loadScenarioContent = async (entryName) => {
 .title {
   font-family: var(--font-title);
   font-size: 2.5rem;
-  color: var(--c-gold);
+  /* 修改标题颜色：优先使用主题色，实现全局标题变色 */
+  color: var(--theme-color, var(--c-gold));
   margin: 0;
-  text-shadow: 0 0 10px rgba(164, 139, 87, 0.3);
+  /* 修改阴影：跟随主题光晕 */
+  text-shadow: 0 0 15px var(--theme-glow, var(--c-gold-dim));
+  transition: color 0.5s, text-shadow 0.5s;
 }
 
 .subtitle {
@@ -401,37 +346,40 @@ const loadScenarioContent = async (entryName) => {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* =========================================
-   特效样式 (保持不变)
+   特效样式 (重构：支持全局变量 + 局部样式隔离)
    ========================================= */
 .art-bg-effect { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; overflow: hidden; }
 
 /* 灯 (Lamp) */
 .theme-lamp { --theme-color: #FFD700; --theme-glow: rgba(255, 215, 0, 0.3); }
-.theme-lamp .art-name { color: var(--theme-color); text-shadow: 0 0 10px var(--theme-color); }
-.theme-lamp .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 70%); opacity: 0.15; }
+/* 仅当卡片本身具有该主题时，才应用内部样式，防止全局主题覆盖其他卡片 */
+.scenario-card.theme-lamp .art-name { color: var(--theme-color); text-shadow: 0 0 10px var(--theme-color); }
+.scenario-card.theme-lamp .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 70%); opacity: 0.15; }
 
 /* 冬 (Winter) */
 .theme-winter { --theme-color: #A3D5D5; --theme-glow: rgba(163, 213, 213, 0.3); }
-.theme-winter .art-name { color: var(--theme-color); }
-.theme-winter .art-bg-effect { background: radial-gradient(circle, #fff 5%, transparent 6%), radial-gradient(circle, #fff 3%, transparent 4%); background-size: 30px 30px, 50px 50px; background-position: 0 0, 25px 25px; animation: snow 10s linear infinite; opacity: 0.3; }
+.scenario-card.theme-winter .art-name { color: var(--theme-color); }
+.scenario-card.theme-winter .art-bg-effect { background: radial-gradient(circle, #fff 5%, transparent 6%), radial-gradient(circle, #fff 3%, transparent 4%); background-size: 30px 30px, 50px 50px; background-position: 0 0, 25px 25px; animation: snow 10s linear infinite; opacity: 0.3; }
 @keyframes snow { 0% {background-position: 0 0, 25px 25px;} 100% {background-position: 0 300px, 25px 325px;} }
 
 /* 杯 (Cup) */
 .theme-cup { --theme-color: #8B0000; --theme-glow: rgba(139, 0, 0, 0.4); }
-.theme-cup .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.5); }
-.theme-cup .art-bg-effect { background-image: linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%); background-repeat: no-repeat; background-size: 2px 150%, 3px 200%, 1px 220%; background-position: 10% 0, 50% 0, 90% 0; animation: art-cup-drip-y 6s linear infinite; opacity: 0.4; }
+.scenario-card.theme-cup .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.5); }
+.scenario-card.theme-cup .art-bg-effect { background-image: linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%); background-repeat: no-repeat; background-size: 2px 150%, 3px 200%, 1px 220%; background-position: 10% 0, 50% 0, 90% 0; animation: art-cup-drip-y 6s linear infinite; opacity: 0.4; }
 @keyframes art-cup-drip-y { from { background-position-y: -250%; } to { background-position-y: 100%; } }
 
 /* 蛾 (Moth) */
 .theme-moth { --theme-color: #a8a8a8; --theme-glow: rgba(168, 168, 168, 0.3); }
-.theme-moth .art-name { color: var(--theme-color); text-shadow: 1px 1px 1px rgba(0,0,0,0.5); animation: art-moth-glitch-strong 2s infinite steps(1); }
-.theme-moth .art-bg-effect { background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px); opacity: 0.2; }
+.scenario-card.theme-moth .art-name { color: var(--theme-color); text-shadow: 1px 1px 1px rgba(0,0,0,0.5); animation: art-moth-glitch-strong 2s infinite steps(1); }
+.scenario-card.theme-moth .art-bg-effect { background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px); opacity: 0.2; }
+/* 特殊：当选中蛾主题时，全局标题也应用故障效果 */
+.theme-moth .title { animation: art-moth-glitch-strong 2s infinite steps(1); }
 @keyframes art-moth-glitch-strong { 0% { transform: translate(0, 0) skew(0); } 5% { transform: translate(-2px, 1px) skew(-2deg); } 10% { transform: translate(2px, -1px) skew(2deg); } 15% { transform: translate(0, 0) skew(0); } 100% { transform: translate(0, 0) skew(0); } }
 
 /* 被遗忘者 (Forgotten) */
 .theme-forgotten { --theme-color: #C5A059; --theme-glow: rgba(197, 160, 89, 0.2); }
-.theme-forgotten .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.8); opacity: 0.8; }
-.theme-forgotten .art-bg-effect {
+.scenario-card.theme-forgotten .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.8); opacity: 0.8; }
+.scenario-card.theme-forgotten .art-bg-effect {
   background: linear-gradient(135deg, transparent 40%, rgba(197, 160, 89, 0.1) 40%, rgba(197, 160, 89, 0.1) 60%, transparent 60%);
   background-size: 20px 20px;
   opacity: 0.3;
