@@ -1,4 +1,3 @@
-<!-- views/RoleView.vue -->
 <template>
   <div class="role-view-container">
 
@@ -257,7 +256,7 @@ watch(() => store.stat_data, (newVal) => {
   justify-content: center;
   align-items: center;
   position: relative;
-  background: rgba(0,0,0,0.1);
+  background: rgba(0,0,0,0.8);
 }
 
 .role-list {
@@ -367,22 +366,33 @@ watch(() => store.stat_data, (newVal) => {
 @media (max-width: 768px) {
   .role-view-container {
     flex-direction: column;
+    min-height: 100vh;
   }
 
   /* 移动端侧边栏变为左侧抽屉 */
   .role-sidebar {
     position: fixed;
     top: 0;
-    left: 0; /* 改为左侧 */
-    bottom: 0;
+    left: 0;
     width: 260px;
-    background: #1a1a1a;
-    box-shadow: 2px 0 15px rgba(0,0,0,0.7);
-    transform: translateX(-100%); /* 默认隐藏在左侧 */
+    height: 400px;
+
+    /* 强制侧边栏整体背景不透明 */
+    background: #1a1a1a !important;
+    backdrop-filter: none !important;
+
+    box-shadow: 2px 0 15px rgba(0,0,0,0.9);
+    transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 1000;
+    z-index: 2000;
     border-right: 1px solid #333;
     border-left: none;
+  }
+
+  /* 修复：强制头部背景不透明 */
+  .role-list-header {
+    background: #1a1a1a !important; /* 覆盖原来的 rgba(0,0,0,0.1) */
+    border-bottom: 1px solid #333;
   }
 
   .role-sidebar.mobile-open {
@@ -391,10 +401,9 @@ watch(() => store.stat_data, (newVal) => {
 
   /* 移动端菜单按钮 - 左上角 */
   .mobile-menu-toggle {
-    display: block;
     position: absolute;
     top: 12px;
-    left: 12px; /* 改为左侧 */
+    left: 12px;
     z-index: 900;
     background: rgba(0,0,0,0.6);
     border: 1px solid var(--c-border);
@@ -425,7 +434,7 @@ watch(() => store.stat_data, (newVal) => {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.6);
-    z-index: 999;
+    z-index: 1999;
     backdrop-filter: blur(2px);
   }
 }

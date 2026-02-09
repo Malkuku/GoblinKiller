@@ -40,9 +40,14 @@
             v-for="item in backpackList"
             :key="item.name"
             class="item-card"
-            :class="[getItemStyle(item), { 'is-modified': item.isModified }]"
-            @click="openTransferModal(item, 'toWarehouse')"
+            :class="[
+              getItemStyle(item),
+              { 'is-modified': item.isModified },
+              { 'is-expanded': activeItemId === 'bag-' + item.name }
+            ]"
+            @click="toggleItemExpand(item, 'toWarehouse', 'bag')"
           >
+            <!-- 1. 卡片头部 (始终显示) -->
             <div class="card-inner">
               <div class="item-icon">{{ item.name[0] }}</div>
               <div class="item-info">
@@ -55,6 +60,46 @@
                 </div>
               </div>
               <div class="item-qty">x{{ item.quantity }}</div>
+            </div>
+
+            <!-- 2. 展开区域 (包含详情 + 操作栏) -->
+            <div
+              v-if="activeItemId === 'bag-' + item.name"
+              class="expanded-panel"
+              @click.stop
+            >
+              <!-- 详情文本 -->
+              <div class="item-details">
+                <p v-if="item.raw.描述" class="detail-desc">"{{ item.raw.描述 }}"</p>
+                <p v-if="item.raw.作用" class="detail-effect">
+                  <span class="bullet">✦</span> {{ item.raw.作用 }}
+                </p>
+              </div>
+
+              <!-- 操作栏 -->
+              <div class="transfer-action-bar">
+                <div class="slider-wrapper">
+                  <!-- 只有数量大于1时才显示滑动条 -->
+                  <template v-if="item.quantity > 1">
+                    <span class="qty-label">{{ transferAmount }}</span>
+                    <input
+                      type="range"
+                      v-model.number="transferAmount"
+                      min="1"
+                      :max="item.quantity"
+                      class="mini-slider"
+                    >
+                    <span class="qty-max">/ {{ item.quantity }}</span>
+                  </template>
+                  <!-- 数量为1时显示静态文本 -->
+                  <template v-else>
+                    <span class="qty-static">仅有 1 个</span>
+                  </template>
+                </div>
+                <button class="mini-confirm-btn" @click="confirmTransfer">
+                  存入 ➔
+                </button>
+              </div>
             </div>
           </div>
           <div v-if="backpackList.length === 0" class="empty-state">行囊空空如也</div>
@@ -80,9 +125,14 @@
             v-for="item in warehouseList"
             :key="item.name"
             class="item-card"
-            :class="[getItemStyle(item), { 'is-modified': item.isModified }]"
-            @click="openTransferModal(item, 'toBackpack')"
+            :class="[
+              getItemStyle(item),
+              { 'is-modified': item.isModified },
+              { 'is-expanded': activeItemId === 'wh-' + item.name }
+            ]"
+            @click="toggleItemExpand(item, 'toBackpack', 'wh')"
           >
+            <!-- 1. 卡片头部 -->
             <div class="card-inner">
               <div class="item-icon">{{ item.name[0] }}</div>
               <div class="item-info">
@@ -96,64 +146,56 @@
               </div>
               <div class="item-qty">x{{ item.quantity }}</div>
             </div>
+
+            <!-- 2. 展开区域 -->
+            <div
+              v-if="activeItemId === 'wh-' + item.name"
+              class="expanded-panel"
+              @click.stop
+            >
+              <!-- 详情文本 -->
+              <div class="item-details">
+                <p v-if="item.raw.描述" class="detail-desc">"{{ item.raw.描述 }}"</p>
+                <p v-if="item.raw.作用" class="detail-effect">
+                  <span class="bullet">✦</span> {{ item.raw.作用 }}
+                </p>
+              </div>
+
+              <!-- 操作栏 -->
+              <div class="transfer-action-bar">
+                <div class="slider-wrapper">
+                  <template v-if="item.quantity > 1">
+                    <span class="qty-label">{{ transferAmount }}</span>
+                    <input
+                      type="range"
+                      v-model.number="transferAmount"
+                      min="1"
+                      :max="item.quantity"
+                      class="mini-slider"
+                    >
+                    <span class="qty-max">/ {{ item.quantity }}</span>
+                  </template>
+                  <template v-else>
+                    <span class="qty-static">仅有 1 个</span>
+                  </template>
+                </div>
+                <button class="mini-confirm-btn" @click="confirmTransfer">
+                  取出 ➔
+                </button>
+              </div>
+            </div>
           </div>
           <div v-if="warehouseList.length === 0" class="empty-state">仓库空置</div>
         </div>
       </div>
 
     </div>
-
-    <!-- 交互模态框 -->
-    <Transition name="fade">
-      <div v-if="showQuantityModal" class="modal-overlay" @click.self="closeModal">
-        <div class="ac-modal">
-          <div class="modal-header">
-            <h3>物资转移</h3>
-            <div class="modal-subtitle">{{ pendingTransferItem?.name }}</div>
-          </div>
-
-          <div class="modal-body">
-            <div class="transfer-direction">
-              <span :class="{ active: pendingTransferDirection === 'toWarehouse' }">行囊</span>
-              <span class="arrow">➔</span>
-              <span :class="{ active: pendingTransferDirection === 'toBackpack' }">仓库</span>
-            </div>
-
-            <div class="quantity-control">
-              <button class="qty-btn" @click="transferAmount = Math.max(1, transferAmount - 1)">-</button>
-              <input type="number" v-model.number="transferAmount" class="qty-input" min="1" :max="pendingTransferItem?.quantity">
-              <button class="qty-btn" @click="transferAmount = Math.min(pendingTransferItem?.quantity, transferAmount + 1)">+</button>
-            </div>
-
-            <div class="slider-container">
-              <input
-                type="range"
-                v-model.number="transferAmount"
-                min="1"
-                :max="pendingTransferItem?.quantity"
-                class="ac-slider"
-              >
-            </div>
-
-            <div class="info-text">
-              <p>现有数量: {{ pendingTransferItem?.quantity }}</p>
-              <p v-if="willMerge">注意：目标容器已存在该物品，耐久度将混合。</p>
-            </div>
-          </div>
-
-          <div class="modal-footer">
-            <button class="ac-btn cancel" @click="closeModal">取消</button>
-            <button class="ac-btn confirm" @click="confirmTransfer">确认转移</button>
-          </div>
-        </div>
-      </div>
-    </Transition>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
-import { useStatStore } from '@/尘史使徒/UI/store/StatStore'; // 假设路径
+import { ref, computed, onMounted } from 'vue';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 
@@ -165,8 +207,8 @@ const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
 const searchQuery = ref('');
 
-// 模态框状态
-const showQuantityModal = ref(false);
+// 交互状态
+const activeItemId = ref(null); // 格式: 'bag-itemName' 或 'wh-itemName'
 const pendingTransferItem = ref(null);
 const pendingTransferDirection = ref(''); // 'toWarehouse' | 'toBackpack'
 const transferAmount = ref(1);
@@ -177,19 +219,16 @@ onMounted(() => {
 });
 
 function resetInventory() {
-  // 深拷贝 store 中的数据到本地 ref，建立 Draft State
   const rawBackpack = statStore.stat_data?.角色.user.物品 || {};
   const rawWarehouse = statStore.stat_data?.仓库 || {};
 
-  // 过滤掉 $template 等特殊字段
   localBackpack.value = JSON.parse(JSON.stringify(rawBackpack));
   localWarehouse.value = JSON.parse(JSON.stringify(rawWarehouse));
   hasUnsavedChanges.value = false;
+  activeItemId.value = null;
 }
 
-// --- 数据处理与计算属性 ---
-
-// 将对象转换为数组以供列表渲染，并支持搜索过滤
+// --- 数据处理 ---
 const processList = (sourceObj) => {
   return Object.entries(sourceObj)
     .filter(([key]) => key !== '$template')
@@ -206,7 +245,6 @@ const processList = (sourceObj) => {
         (item.raw.类型 && item.raw.类型.includes(searchQuery.value));
     })
     .sort((a, b) => {
-      // 修改过的物品排在前面
       if (a.isModified && !b.isModified) return -1;
       if (!a.isModified && b.isModified) return 1;
       return a.name.localeCompare(b.name);
@@ -216,16 +254,6 @@ const processList = (sourceObj) => {
 const backpackList = computed(() => processList(localBackpack.value));
 const warehouseList = computed(() => processList(localWarehouse.value));
 
-// 检查目标容器是否已有该物品（用于提示合并）
-const willMerge = computed(() => {
-  if (!pendingTransferItem.value) return false;
-  const targetObj = pendingTransferDirection.value === 'toWarehouse'
-    ? localWarehouse.value
-    : localBackpack.value;
-  return !!targetObj[pendingTransferItem.value.name];
-});
-
-// --- 样式辅助 ---
 const getItemStyle = (item) => {
   const type = item.raw.类型 || '';
   const name = item.name || '';
@@ -237,15 +265,22 @@ const getItemStyle = (item) => {
 
 // --- 交互逻辑 ---
 
-function openTransferModal(item, direction) {
-  pendingTransferItem.value = item;
-  pendingTransferDirection.value = direction;
-  transferAmount.value = 1; // 默认转移1个
-  showQuantityModal.value = true;
+function toggleItemExpand(item, direction, prefix) {
+  const id = `${prefix}-${item.name}`;
+
+  if (activeItemId.value === id) {
+    closeTransfer();
+  } else {
+    activeItemId.value = id;
+    pendingTransferItem.value = item;
+    pendingTransferDirection.value = direction;
+    // 默认数量：如果有多个，默认为1；如果只有1个，也为1
+    transferAmount.value = 1;
+  }
 }
 
-function closeModal() {
-  showQuantityModal.value = false;
+function closeTransfer() {
+  activeItemId.value = null;
   pendingTransferItem.value = null;
 }
 
@@ -266,19 +301,18 @@ function confirmTransfer() {
     sourceObj[item.name].isModified = true;
     if (sourceObj[item.name].数量 <= 0) {
       delete sourceObj[item.name];
+      closeTransfer(); // 物品没了，关闭展开
     }
   }
 
   // 2. 增加目标
   if (targetObj[item.name]) {
-    // 合并逻辑：耐久度取平均值向上取整
     const existing = targetObj[item.name];
     const newDurability = Math.ceil((existing.耐久 + item.durability) / 2);
     existing.数量 += qty;
     existing.耐久 = newDurability;
     existing.isModified = true;
   } else {
-    // 新建逻辑
     targetObj[item.name] = {
       ...item.raw,
       "数量": qty,
@@ -288,10 +322,14 @@ function confirmTransfer() {
   }
 
   hasUnsavedChanges.value = true;
-  closeModal();
+  // 如果源物品还有剩余，保持展开方便继续操作
+  if (sourceObj[item.name]) {
+    // 重置滑块
+    transferAmount.value = 1;
+  }
 }
 
-// --- 核心保存逻辑 (参考文件三) ---
+// --- 保存逻辑 ---
 async function saveAllChanges() {
   if (isSaving.value) return;
   isSaving.value = true;
@@ -304,11 +342,9 @@ async function saveAllChanges() {
     const remoteBackpack = statStore.stat_data?.器具 || {};
     const remoteWarehouse = statStore.stat_data?.仓库 || {};
 
-    // 1. 构建删除 Payload (清空远程所有相关数据)
     Object.keys(remoteBackpack).forEach(k => { if(k!=='$template') deletePayload["器具"][k] = {}; });
     Object.keys(remoteWarehouse).forEach(k => { if(k!=='$template') deletePayload["仓库"][k] = {}; });
 
-    // 2. 构建插入 Payload (写入本地所有数据)
     Object.entries(localBackpack.value).forEach(([k, v]) => {
       if(k!=='$template') {
         const { isModified, ...clean } = v;
@@ -322,7 +358,6 @@ async function saveAllChanges() {
       }
     });
 
-    // 3. 生成日志 (对比差异)
     const allNames = new Set([
       ...Object.keys(remoteBackpack), ...Object.keys(remoteWarehouse),
       ...Object.keys(localBackpack.value), ...Object.keys(localWarehouse.value)
@@ -345,7 +380,6 @@ async function saveAllChanges() {
       }
     });
 
-    // 4. 执行 API
     if (Object.keys(deletePayload["器具"]).length > 0 || Object.keys(deletePayload["仓库"]).length > 0) {
       await ERAUtil.DeleteByObject(deletePayload);
     }
@@ -353,17 +387,15 @@ async function saveAllChanges() {
       await ERAUtil.InsertByObject(insertPayload);
     }
 
-    // 5. 发送消息日志
     if (exchangeLogs.length > 0) {
       const logText = `\n<user>与漫宿之上的神秘空间完成了物品交换:\n${JSON.stringify(exchangeLogs, null, 0)}\n`;
       await MessageUtil.mergeContentToMessage(getLastMessageId(), logText, 'none');
     }
 
-    // 6. 完成
     hasUnsavedChanges.value = false;
-    // 移除修改标记
     Object.values(localBackpack.value).forEach(i => i.isModified = false);
     Object.values(localWarehouse.value).forEach(i => i.isModified = false);
+    activeItemId.value = null;
 
   } catch (e) {
     console.error("Inventory Sync Failed:", e);
@@ -388,6 +420,7 @@ async function saveAllChanges() {
   display: flex;
   flex-direction: column;
   height: 100%;
+  width: 100%;
   background: var(--c-bg);
   color: var(--c-text);
   font-family: var(--font-body);
@@ -402,6 +435,7 @@ async function saveAllChanges() {
   padding: 15px 20px;
   border-bottom: 2px solid var(--c-gold);
   background: linear-gradient(to right, rgba(0,0,0,0.8), transparent);
+  flex-shrink: 0;
 }
 
 .header-title h2 {
@@ -432,6 +466,10 @@ async function saveAllChanges() {
   color: var(--c-gold);
   font-size: 0.9rem;
   font-family: var(--font-title);
+  display: none;
+}
+@media (min-width: 768px) {
+  .unsaved-warning { display: block; }
 }
 
 .blink { animation: blink 1.5s infinite; }
@@ -447,6 +485,7 @@ async function saveAllChanges() {
   transition: all 0.3s;
   text-transform: uppercase;
   letter-spacing: 1px;
+  white-space: nowrap;
 }
 
 .ac-btn:hover:not(:disabled) {
@@ -474,6 +513,7 @@ async function saveAllChanges() {
   overflow: hidden;
   padding: 20px;
   gap: 10px;
+  flex-direction: row;
 }
 
 .pane {
@@ -483,6 +523,8 @@ async function saveAllChanges() {
   display: flex;
   flex-direction: column;
   border-radius: 2px;
+  min-width: 0;
+  min-height: 0;
 }
 
 .pane-header {
@@ -491,6 +533,7 @@ async function saveAllChanges() {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .pane-header h3 {
@@ -513,13 +556,13 @@ async function saveAllChanges() {
   color: #fff;
   padding: 5px 10px;
   font-family: var(--font-body);
-  width: 150px;
+  width: 120px;
   transition: 0.3s;
 }
 .ac-input:focus {
   outline: none;
   border-color: var(--c-gold);
-  width: 180px;
+  width: 150px;
 }
 
 .divider-column {
@@ -527,6 +570,7 @@ async function saveAllChanges() {
   align-items: center;
   justify-content: center;
   width: 40px;
+  flex-shrink: 0;
   color: var(--c-gold-dim);
   font-size: 1.5rem;
 }
@@ -537,15 +581,18 @@ async function saveAllChanges() {
   padding: 10px;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  grid-auto-rows: 70px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  /* 允许卡片高度自适应 */
+  grid-auto-rows: minmax(70px, auto);
   gap: 10px;
   align-content: start;
+  min-height: 0;
 }
 
 .custom-scroll::-webkit-scrollbar { width: 6px; }
 .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
 
+/* --- 卡片样式 --- */
 .item-card {
   background: rgba(255,255,255,0.03);
   border: 1px solid transparent;
@@ -553,12 +600,22 @@ async function saveAllChanges() {
   transition: all 0.2s;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 70px;
 }
 
 .item-card:hover {
   background: rgba(255,255,255,0.06);
   border-color: rgba(255,255,255,0.2);
-  transform: translateX(2px);
+}
+
+.item-card.is-expanded {
+  background: rgba(0,0,0,0.5);
+  border-color: var(--c-gold);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  z-index: 10;
+  grid-row: span 2; /* 尝试让展开的卡片占更多空间，视情况而定 */
 }
 
 .item-card.is-modified {
@@ -569,8 +626,9 @@ async function saveAllChanges() {
 .card-inner {
   display: flex;
   align-items: center;
-  height: 100%;
   padding: 0 10px;
+  height: 70px;
+  flex-shrink: 0;
 }
 
 .item-icon {
@@ -585,11 +643,13 @@ async function saveAllChanges() {
   color: #666;
   margin-right: 10px;
   border: 1px solid #333;
+  flex-shrink: 0;
 }
 
 .item-info {
   flex: 1;
   overflow: hidden;
+  min-width: 0;
 }
 
 .item-name {
@@ -630,6 +690,111 @@ async function saveAllChanges() {
   color: var(--c-gold);
   font-size: 1.1rem;
   margin-left: 10px;
+  flex-shrink: 0;
+}
+
+/* --- 展开面板 (包含详情和操作) --- */
+.expanded-panel {
+  border-top: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.3);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 详情文本 */
+.item-details {
+  font-size: 0.85rem;
+  color: #aaa;
+  line-height: 1.4;
+  padding: 0 5px;
+}
+
+.detail-desc {
+  font-style: italic;
+  margin: 0 0 6px 0;
+  color: #888;
+}
+
+.detail-effect {
+  margin: 0;
+  color: #ccc;
+}
+.detail-effect .bullet {
+  color: var(--c-gold);
+  margin-right: 4px;
+}
+
+/* 操作栏 */
+.transfer-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
+
+.slider-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0,0,0,0.4);
+  padding: 4px 8px;
+  border-radius: 4px;
+  height: 32px; /* 固定高度 */
+}
+
+.qty-label {
+  color: var(--c-gold);
+  font-family: var(--font-title);
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+}
+
+.qty-static {
+  color: #888;
+  font-size: 0.8rem;
+  flex: 1;
+  text-align: center;
+}
+
+.mini-slider {
+  flex: 1;
+  accent-color: var(--c-gold);
+  height: 4px;
+  cursor: pointer;
+}
+
+.qty-max {
+  font-size: 0.7rem;
+  color: #666;
+}
+
+.mini-confirm-btn {
+  background: var(--c-gold);
+  color: #000;
+  border: none;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 2px;
+  white-space: nowrap;
+  transition: 0.2s;
+  height: 32px;
+}
+
+.mini-confirm-btn:hover {
+  background: #fff;
+  box-shadow: 0 0 10px var(--c-gold);
 }
 
 /* 样式变体 */
@@ -637,105 +802,37 @@ async function saveAllChanges() {
 .style-lore .item-icon { color: #a29bfe; border-color: rgba(162, 155, 254, 0.3); }
 .style-currency .item-icon { color: #ffeaa7; border-color: rgba(255, 234, 167, 0.3); }
 
-/* --- 模态框 --- */
-.modal-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-  backdrop-filter: blur(2px);
+/* --- 移动端适配 --- */
+@media (max-width: 768px) {
+  .manager-body {
+    flex-direction: column;
+    padding: 10px;
+  }
+
+  .divider-column {
+    width: 100%;
+    height: 40px;
+  }
+  .divider-column .arrow-icon {
+    transform: rotate(90deg);
+  }
+
+  .pane {
+    width: 100%;
+    flex: 1;
+  }
+
+  .item-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
+
+  .header-title h2 {
+    font-size: 1.1rem;
+  }
+
+  .ac-btn {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
 }
-
-.ac-modal {
-  width: 400px;
-  background: #111;
-  border: 1px solid var(--c-gold);
-  box-shadow: 0 0 30px rgba(0,0,0,0.8);
-  padding: 2px; /* Inner border effect */
-  position: relative;
-}
-
-.ac-modal::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--c-gold), transparent);
-}
-
-.modal-header {
-  background: rgba(212, 175, 55, 0.1);
-  padding: 15px 20px;
-  text-align: center;
-}
-
-.modal-header h3 { margin: 0; font-family: var(--font-title); color: var(--c-gold); }
-.modal-subtitle { color: #888; margin-top: 5px; font-size: 0.9rem; }
-
-.modal-body { padding: 20px; }
-
-.transfer-direction {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  font-family: var(--font-title);
-  color: #666;
-  margin-bottom: 20px;
-}
-
-.transfer-direction span.active { color: #fff; text-shadow: 0 0 5px #fff; }
-.transfer-direction .arrow { color: var(--c-gold); }
-
-.quantity-control {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-
-.qty-btn {
-  background: #222; border: 1px solid #444; color: #fff;
-  width: 30px; height: 30px; cursor: pointer;
-}
-.qty-btn:hover { border-color: var(--c-gold); }
-
-.qty-input {
-  background: transparent; border: 1px solid #444; color: var(--c-gold);
-  text-align: center; font-family: var(--font-title); font-size: 1.2rem;
-  width: 80px;
-}
-
-.ac-slider {
-  width: 100%;
-  accent-color: var(--c-gold);
-}
-
-.info-text {
-  margin-top: 20px;
-  text-align: center;
-  font-size: 0.8rem;
-  color: #666;
-}
-
-.modal-footer {
-  display: flex;
-  border-top: 1px solid #333;
-}
-
-.modal-footer .ac-btn {
-  flex: 1;
-  border: none;
-  border-right: 1px solid #333;
-  padding: 15px;
-}
-.modal-footer .ac-btn:last-child { border-right: none; }
-.modal-footer .confirm:hover { background: rgba(212, 175, 55, 0.1); }
-.modal-footer .cancel:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
-
-/* 动画 */
-.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

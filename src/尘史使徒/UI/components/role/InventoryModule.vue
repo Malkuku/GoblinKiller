@@ -430,13 +430,23 @@ const closeDetail = () => {
 
   /* 移动端：恢复为全屏覆盖模式 */
   .detail-panel {
-    position: fixed; /* 强制固定定位，脱离父容器限制 */
-    top: 0; left: 0; right: 0; bottom: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1000;
+    position: fixed !important; /* 强制固定定位，脱离父容器限制 */
+    top: 0; left: 0;
+
+    /* 强制全屏尺寸 */
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+
+    /* 关键修复：层级必须大于 9999 */
+    z-index: 10001 !important;
+
     border-left: none;
-    background: #131316;
+
+    /* 强制不透明背景 */
+    background: #131316 !important;
+    backdrop-filter: none !important;
+
     flex: none; /* 禁用 Flex 行为 */
   }
 
@@ -446,7 +456,7 @@ const closeDetail = () => {
 
   /* 移动端动画改为从右侧滑入 */
   .panel-slide-enter-from, .panel-slide-leave-to {
-    width: 100%;
+    width: 100vw !important; /* 确保动画时也是全宽 */
     transform: translateX(100%);
     opacity: 1;
   }
