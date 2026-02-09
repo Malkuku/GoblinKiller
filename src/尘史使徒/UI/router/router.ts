@@ -48,7 +48,11 @@ export const router = createRouter({
         {
           path: '开场设置',
           component: () => import('../view/开场设置.vue'),
-        }
+        },
+        {
+          path: '人物创建',
+          component: () => import('../view/人物创建.vue'),
+        },
       ],
     },
   ],

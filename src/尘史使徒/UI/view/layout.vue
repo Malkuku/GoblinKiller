@@ -40,7 +40,7 @@
     <main class="ac-main">
       <router-view v-slot="{ Component }">
         <transition name="animus-fade" mode="out-in">
-          <component :is="Component" />
+          <component :is="Component" :key="route.path" />
         </transition>
       </router-view>
     </main>

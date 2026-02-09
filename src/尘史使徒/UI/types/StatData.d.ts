@@ -213,4 +213,5 @@ export interface SystemSettings {
   },
   "当前版本":number;
   "当前剧本":string;
+  "插图模式":"男性"|"女性";
 }

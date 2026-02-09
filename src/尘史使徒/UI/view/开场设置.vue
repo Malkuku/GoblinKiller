@@ -1,5 +1,4 @@
 <template>
-  <!-- 绑定 currentTheme 到根容器，实现全局样式切换 -->
   <div class="scenario-layout" :class="currentTheme">
     <header class="scenario-header">
       <h1 class="title">剧本选择</h1>
@@ -85,7 +84,7 @@ const selectScenario = (id) => {
 };
 
 const confirmStart = async (item) => {
-  // 安全检查：如果未开发完成，直接返回（虽然按钮已禁用，但双重保险）
+  // 安全检查
   if (!item.isReady) {
     if (window.toastr) window.toastr.info(`剧本 [${item.name}] 正在锐意制作中...`);
     return;
@@ -95,14 +94,26 @@ const confirmStart = async (item) => {
   loadingId.value = item.id;
 
   try {
-    // 调用通用加载函数，传入配置好的条目名
+    // 1. 加载世界书内容 (这一步必须先做，因为需要初始化环境)
     await loadScenarioContent(item.worldBookEntry);
 
-    // 触发同步并跳转
+    // 2. 强制同步数据
     await eventEmit(ERAEvents.FORCE_SYNC);
-    await router.push('/选项');
+
+
+
+    // 3. 根据剧本 ID 决定跳转逻辑
+    if (item.id === 'forgotten') {
+      // 如果是“被遗忘者”，跳转到角色创建页
+      await router.push('/人物创建');
+    } else {
+      // 其他剧本直接进入游戏选项
+      await router.push('/选项');
+    }
+
   } catch (e) {
     console.error(e);
+    if (window.toastr) window.toastr.error(`启动失败: ${e.message}`);
   } finally {
     loading.value = false;
     loadingId.value = '';

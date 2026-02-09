@@ -1,6 +1,6 @@
 <!-- Vision.vue -->
 <template>
-  <div class="vision-container" :class="{ 'danger-mode': isDanger ,'dark-mode': uiStore.darkMode }">
+  <div class="vision-container" :class="{ 'danger-mode': isDanger && mode === 'gameplay', 'dark-mode': uiStore.darkMode }">
 
     <!-- 1. 地图层 (交互核心) -->
     <div class="map-viewport" ref="viewportRef"
@@ -36,9 +36,13 @@
 
             <span class="node-label">{{ node.name }}</span>
 
-            <div v-if="node.name === playerLocationName" class="player-indicator">
+            <div v-if="mode === 'gameplay' && node.name === playerLocationName" class="player-indicator">
               <div class="indicator-ring"></div>
               <span class="indicator-text">YOU</span>
+            </div>
+            <div v-else-if="mode === 'selection' && node.name === playerLocationName" class="player-indicator selection-mode">
+              <div class="indicator-ring"></div>
+              <span class="indicator-text">当前选择</span>
             </div>
           </div>
         </transition-group>
@@ -63,8 +67,8 @@
         </div>
       </div>
 
-      <!-- 底部右侧：世界状态 HUD -->
-      <div class="world-hud" v-if="worldInfo">
+      <!-- 底部右侧：世界状态 HUD (仅游戏模式显示) -->
+      <div class="world-hud" v-if="worldInfo && mode === 'gameplay'">
         <div class="hud-content">
           <!-- 危险警报 -->
           <div class="danger-alert" v-if="isDanger">
@@ -87,6 +91,17 @@
                 {{ formattedTime.date }} <span class="weekday">{{ formattedTime.weekday }}</span>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 选择模式下的提示 HUD -->
+      <div class="world-hud selection-hud" v-if="mode === 'selection'">
+        <div class="hud-content">
+          <div class="hud-block">
+            <div class="label">SELECTION MODE</div>
+            <div class="value main">选择出生地</div>
+            <div class="value sub">点击节点查看详情并确认</div>
           </div>
         </div>
       </div>
@@ -118,8 +133,15 @@
             <button v-if="hasChildren(tooltip.data)" class="action-btn primary" @click="enterArea(tooltip.data)">
               进入地区
             </button>
-            <button class="action-btn secondary" @click="handleTravel(tooltip.data)">
+            
+            <!-- 游戏模式：前往此处 -->
+            <button v-if="mode === 'gameplay'" class="action-btn secondary" @click="handleTravel(tooltip.data)">
               前往此处
+            </button>
+            
+            <!-- 选择模式：确认为出生地 -->
+            <button v-else class="action-btn confirm-selection" @click="handleSelectLocation(tooltip.data)">
+              确定出生于此
             </button>
           </div>
         </div>
@@ -134,6 +156,17 @@ import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
+
+// === 新增 Props 和 Emits ===
+const props = defineProps({
+  mode: {
+    type: String,
+    default: 'gameplay', // 'gameplay' | 'selection'
+    validator: (value) => ['gameplay', 'selection'].includes(value)
+  }
+});
+
+const emit = defineEmits(['select']);
 
 const router = useRouter();
 const uiStore = useUiStore();
@@ -445,6 +478,7 @@ const getNavigationPath = (startName, endName) => {
   return fullPath.length > 0 ? fullPath : [endName];
 };
 
+// 处理"前往此处" (游戏模式)
 const handleTravel = (targetNode) => {
   const startName = playerLocationName.value || '未知位置';
   const targetName = targetNode.name;
@@ -460,6 +494,13 @@ const handleTravel = (targetNode) => {
   uiStore.setPendingInput(option);
   closeTooltip();
   router.push('/选项');
+};
+
+// 新增：处理"确认选择" (选择模式)
+const handleSelectLocation = (targetNode) => {
+  // 触发事件，将选中的节点名称传回父组件
+  emit('select', targetNode.name);
+  closeTooltip();
 };
 
 // 鼠标/触摸逻辑
@@ -584,6 +625,7 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 .indicator-text {
   position: absolute; top: -30px; left: 50%; transform: translateX(-50%);
   font-size: 0.7rem; color: var(--c-gold); font-weight: bold;
+  white-space: nowrap;
 }
 
 /* 2. UI Overlay 层 (HUD) */
@@ -660,6 +702,8 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 .action-btn.primary:hover { background: #fff; }
 .action-btn.secondary { background: transparent; border: 1px solid #666; color: #aaa; }
 .action-btn.secondary:hover { border-color: #fff; color: #fff; }
+.action-btn.confirm-selection { background: var(--c-gold); border: 1px solid var(--c-gold); color: #000; font-weight: bold; }
+.action-btn.confirm-selection:hover { background: #fff; box-shadow: 0 0 15px rgba(197, 160, 89, 0.8); }
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
@@ -667,6 +711,36 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 .map-fade-enter-from, .map-fade-leave-to { opacity: 0; }
 .scale-fade-enter-active, .scale-fade-leave-active { transition: all 0.3s ease; }
 .scale-fade-enter-from, .scale-fade-leave-to { opacity: 0; transform: translateX(20px); }
+
+/* 新增样式：选择模式下的确认按钮 */
+.action-btn.confirm-selection {
+  background: var(--c-gold);
+  color: #000;
+  border: 1px solid var(--c-gold);
+  font-weight: bold;
+  animation: pulse-btn 2s infinite;
+}
+
+@keyframes pulse-btn {
+  0% { box-shadow: 0 0 0 0 rgba(197, 160, 89, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(197, 160, 89, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(197, 160, 89, 0); }
+}
+
+/* 选择模式下的指示器样式 */
+.player-indicator.selection-mode .indicator-text {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.player-indicator.selection-mode .indicator-ring {
+  border-color: #4caf50;
+}
+
+/* 选择模式 HUD 样式 */
+.selection-hud .value.main {
+  color: var(--c-gold);
+}
 
 /* --- 移动端适配 --- */
 @media (max-width: 768px) {
