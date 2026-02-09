@@ -7,7 +7,7 @@
     <div class="shop-header">
       <div class="header-content">
         <div class="title-group">
-          <h2>交易所</h2>
+          <h2>交易</h2>
           <span class="sub-title">Trade & Barter</span>
         </div>
 
@@ -66,7 +66,7 @@
         </div>
         <div class="scroll-area custom-scrollbar">
           <div v-if="Object.keys(sellableItems).length === 0" class="empty-tip">
-            <span>🎒</span><br>行囊空空如也
+            <span>◌</span><br>行囊空空如也
           </div>
 
           <div

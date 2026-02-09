@@ -11,8 +11,8 @@
         :class="['tab-btn', { active: currentTab === 'board' }]"
         @click="currentTab = 'board'"
       >
-        <span class="tab-icon">📮</span>
-        <span class="tab-name">新进委托</span>
+        <span class="tab-icon">€</span>
+        <span class="tab-name">委托</span>
         <span class="tab-badge-dot"></span>
       </button>
 
@@ -187,9 +187,9 @@ const filteredTasks = computed(() => questStore.tasks.filter(t => t.title !== '$
 const filteredEvents = computed(() => questStore.events.filter(e => e.title !== '$template'));
 
 const tabs = computed(() => [
-  { id: 'main', name: '主律', icon: '⚖', count: filteredMainQuests.value.length },
-  { id: 'tasks', name: '尘世委托', icon: '📜', count: filteredTasks.value.length },
-  { id: 'events', name: '因果事件', icon: '⚡', count: filteredEvents.value.length },
+  { id: 'main', name: '主律', icon: '▣', count: filteredMainQuests.value.length },
+  { id: 'tasks', name: '插曲', icon: '◌', count: filteredTasks.value.length },
+  { id: 'events', name: '因果', icon: '⫩', count: filteredEvents.value.length },
 ]);
 
 // --- 接取逻辑 ---
@@ -217,7 +217,7 @@ const confirmQuests = async () => {
   });
 
   try {
-    const jsonStr = JSON.stringify(logs, null, 2);
+    const jsonStr = JSON.stringify(logs, null, 0);
     const outputText = `<user>希望接取以下委托\n<list>\n${jsonStr}\n</list>\n如果顺利，则离开当前场景\n`;
 
     // 1. 将信息存储到 UI Store

@@ -4,7 +4,7 @@
       <div class="header-content">
         <div>
           <h2 class="char-name">{{ data.姓名 || '未知角色' }}</h2>
-          <div class="char-identity">{{ data.当前身份 }} | {{ data.年龄 }}</div>
+          <div class="char-identity">{{ data.当前身份 }}</div>
         </div>
         <!-- 详情模式开关按钮 -->
         <button

@@ -2,7 +2,7 @@
   <div class="char-panel user-panel">
     <header class="panel-header">
       <h2 class="char-name">{{ username }}</h2>
-      <div class="char-identity">{{ data.当前身份 }} | {{ data.年龄 }}</div>
+      <div class="char-identity">{{ data.当前身份 }}</div>
     </header>
 
     <!-- 内部导航 -->
