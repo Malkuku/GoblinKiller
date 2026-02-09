@@ -45,7 +45,7 @@ export const ScenariosMetadata = [
     worldBookEntry: '<剧本>虚妄愚行',
     isReady: false,
     theme: 'theme-moth',
-    desc: '于紧缠的命运丝线之间，为“树中牝马”献上一场自我愚弄的荒诞表演',
+    desc: '于紧缠的命运丝线之间，为“树中牝马”献上一场自我愚弄的荒诞表演，事态往往不会如你所愿地发展',
     iconPath: `
       <path fill="none" stroke="currentColor" stroke-width="2" d="M32 32 L32 2 M32 32 L60 18 M32 32 L54 56 M32 32 L10 56 M32 32 L4 18"/>
       <path fill="none" stroke="currentColor" stroke-width="1.5" d="M26 12 Q32 16 38 12 M48 24 Q42 32 46 42 M20 48 Q32 40 44 48 M12 30 Q20 32 26 12" opacity="0.6"/>
