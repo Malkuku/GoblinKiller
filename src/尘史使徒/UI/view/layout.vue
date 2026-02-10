@@ -123,10 +123,10 @@ const navItems = computed(() => {
   // 所以只要条件变为 false，unshift 就不会执行，菜单项自然就“消失”了
   const items = [...baseNavItems];
 
-  // 使用解构出来的 ref (hasShopData.value) 确保响应性
-  if (hasShopData.value) {
-    items.unshift({ name: '置物', path: '/商店', icon: '◑' });
-  }
+  // // 使用解构出来的 ref (hasShopData.value) 确保响应性
+  // if (hasShopData.value) {
+  //   items.unshift({ name: '置物', path: '/商店', icon: '◑' });
+  // }
 
   // 使用解构出来的 ref (stat_data.value) 确保响应性
   if (!stat_data.value?.system?.当前剧本) {
