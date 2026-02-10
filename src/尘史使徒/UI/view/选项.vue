@@ -102,7 +102,7 @@
             <!-- 状态A: 等待回复动画 (替代输入框) -->
             <div v-if="isTavernBusy" class="story-input busy-state" key="busy">
               <span class="busy-icon">✒</span>
-              <span class="busy-text">历史正在等候命运回答...</span>
+              <span class="busy-text">历史正在等候命运回应...</span>
             </div>
 
             <!-- 状态B: 正常输入框 -->

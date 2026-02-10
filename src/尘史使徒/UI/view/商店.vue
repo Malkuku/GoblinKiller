@@ -185,8 +185,8 @@
             <div class="info-block">
               <span class="lbl">预计变动</span>
               <div class="val-group">
-                <span class="v-gain" v-if="pendingGain > 0">+{{ pendingGain.toFixed(1) }}</span>
-                <span class="v-cost" v-if="pendingCost > 0">-{{ pendingCost.toFixed(1) }}</span>
+                <span class="v-gain" v-if="pendingGain > 0">+{{ pendingGain.toFixed(2) }}</span>
+                <span class="v-cost" v-if="pendingCost > 0">-{{ pendingCost.toFixed(2) }}</span>
                 <span class="v-neutral" v-if="pendingGain === 0 && pendingCost === 0">0</span>
               </div>
             </div>
@@ -194,7 +194,7 @@
             <div class="info-block result-block">
               <span class="lbl">交易后余额</span>
               <span class="val final" :class="finalBalance < 0 ? 'danger' : 'safe'">
-                {{ finalBalance.toFixed(1) }}g
+                {{ finalBalance.toFixed(2) }}g
               </span>
             </div>
           </div>
@@ -393,7 +393,7 @@ const submitTransaction = () => {
     });
   }
 
-  const log = `<user>打算完成以下批量交易:\n<list>\n${JSON.stringify(items, null, 2)}\n</list>\n交易后预计剩余资产: ${finalBalance.value.toFixed(2)}g\n如果顺利，则离开当前场景\n`;
+  const log = `<user>打算完成以下批量交易:\n<list>\n${JSON.stringify(items, null, 4)}\n</list>\n交易后预计剩余资产: ${finalBalance.value.toFixed(4)}g\n如果顺利，则离开当前场景\n`;
   uiStore.setPendingInput(log);
   clearQueue();
   router.push('/选项');
@@ -621,6 +621,8 @@ const submitTransaction = () => {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
+  /* 增加底部padding，防止桌面端长列表被交易栏遮挡 */
+  padding-bottom: 100px;
 }
 
 /* --- 卡片样式 --- */
@@ -815,16 +817,117 @@ const submitTransaction = () => {
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .slide-up-enter-from, .slide-up-leave-to { transform: translate(-50%, 100%); opacity: 0; }
 
+/* --- 移动端适配 --- */
 @media (max-width: 768px) {
-  .shop-content { flex-direction: column; padding: 10px; padding-bottom: 100px; }
-  .divider-visual { flex-direction: row; width: 100%; height: 40px; }
+  .shop-view {
+    /* 移动端改为页面级滚动，避免嵌套滚动体验不佳 */
+    height: auto;
+    min-height: 100vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .shop-header {
+    padding: 15px;
+  }
+
+  .header-content {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 15px;
+  }
+
+  .title-group {
+    text-align: center;
+  }
+
+  .gold-wrapper {
+    width: 100%;
+  }
+
+  .gold-display {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .shop-content {
+    flex-direction: column;
+    padding: 10px;
+    /* 移动端不需要大额padding了，因为交易栏不再悬浮 */
+    padding-bottom: 20px;
+    height: auto;
+    overflow: visible;
+  }
+
+  .panel {
+    flex: none;
+    height: auto;
+    max-height: none;
+    margin-bottom: 20px;
+    overflow: visible;
+  }
+
+  .scroll-area {
+    height: auto;
+    overflow: visible;
+    padding-bottom: 0; /* 移动端由外层容器控制底部间距 */
+  }
+
+  .divider-visual {
+    width: 100%;
+    height: 40px;
+    flex-direction: row;
+    margin: 0;
+  }
+
   .line { width: auto; height: 1px; flex: 1; background: linear-gradient(to right, transparent, var(--c-panel-border), transparent); }
   .icon { padding: 0 10px; }
-  .trade-bar-wrapper { width: 95%; bottom: 10px; }
-  .trade-bar { flex-direction: column; gap: 15px; padding: 15px; }
-  .trade-info { width: 100%; justify-content: space-between; }
-  .trade-btns { width: 100%; }
-  .btn-confirm { flex: 1; justify-content: center; }
-  .asset-dropdown { width: 240px; right: -20px; }
+
+  /* 移动端交易栏：改为流式布局，跟在内容最后 */
+  .trade-bar-wrapper {
+    position: relative; /* 不再悬浮 */
+    bottom: auto;
+    left: auto;
+    transform: none;
+    width: 94%;
+    max-width: none;
+    margin: 0 auto 40px auto; /* 居中并留出底部空隙 */
+    z-index: 1;
+  }
+
+  /* 覆盖动画，避免移动端出现奇怪的位移 */
+  .slide-up-enter-from, .slide-up-leave-to {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  .trade-bar {
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
+  }
+
+  .trade-info {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .trade-btns {
+    width: 100%;
+  }
+
+  .btn-confirm {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .asset-dropdown {
+    width: 100%;
+    left: 0;
+    top: 100%;
+    margin-top: 5px;
+  }
 }
 </style>

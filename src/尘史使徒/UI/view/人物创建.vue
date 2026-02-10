@@ -457,13 +457,16 @@ const submitCreation = async () => {
     await ERAUtil.UpdateByObject(updatePayload);
 
     const msgId = getLastMessageId();
-    let injectionText = `于破碎的镜面之中，{{user}}看到了自己：\n`;
+    let injectionText = `于破碎的镜面之中，{{user}}看到了自己\n`;
+    injectionText += `<mirror>\n`;
+    injectionText += `姓名：{{user}}\n`;
     injectionText += `性别：${formData.gender}\n`;
     injectionText += `出生地：${formData.location}\n`;
     if (formData.identity) injectionText += `身份：${formData.identity}\n`;
     injectionText += `外貌：${finalAppearance.value}\n`;
     injectionText += `性格：${generatedPersonalitySummary.value}\n`;
     if (formData.specialStatus) injectionText += `特殊状态：${formData.specialStatus}\n`;
+    injectionText += `</mirror>\n`;
     injectionText += `随后伴随着一阵天旋地转，{{user}}的意识又陷入一片混沌，当{{user}}再次醒来之时——\n`;
 
     await MessageUtil.mergeContentToMessage(msgId, injectionText);
