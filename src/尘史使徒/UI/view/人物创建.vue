@@ -633,4 +633,51 @@ const submitCreation = async () => {
     padding: 12px 0;
   }
 }
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  .creation-layout {
+    padding: 15px;
+    /* 修复：改回 100% 高度并允许内部滚动，防止被父级容器截断 */
+    height: 100%;
+    min-height: 0; /* 重置 min-height */
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* 增加 iOS 滚动流畅度 */
+  }
+
+  .title {
+    font-size: 1.8rem;
+  }
+
+  .creation-container {
+    flex-direction: column;
+    gap: 15px;
+    /* 确保内容能撑开滚动区域 */
+    flex: 0 0 auto;
+  }
+
+  .column {
+    max-width: 100%;
+    min-width: auto;
+  }
+
+  .left-col, .mid-col, .right-col {
+    flex: none;
+    width: 100%;
+  }
+
+  .arts-list-scroll {
+    max-height: 300px;
+  }
+
+  .confirm-btn {
+    width: 100%;
+    padding: 12px 0;
+  }
+
+  /* 增加底部内边距，防止按钮贴底太近被遮挡 */
+  .action-footer {
+    padding-bottom: 40px;
+  }
+}
 </style>
