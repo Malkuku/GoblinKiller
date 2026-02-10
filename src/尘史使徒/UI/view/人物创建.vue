@@ -1,176 +1,181 @@
 <template>
   <div class="creation-layout theme-forgotten">
-    <header class="creation-header">
-      <h1 class="title">重塑自我</h1>
-      <div class="subtitle">WHO ARE YOU IN THE MIRROR?</div>
-    </header>
 
-    <div class="creation-container">
-      <!-- 左侧：基础设定与外貌 -->
-      <div class="column left-col">
-        <section class="form-group">
-          <h3 class="section-title">基础认知</h3>
-          <div class="input-row">
-            <label>性别</label>
-            <div class="radio-group">
-              <label :class="{ active: formData.gender === '男性' }">
-                <input type="radio" v-model="formData.gender" value="男性"> 男性
-              </label>
-              <label :class="{ active: formData.gender === '女性' }">
-                <input type="radio" v-model="formData.gender" value="女性"> 女性
-              </label>
-            </div>
-          </div>
-          <div class="input-row">
-            <label>年龄</label>
-            <input type="text" v-model="formData.age" placeholder="例如：25岁" class="text-input">
-          </div>
-          <div class="input-row">
-            <label>出生地</label>
-            <div class="location-selector" @click="openMapSelector">
-              <span v-if="formData.location" class="location-value">{{ formData.location }}</span>
-              <span v-else class="placeholder">点击选择地图位置...</span>
-              <span class="map-icon">🗺️</span>
-            </div>
-          </div>
-        </section>
+    <!-- 页面一：主要表单内容 (当不显示地图时显示) -->
+    <div class="main-page-view" v-show="!showMapModal">
+      <header class="creation-header">
+        <h1 class="title">重塑自我</h1>
+        <div class="subtitle">WHO ARE YOU IN THE MIRROR?</div>
+      </header>
 
-        <section class="form-group">
-          <h3 class="section-title">外貌特征</h3>
-          <p class="desc">镜中的你是什么模样？</p>
-
-          <div class="appearance-grid">
-            <div class="app-field">
-              <label>发色</label>
-              <input type="text" v-model="appearanceDetails.hairColor" class="text-input mini">
-            </div>
-            <div class="app-field">
-              <label>发型</label>
-              <input type="text" v-model="appearanceDetails.hairStyle" class="text-input mini">
-            </div>
-            <div class="app-field">
-              <label>脸型</label>
-              <input type="text" v-model="appearanceDetails.face" class="text-input mini">
-            </div>
-            <div class="app-field">
-              <label>眼睛</label>
-              <input type="text" v-model="appearanceDetails.eyes" class="text-input mini">
-            </div>
-            <div class="app-field">
-              <label>肤色</label>
-              <input type="text" v-model="appearanceDetails.skin" class="text-input mini">
-            </div>
-            <div class="app-field">
-              <label>身材</label>
-              <input type="text" v-model="appearanceDetails.body" class="text-input mini">
-            </div>
-            <div class="app-field full-width">
-              <label>特殊特征 (可选)</label>
-              <input type="text" v-model="appearanceDetails.feature" placeholder="如：眼角有泪痣、左手有伤疤" class="text-input">
-            </div>
-          </div>
-
-          <!-- 新增：初始身份 -->
-          <div class="input-row" style="margin-top: 15px;">
-            <label>初始身份</label>
-            <input type="text" v-model="formData.identity" placeholder="例如：落魄贵族、流浪骑士、学徒" class="text-input">
-          </div>
-        </section>
-
-        <section class="form-group">
-          <h3 class="section-title">特殊状态</h3>
-          <textarea v-model="formData.specialStatus" rows="2" placeholder="例如：指尖总是冰冷..."></textarea>
-        </section>
-      </div>
-
-      <!-- 中间：性格倾向 (优化版) -->
-      <div class="column mid-col">
-        <h3 class="section-title">心性倾向</h3>
-        <div class="personality-sliders">
-          <div class="slider-item" v-for="(val, key) in formData.personality" :key="key">
-            <div class="slider-header">
-              <span class="trait-name">{{ key }}</span>
-              <!-- 动态显示当前区间的具体描述 -->
-              <span class="trait-status" :class="getTraitColorClass(val)">
-                {{ getTraitDetail(key, val).label }}
-              </span>
-            </div>
-
-            <div class="slider-container">
-              <span class="limit-label left">{{ getTraitExtremes(key).min }}</span>
-              <!-- 范围调整为 -100 到 100 -->
-              <input type="range" v-model.number="formData.personality[key]" min="-100" max="100" step="1" class="styled-slider">
-              <span class="limit-label right">{{ getTraitExtremes(key).max }}</span>
-            </div>
-
-            <div class="trait-desc-text">
-              {{ getTraitDetail(key, val).desc }}
-            </div>
-          </div>
-        </div>
-
-        <div class="personality-summary-box">
-          <label>性格侧写</label>
-          <div class="summary-text">{{ generatedPersonalitySummary }}</div>
-        </div>
-      </div>
-
-      <!-- 右侧：术之等级 (优化布局) -->
-      <div class="column right-col">
-        <h3 class="section-title">秘史造诣</h3>
-        <div class="points-header">
-          <div class="points-label">剩余点数</div>
-          <div class="points-display">
-            <span class="points-val" :class="{ 'error': remainingPoints < 0 }">{{ remainingPoints }}</span>
-            <span class="points-total">/ 100</span>
-          </div>
-        </div>
-
-        <div class="arts-list-scroll">
-          <div class="art-point-item" v-for="(data, key) in formData.arts" :key="key" :class="{ 'active': data.当前等级 > 0 }">
-            <div class="art-icon-placeholder">{{ key }}</div>
-            <div class="art-point-info">
-              <span class="art-lv-label">等级</span>
-              <span class="art-lv-val">Lv.{{ data.当前等级 }}</span>
-            </div>
-            <div class="art-controls">
-              <button class="ctrl-btn" @click="changeArtLevel(key, -1)" :disabled="data.当前等级 <= 0">-</button>
-              <div class="cost-preview">
-                <span v-if="data.当前等级 < 10" class="cost-val">
-                  消耗 {{ getUpgradeCost(key, data.当前等级) }}
-                </span>
-                <span v-else class="cost-val">MAX</span>
+      <div class="creation-container">
+        <!-- 左侧：基础设定与外貌 -->
+        <div class="column left-col">
+          <section class="form-group">
+            <h3 class="section-title">基础认知</h3>
+            <div class="input-row">
+              <label>性别</label>
+              <div class="radio-group">
+                <label :class="{ active: formData.gender === '男性' }">
+                  <input type="radio" v-model="formData.gender" value="男性"> 男性
+                </label>
+                <label :class="{ active: formData.gender === '女性' }">
+                  <input type="radio" v-model="formData.gender" value="女性"> 女性
+                </label>
               </div>
-              <button class="ctrl-btn" @click="changeArtLevel(key, 1)" :disabled="remainingPoints < getUpgradeCost(key, data.当前等级) || data.当前等级 >= 10">+</button>
             </div>
+            <div class="input-row">
+              <label>年龄</label>
+              <input type="text" v-model="formData.age" placeholder="例如：25岁" class="text-input">
+            </div>
+            <div class="input-row">
+              <label>出生地</label>
+              <div class="location-selector" @click="openMapSelector">
+                <span v-if="formData.location" class="location-value">{{ formData.location }}</span>
+                <span v-else class="placeholder">点击选择地图位置...</span>
+                <span class="map-icon">🗺️</span>
+              </div>
+            </div>
+          </section>
+
+          <section class="form-group">
+            <h3 class="section-title">外貌特征</h3>
+            <p class="desc">镜中的你是什么模样？</p>
+
+            <div class="appearance-grid">
+              <div class="app-field">
+                <label>发色</label>
+                <input type="text" v-model="appearanceDetails.hairColor" class="text-input mini">
+              </div>
+              <div class="app-field">
+                <label>发型</label>
+                <input type="text" v-model="appearanceDetails.hairStyle" class="text-input mini">
+              </div>
+              <div class="app-field">
+                <label>脸型</label>
+                <input type="text" v-model="appearanceDetails.face" class="text-input mini">
+              </div>
+              <div class="app-field">
+                <label>眼睛</label>
+                <input type="text" v-model="appearanceDetails.eyes" class="text-input mini">
+              </div>
+              <div class="app-field">
+                <label>肤色</label>
+                <input type="text" v-model="appearanceDetails.skin" class="text-input mini">
+              </div>
+              <div class="app-field">
+                <label>身材</label>
+                <input type="text" v-model="appearanceDetails.body" class="text-input mini">
+              </div>
+              <div class="app-field full-width">
+                <label>特殊特征 (可选)</label>
+                <input type="text" v-model="appearanceDetails.feature" placeholder="如：眼角有泪痣、左手有伤疤" class="text-input">
+              </div>
+            </div>
+
+            <!-- 新增：初始身份 -->
+            <div class="input-row" style="margin-top: 15px;">
+              <label>初始身份</label>
+              <input type="text" v-model="formData.identity" placeholder="例如：落魄贵族、流浪骑士、学徒" class="text-input">
+            </div>
+          </section>
+
+          <section class="form-group">
+            <h3 class="section-title">特殊状态</h3>
+            <textarea v-model="formData.specialStatus" rows="2" placeholder="例如：指尖总是冰冷..."></textarea>
+          </section>
+        </div>
+
+        <!-- 中间：性格倾向 (优化版) -->
+        <div class="column mid-col">
+          <h3 class="section-title">心性倾向</h3>
+          <div class="personality-sliders">
+            <div class="slider-item" v-for="(val, key) in formData.personality" :key="key">
+              <div class="slider-header">
+                <span class="trait-name">{{ key }}</span>
+                <!-- 动态显示当前区间的具体描述 -->
+                <span class="trait-status" :class="getTraitColorClass(val)">
+                  {{ getTraitDetail(key, val).label }}
+                </span>
+              </div>
+
+              <div class="slider-container">
+                <span class="limit-label left">{{ getTraitExtremes(key).min }}</span>
+                <!-- 范围调整为 -100 到 100 -->
+                <input type="range" v-model.number="formData.personality[key]" min="-100" max="100" step="1" class="styled-slider">
+                <span class="limit-label right">{{ getTraitExtremes(key).max }}</span>
+              </div>
+
+              <div class="trait-desc-text">
+                {{ getTraitDetail(key, val).desc }}
+              </div>
+            </div>
+          </div>
+
+          <div class="personality-summary-box">
+            <label>性格侧写</label>
+            <div class="summary-text">{{ generatedPersonalitySummary }}</div>
           </div>
         </div>
 
-        <!-- 引用术之详情组件 -->
-        <div class="arts-preview-wrapper">
-          <ArtsModule :artsData="formData.arts" mode="creation" />
+        <!-- 右侧：术之等级 (优化布局) -->
+        <div class="column right-col">
+          <h3 class="section-title">秘史造诣</h3>
+          <div class="points-header">
+            <div class="points-label">剩余点数</div>
+            <div class="points-display">
+              <span class="points-val" :class="{ 'error': remainingPoints < 0 }">{{ remainingPoints }}</span>
+              <span class="points-total">/ 100</span>
+            </div>
+          </div>
+
+          <div class="arts-list-scroll">
+            <div class="art-point-item" v-for="(data, key) in formData.arts" :key="key" :class="{ 'active': data.当前等级 > 0 }">
+              <div class="art-icon-placeholder">{{ key }}</div>
+              <div class="art-point-info">
+                <span class="art-lv-label">等级</span>
+                <span class="art-lv-val">Lv.{{ data.当前等级 }}</span>
+              </div>
+              <div class="art-controls">
+                <button class="ctrl-btn" @click="changeArtLevel(key, -1)" :disabled="data.当前等级 <= 0">-</button>
+                <div class="cost-preview">
+                  <span v-if="data.当前等级 < 10" class="cost-val">
+                    消耗 {{ getUpgradeCost(key, data.当前等级) }}
+                  </span>
+                  <span v-else class="cost-val">MAX</span>
+                </div>
+                <button class="ctrl-btn" @click="changeArtLevel(key, 1)" :disabled="remainingPoints < getUpgradeCost(key, data.当前等级) || data.当前等级 >= 10">+</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 引用术之详情组件 -->
+          <div class="arts-preview-wrapper">
+            <ArtsModule :artsData="formData.arts" mode="creation" />
+          </div>
         </div>
       </div>
+
+      <footer class="action-footer">
+        <button class="confirm-btn" :disabled="submitting || remainingPoints < 0" @click="submitCreation">
+          <span v-if="!submitting">铭刻真实</span>
+          <span v-else>正在生成...</span>
+        </button>
+      </footer>
     </div>
 
-    <footer class="action-footer">
-      <button class="confirm-btn" :disabled="submitting || remainingPoints < 0" @click="submitCreation">
-        <span v-if="!submitting">铭刻真实</span>
-        <span v-else>正在生成...</span>
-      </button>
-    </footer>
-
-    <!-- 地图选择模态框 -->
-    <transition name="modal-fade">
-      <div v-if="showMapModal" class="map-modal-overlay">
-        <div class="map-modal-content">
-          <header class="map-modal-header">
-            <h2>选择出生地</h2>
-            <button class="close-btn" @click="showMapModal = false">关闭</button>
-          </header>
-          <div class="map-wrapper">
-            <Vision mode="selection" @select="onLocationSelected" />
-          </div>
+    <!-- 页面二：地图选择页面 (不再是模态框，而是全屏页面) -->
+    <transition name="page-slide">
+      <div v-if="showMapModal" class="map-page-view">
+        <header class="map-page-header">
+          <button class="back-btn" @click="showMapModal = false">
+            <span class="arrow">←</span> 返回设定
+          </button>
+          <h2>选择出生地</h2>
+          <div class="header-spacer"></div> <!-- 占位，保持标题居中 -->
+        </header>
+        <div class="map-page-content">
+          <Vision mode="selection" @select="onLocationSelected" />
         </div>
       </div>
     </transition>
@@ -179,6 +184,7 @@
 </template>
 
 <script setup>
+// ... (Script 部分保持不变，逻辑完全兼容) ...
 import { reactive, ref, computed, watch, onMounted } from 'vue';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
@@ -234,7 +240,10 @@ const formData = reactive({
   }
 });
 
-// --- 1. 性格矩阵定义 (根据提供的 Character Trait Matrix) ---
+// ... (省略中间的 traitDefinitions, getTraitDetail, getTraitExtremes, getTraitColorClass, generatedPersonalitySummary, getUpgradeCost, totalSpentPoints, remainingPoints, changeArtLevel, watch, finalAppearance 逻辑，均保持不变) ...
+// 为了节省篇幅，这里假设中间逻辑代码与原文件一致
+// 请保留原文件中的所有 JS 逻辑代码
+
 const traitDefinitions = {
   "社交取向": [
     { min: -100, max: -80, label: "社交壁垒", desc: "主动回避接触，人群引发不适" },
@@ -283,7 +292,6 @@ const traitDefinitions = {
   ]
 };
 
-// 获取当前数值对应的详细描述
 const getTraitDetail = (key, value) => {
   const ranges = traitDefinitions[key];
   if (!ranges) return { label: "未知", desc: "" };
@@ -291,7 +299,6 @@ const getTraitDetail = (key, value) => {
   return found || { label: "未知", desc: "" };
 };
 
-// 获取两端标签
 const getTraitExtremes = (key) => {
   const map = {
     "社交取向": { min: "孤僻", max: "核心" },
@@ -303,51 +310,39 @@ const getTraitExtremes = (key) => {
   return map[key] || { min: "-100", max: "100" };
 };
 
-// 简单的颜色辅助类
 const getTraitColorClass = (val) => {
   if (val > 40) return 'text-gold';
   if (val < -40) return 'text-blue';
   return 'text-gray';
 };
 
-// 生成性格总结
 const generatedPersonalitySummary = computed(() => {
   const p = formData.personality;
   const parts = [];
-
-  // 挑选最显著的特征 (绝对值 > 40)
   for (const key in p) {
     const val = p[key];
     if (Math.abs(val) >= 40) {
       parts.push(getTraitDetail(key, val).label);
     }
   }
-
   if (parts.length === 0) return "一位性格平衡、中庸的旅人。";
   return `一位${parts.join("、")}的旅人。`;
 });
 
-// --- 2. 术之等级加点逻辑 ---
-
-// 计算升级消耗 (创建阶段的点数消耗)
 const getUpgradeCost = (artKey, currentLevel) => {
   if (currentLevel === 0) {
-    // 解锁消耗：2 * 4^(已解锁数量)
     let unlockedCount = 0;
     for (const key in formData.arts) {
       if (formData.arts[key].当前等级 > 0) unlockedCount++;
     }
     return 2 * Math.pow(4, unlockedCount);
   } else {
-    // 升级消耗：当前等级 * 2
     return currentLevel * 2;
   }
 };
 
-// 计算总消耗点数
 const totalSpentPoints = computed(() => {
   let total = 0;
-  // 1. 解锁成本
   let unlockedCount = 0;
   for (const key in formData.arts) {
     if (formData.arts[key].当前等级 > 0) unlockedCount++;
@@ -355,11 +350,10 @@ const totalSpentPoints = computed(() => {
   for (let i = 0; i < unlockedCount; i++) {
     total += 2 * Math.pow(4, i);
   }
-  // 2. 升级成本
   for (const key in formData.arts) {
     const lv = formData.arts[key].当前等级;
     if (lv > 1) {
-      total += lv * (lv - 1); // 等差数列求和简化公式
+      total += lv * (lv - 1);
     }
   }
   return total;
@@ -385,7 +379,6 @@ const changeArtLevel = (key, delta) => {
   }
 };
 
-// --- 3. 外貌联动 ---
 watch(() => formData.gender, (newVal) => {
   if (newVal === '男性') {
     appearanceDetails.hairStyle = '利落短发';
@@ -412,7 +405,6 @@ const finalAppearance = computed(() => {
   return parts.join('，');
 });
 
-// --- 4. 提交逻辑 ---
 const openMapSelector = () => { showMapModal.value = true; };
 const onLocationSelected = (loc) => { formData.location = loc; showMapModal.value = false; };
 
@@ -424,8 +416,6 @@ const submitCreation = async () => {
 
   submitting.value = true;
   try {
-    // 处理术之等级的下一级需求经验
-    // 规则：0级为-1，其他为 当前等级 * 100
     const processedArts = {};
     for (const key in formData.arts) {
       const art = formData.arts[key];
@@ -492,15 +482,99 @@ const submitCreation = async () => {
   --c-danger: #ff4d4d;
   --c-blue: #59a0c5;
 
-  padding: 40px;
+  /* 布局调整：作为容器，不直接处理滚动，让子页面处理 */
+  padding: 0;
   background: radial-gradient(circle at 50% 20%, rgba(197, 160, 89, 0.1) 0%, #0a0a0a 80%);
   color: #e0e0e0;
   font-family: 'EB Garamond', serif;
   height: 100%;
-  overflow-y: auto;
-  display: flex; flex-direction: column;
+  overflow: hidden; /* 禁止容器本身滚动 */
+  position: relative;
 }
 
+/* 主页面视图 */
+.main-page-view {
+  height: 100%;
+  overflow-y: auto; /* 内部滚动 */
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 地图页面视图 (全屏覆盖) */
+.map-page-view {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #1a1d24; /* 纯色背景防止透视 */
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.map-page-header {
+  padding: 15px 20px;
+  background: rgba(0,0,0,0.5);
+  border-bottom: 1px solid var(--c-gold);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.map-page-header h2 {
+  margin: 0;
+  color: var(--c-gold);
+  font-family: 'Cinzel', serif;
+  font-size: 1.2rem;
+}
+
+.header-spacer {
+  width: 80px; /* 与返回按钮大致等宽，保持标题居中 */
+}
+
+.back-btn {
+  background: transparent;
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 4px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 3px;
+  transition: all 0.3s;
+  width: 65px;
+  font-size: 10px;
+  justify-content: center;
+}
+
+.back-btn:hover {
+  border-color: var(--c-gold);
+  color: var(--c-gold);
+}
+
+.map-page-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+/* 动画效果 */
+.page-slide-enter-active,
+.page-slide-leave-active {
+  transition: all 0.3s ease;
+}
+
+.page-slide-enter-from,
+.page-slide-leave-to {
+  transform: translateX(100%); /* 从右侧滑入 */
+  opacity: 0;
+}
+
+/* 原有样式保持不变，仅调整层级关系 */
 .creation-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 15px; }
 .title { font-family: 'Cinzel', serif; font-size: 2.5rem; color: var(--c-gold); margin: 0; }
 .subtitle { font-size: 0.9rem; color: #888; letter-spacing: 3px; }
@@ -589,60 +663,13 @@ const submitCreation = async () => {
 .location-value { color: var(--c-gold); font-weight: bold; }
 .placeholder { color: #666; font-style: italic; font-size: 0.9rem; }
 
-/* 模态框 */
-.map-modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); z-index: 1000; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-.map-modal-content { width: 90%; height: 90%; background: #1a1d24; border: 2px solid var(--c-gold); display: flex; flex-direction: column; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
-.map-modal-header { padding: 15px 20px; background: rgba(0,0,0,0.5); border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; }
-.map-modal-header h2 { margin: 0; color: var(--c-gold); font-family: 'Cinzel', serif; }
-.map-wrapper { flex: 1; position: relative; overflow: hidden; }
-
 /* 移动端适配 */
 @media screen and (max-width: 768px) {
-  .creation-layout {
+  .main-page-view {
     padding: 15px;
-    height: auto;
-    min-height: 100vh;
-    overflow-y: visible;
-  }
-
-  .title {
-    font-size: 1.8rem;
-  }
-
-  .creation-container {
-    flex-direction: column;
-    gap: 15px;
-  }
-
-  .column {
-    max-width: 100%;
-    min-width: auto;
-  }
-
-  .left-col, .mid-col, .right-col {
-    flex: none;
-    width: 100%;
-  }
-
-  .arts-list-scroll {
-    max-height: 300px;
-  }
-
-  .confirm-btn {
-    width: 100%;
-    padding: 12px 0;
-  }
-}
-
-/* 移动端适配 */
-@media screen and (max-width: 768px) {
-  .creation-layout {
-    padding: 15px;
-    /* 修复：改回 100% 高度并允许内部滚动，防止被父级容器截断 */
     height: 100%;
-    min-height: 0; /* 重置 min-height */
     overflow-y: auto;
-    -webkit-overflow-scrolling: touch; /* 增加 iOS 滚动流畅度 */
+    -webkit-overflow-scrolling: touch;
   }
 
   .title {
@@ -652,7 +679,6 @@ const submitCreation = async () => {
   .creation-container {
     flex-direction: column;
     gap: 15px;
-    /* 确保内容能撑开滚动区域 */
     flex: 0 0 auto;
   }
 
@@ -675,7 +701,6 @@ const submitCreation = async () => {
     padding: 12px 0;
   }
 
-  /* 增加底部内边距，防止按钮贴底太近被遮挡 */
   .action-footer {
     padding-bottom: 40px;
   }

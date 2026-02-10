@@ -26,8 +26,30 @@
     <!-- 主体双栏区域 -->
     <div class="manager-body">
 
+      <!-- 新增：移动端 Tab 切换栏 (仅移动端显示) -->
+      <div class="mobile-tabs">
+        <div
+          class="mobile-tab-item"
+          :class="{ active: activeMobileTab === 'backpack' }"
+          @click="activeMobileTab = 'backpack'"
+        >
+          行囊 ({{ Object.keys(localBackpack).length }})
+        </div>
+        <div
+          class="mobile-tab-item"
+          :class="{ active: activeMobileTab === 'warehouse' }"
+          @click="activeMobileTab = 'warehouse'"
+        >
+          仓库 ({{ Object.keys(localWarehouse).length }})
+        </div>
+      </div>
+
       <!-- 左侧：随身行囊 -->
-      <div class="pane backpack-pane">
+      <!-- 增加 class 绑定：mobile-hidden -->
+      <div
+        class="pane backpack-pane"
+        :class="{ 'mobile-hidden': activeMobileTab !== 'backpack' }"
+      >
         <div class="pane-header">
           <h3>行囊 <small>INVENTORY</small></h3>
           <div class="pane-tools">
@@ -106,13 +128,17 @@
         </div>
       </div>
 
-      <!-- 中间：装饰性连接符 -->
+      <!-- 中间：装饰性连接符 (移动端隐藏) -->
       <div class="divider-column">
         <div class="arrow-icon">⇄</div>
       </div>
 
       <!-- 右侧：漫宿仓库 -->
-      <div class="pane warehouse-pane">
+      <!-- 增加 class 绑定：mobile-hidden -->
+      <div
+        class="pane warehouse-pane"
+        :class="{ 'mobile-hidden': activeMobileTab !== 'warehouse' }"
+      >
         <div class="pane-header">
           <h3>仓库 <small>WAREHOUSE</small></h3>
           <div class="pane-tools">
@@ -206,6 +232,9 @@ const localWarehouse = ref({});
 const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
 const searchQuery = ref('');
+
+// 移动端 Tab 状态
+const activeMobileTab = ref('backpack'); // 'backpack' | 'warehouse'
 
 // 交互状态
 const activeItemId = ref(null); // 格式: 'bag-itemName' 或 'wh-itemName'
@@ -516,6 +545,11 @@ async function saveAllChanges() {
   flex-direction: row;
 }
 
+/* 移动端 Tab 默认隐藏 */
+.mobile-tabs {
+  display: none;
+}
+
 .pane {
   flex: 1;
   background: var(--c-bg-panel);
@@ -615,7 +649,6 @@ async function saveAllChanges() {
   border-color: var(--c-gold);
   box-shadow: 0 4px 12px rgba(0,0,0,0.5);
   z-index: 10;
-  grid-row: span 2; /* 尝试让展开的卡片占更多空间，视情况而定 */
 }
 
 .item-card.is-modified {
@@ -809,17 +842,48 @@ async function saveAllChanges() {
     padding: 10px;
   }
 
-  .divider-column {
-    width: 100%;
-    height: 40px;
+  /* 显示 Tab 栏 */
+  .mobile-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 5px;
+    flex-shrink: 0;
   }
-  .divider-column .arrow-icon {
-    transform: rotate(90deg);
+
+  .mobile-tab-item {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    color: #888;
+    font-family: var(--font-title);
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .mobile-tab-item.active {
+    background: rgba(212, 175, 55, 0.1);
+    border-color: var(--c-gold);
+    color: var(--c-gold);
+    box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.05);
+  }
+
+  /* 隐藏中间的箭头 */
+  .divider-column {
+    display: none;
+  }
+
+  /* 隐藏非激活的面板 */
+  .pane.mobile-hidden {
+    display: none;
   }
 
   .pane {
     width: 100%;
     flex: 1;
+    /* 确保在移动端高度也能撑满 */
+    height: 100%;
   }
 
   .item-grid {

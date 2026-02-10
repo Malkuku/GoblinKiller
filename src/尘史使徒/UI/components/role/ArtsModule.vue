@@ -376,4 +376,120 @@ const closeModal = () => {
 
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.3s; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+/* =========================================
+   移动端适配 (Mobile Responsive)
+   ========================================= */
+@media (max-width: 768px) {
+  .art-modal-content {
+    width: 95%;
+    height: 90vh;
+    max-height: 90vh;
+  }
+
+  .close-btn {
+    top: 5px;
+    right: 10px;
+    font-size: 1.8rem;
+    z-index: 20;
+  }
+
+  .arts-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+
+  .pagination-nav {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 40px;
+  }
+
+  .pagination-nav ul {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .pagination-nav li {
+    flex: 0 0 auto;
+  }
+
+  .art-button {
+    width: auto;
+    padding: 12px 15px;
+    border-left: none;
+    border-bottom: 3px solid transparent;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.9rem;
+  }
+
+  .art-button.active {
+    background: linear-gradient(0deg, var(--theme-glow), transparent);
+    border-bottom-color: var(--theme-color);
+  }
+
+  .nav-lv {
+    font-size: 0.7rem;
+  }
+
+  .art-content-scroll {
+    padding: 20px 15px;
+  }
+
+  .art-detail-header {
+    margin-bottom: 25px;
+  }
+
+  .art-big-name {
+    font-size: 2rem;
+    line-height: 1.2;
+  }
+
+  .art-core-stats {
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    margin-bottom: 25px;
+  }
+
+  .level-circle {
+    width: 80px;
+    height: 80px;
+  }
+
+  .lvl-val {
+    font-size: 2rem;
+  }
+
+  .xp-section {
+    width: 100%;
+  }
+
+  .desc-text {
+    font-size: 1rem;
+    text-align: left;
+  }
+
+  .ability-item {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .ability-lv-badge {
+    width: 40px;
+    font-size: 0.9rem;
+  }
+
+  .ability-text {
+    font-size: 0.9rem;
+  }
+}
 </style>

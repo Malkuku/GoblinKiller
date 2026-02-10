@@ -142,8 +142,6 @@ const toggleTheme = async () => {
 };
 </script>
 
-
-
 <style scoped>
 /* 保持原有样式，新增 .nav-badge */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap');
@@ -161,9 +159,23 @@ const toggleTheme = async () => {
   --sidebar-width: 220px;
   --c-accent-danger: #a83232; /* 新增红色变量 */
 
-  position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: row;
-  font-family: var(--font-body); color: var(--c-text-main); overflow: hidden;
-  height: 100vh; width: 100vw;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: row;
+  font-family: var(--font-body);
+  color: var(--c-text-main);
+  overflow: hidden;
+
+  /* --- 修复部分 --- */
+  width: 100vw;
+  height: 100vh; /* 兼容旧浏览器 */
+  height: 100dvh; /* 关键修复：使用动态视口高度，自动适应浏览器地址栏/工具栏 */
+  box-sizing: border-box;
+
+  /* 适配刘海屏和底部横条 */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* ...原有样式保持不变... */
