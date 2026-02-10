@@ -399,8 +399,8 @@ const sortedEvents = computed(() => {
 
       if (endDate < startDate) endDate.setFullYear(year + 1);
 
-      const showStart = new Date(startDate.getTime() - (20 * oneDay));
-      const showEnd = new Date(endDate.getTime() + (5 * oneDay));
+      const showStart = new Date(startDate.getTime() - (7 * oneDay));
+      const showEnd = new Date(endDate.getTime() + (3 * oneDay));
 
       if (currentWorldDate >= showStart && currentWorldDate <= showEnd) {
         matched = true;
