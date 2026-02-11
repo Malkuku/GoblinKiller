@@ -44,7 +44,7 @@
           :class="{ active: selectedId === id }"
           @click="selectRole(id, 'main')"
         >
-          <span class="name">{{ char.姓名 }}</span>
+          <span class="name">{{ id }}</span>
 
           <!-- 如果不在场但被关注，显示一个小提示 -->
           <span v-if="!char.在场 && !isOmniscient" class="absent-tag">(离)</span>
@@ -67,7 +67,7 @@
           :class="{ active: selectedId === id }"
           @click="selectRole(id, 'minor')"
         >
-          <span class="name">{{ char.姓名 }}</span>
+          <span class="name">{{ id }}</span>
 
           <!-- 关注按钮 (移到右侧) -->
           <span
@@ -83,13 +83,13 @@
 
     <!-- 右侧：详细内容展示区 -->
     <main class="role-content">
-      <transition name="fade" mode="out-in">
         <component
           :is="currentComponent"
           :key="selectedId"
           :data="currentData"
+          :char-id="selectedId"
+          :category="currentCategoryKey"
         />
-      </transition>
     </main>
 
   </div>
@@ -127,6 +127,13 @@ const ensureSystemData = () => {
     };
   }
 };
+
+const currentCategoryKey = computed(() => {
+  if (selectedType.value === 'main') return '主要角色';
+  if (selectedType.value === 'minor') return '次要角色';
+  return '';
+});
+
 
 // 判断是否已关注
 const isFollowed = (id, categoryKey) => {

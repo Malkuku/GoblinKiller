@@ -1,7 +1,12 @@
 <template>
   <div class="char-panel minor-panel">
     <header class="panel-header">
-      <h2 class="char-name">{{ data.姓名 }}</h2>
+      <!-- 修改：添加 header-top 用于左右布局 -->
+      <div class="header-top">
+        <h2 class="char-name">{{ data.姓名 }}</h2>
+        <!-- 新增：删除按钮 -->
+        <button class="delete-btn" @click="deleteChar">删除角色</button>
+      </div>
       <div class="char-intro">{{ data.简介 || '暂无简介' }}</div>
     </header>
 
@@ -46,9 +51,49 @@ import SpecialStatusModule from './SpecialStatusModule.vue';
 import ArtsModule from './ArtsModule.vue';
 import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
 import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
+import { ERAUtil } from '@/Utils/ERAUtil';
 
-const props = defineProps(['data']);
+// 修改 1: 接收 charId 和 category
+const props = defineProps(['data', 'charId', 'category']);
 const openItemModal = () => { alert('物品弹窗接口预留'); };
+
+/**
+ * 删除角色功能
+ * 构建 { "角色": { [category]: { [id]: {} } } } 的结构发送给后端
+ */
+const deleteChar = async () => {
+  // 校验：必须有 ID 和 类别
+  if (!props.charId || !props.category) {
+    console.error("缺少角色ID或类别，无法删除 (User角色不可在此删除)");
+    return;
+  }
+
+  // 提示语可以使用 data.姓名 增加可读性，但操作必须用 charId
+  const nameDisplay = props.data?.姓名 || props.charId;
+
+  if (!confirm(`确定要删除角色【${nameDisplay}】吗？\n此操作将删除该角色的所有数据且不可恢复。`)) {
+    return;
+  }
+
+  try {
+    // 修改 2: 构建完整的路径结构
+    // 结构应当是: stat_data -> 角色 -> 主要角色/次要角色 -> ID -> {}
+    const payload = {
+      "角色": {
+        [props.category]: {
+          [props.charId]: {} // 赋值为空对象 {} 表示删除该节点
+        }
+      }
+    };
+
+    await ERAUtil.DeleteByObject(payload);
+    console.log(`已发送删除请求: [${props.category}] ${props.charId}`);
+
+    // 可选：删除后可能需要通知父组件清空选中状态，或者依赖数据响应式自动处理
+  } catch (error) {
+    console.error("删除角色时发生错误:", error);
+  }
+};
 </script>
 
 <style scoped>
@@ -60,14 +105,44 @@ const openItemModal = () => { alert('物品弹窗接口预留'); };
   --c-bg-dark: rgba(0, 0, 0, 0.4);
   --c-hover-bg: rgba(255, 255, 255, 0.1);
   --c-border: rgba(255, 255, 255, 0.2);
+  --c-danger: #e74c3c;
+  --c-danger-hover: #c0392b;
   --font-title: 'Cinzel', serif;
 
   height: 100%; display: flex; flex-direction: column; padding: 20px; color: var(--c-text);
 }
 
 .panel-header { border-bottom: 1px solid rgba(212, 175, 55, 0.3); padding-bottom: 15px; margin-bottom: 15px; }
+
+/* 新增：头部布局样式 */
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .char-name { font-family: var(--font-title); color: var(--c-gold); font-size: 1.8rem; margin: 0; }
 .char-intro { font-style: italic; color: var(--c-text-dim); margin-top: 5px; }
+
+/* 新增：删除按钮样式 */
+.delete-btn {
+  background: transparent;
+  border: 1px solid var(--c-danger);
+  color: var(--c-danger);
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: var(--font-title);
+  opacity: 0.7;
+}
+
+.delete-btn:hover {
+  background: var(--c-danger);
+  color: white;
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+}
 
 .scroll-container { flex: 1; overflow-y: auto; padding-right: 10px; }
 .info-block { margin-bottom: 25px; background: var(--c-bg-dark); padding: 20px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
