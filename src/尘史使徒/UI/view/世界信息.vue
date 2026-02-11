@@ -1,4 +1,3 @@
-<!-- Vision.vue -->
 <template>
   <div class="vision-container" :class="{ 'danger-mode': isDanger && mode === 'gameplay', 'dark-mode': uiStore.darkMode }">
 
@@ -257,11 +256,16 @@ const tooltip = reactive({ visible: false, data: {}, x: 0, y: 0 });
 // 视图变换
 const transform = reactive({ k: 1, x: 0, y: 0 });
 const baseScale = ref(1);
+const lastClientWidth = ref(0);
 const isPointerDown = ref(false);
 const isMapDragging = ref(false);
 const dragStart = { x: 0, y: 0 };
 const lastTransform = { x: 0, y: 0 };
 const DRAG_THRESHOLD = 3;
+
+// 移动端双指缩放状态
+const isPinching = ref(false);
+const lastTouchDist = ref(0);
 
 // =====================
 // 地图逻辑
@@ -352,9 +356,21 @@ const currentDisplayNodes = computed(() => {
 });
 
 // --- 修复1: 动态缩放与居中 ---
-const updateBaseScale = () => {
+const updateBaseScale = (resetZoom = false) => {
   if (!viewportRef.value || !currentDisplayNodes.value.length) return;
 
+  const rect = viewportRef.value.getBoundingClientRect();
+  const currentWidth = rect.width;
+  const isMobile = window.innerWidth < 768;
+
+  // 1. 移动端防抖：如果宽度没变（仅高度变，例如地址栏伸缩），且不是强制重置，则跳过计算
+  // 这能防止移动端浏览时地图突然跳动
+  if (isMobile && !resetZoom && Math.abs(currentWidth - lastClientWidth.value) < 10) {
+    return;
+  }
+  lastClientWidth.value = currentWidth;
+
+  // 2. 计算节点边界
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   currentDisplayNodes.value.forEach(node => {
     minX = Math.min(minX, node.displayX); maxX = Math.max(maxX, node.displayX);
@@ -364,22 +380,39 @@ const updateBaseScale = () => {
   if (maxX - minX < 1) { minX -= 5; maxX += 5; }
   if (maxY - minY < 1) { minY -= 5; maxY += 5; }
 
-  const padding = 0.8; // 留白 20%
-  const scaleX = viewportRef.value.clientWidth / (maxY - minY);
-  const scaleY = viewportRef.value.clientHeight / (maxX - minX);
+  // 3. 计算适配比例
+  // 移动端使用更大的 padding (0.95) 以利用更多屏幕空间
+  const padding = isMobile ? 0.95 : 0.8;
+  const scaleX = rect.width / (maxY - minY);
+  const scaleY = rect.height / (maxX - minX);
 
-  const newScale = Math.min(Math.max(Math.min(scaleX, scaleY) * padding, 0.5), 150);
+  // 基础比例计算
+  let newScale = Math.min(Math.max(Math.min(scaleX, scaleY) * padding, 0.5), 150);
+
+  // 4. 移动端增益：强制放大，避免节点过小
+  if (isMobile) {
+    // 如果计算出的比例让地图显得太小，强制放大 1.3 倍，保证可点击性
+    newScale = newScale * 1.3;
+  }
+
   baseScale.value = newScale;
 
-  // 计算中心点偏移 (解决进入新区域位置不对的问题)
-  const midX = (minX + maxX) / 2;
-  const midY = (minY + maxY) / 2;
+  // 5. 居中逻辑
+  // 只有在 "强制重置" (切换地图) 或 "宽度发生实质变化" (旋转屏幕/桌面缩放) 时才重新居中
+  if (resetZoom || Math.abs(currentWidth - lastClientWidth.value) > 10) {
+    const midX = (minX + maxX) / 2;
+    const midY = (minY + maxY) / 2;
 
-  // 节点的 CSS 定位逻辑是: left = 50% + y*scale, top = 50% - x*scale
-  // 为了让 (midX, midY) 处于屏幕中心，我们需要反向平移
-  transform.x = -midY * newScale;
-  transform.y = midX * newScale;
-  transform.k = 1;
+    // 重新计算中心偏移量
+    transform.x = -midY * newScale;
+    transform.y = midX * newScale;
+
+    // 只有在明确要求重置缩放级别时 (如进入新层级)，才重置 k=1
+    // 这样 resize 时不会丢失用户的缩放状态
+    if (resetZoom) {
+      transform.k = 1;
+    }
+  }
 };
 
 // =====================
@@ -433,7 +466,7 @@ const goUpOneLevel = () => {
 const resetView = () => {
   // 注意：这里不再重置 transform.x/y 为 0，因为 updateBaseScale 会计算正确的偏移
   closeTooltip();
-  nextTick(updateBaseScale);
+  nextTick(() => updateBaseScale(true));
 };
 
 const handleNodeClick = (node) => {
@@ -515,7 +548,7 @@ const handleWheel = (e) => {
   const mouseX = e.clientX - rect.left - rect.width / 2;
   const mouseY = e.clientY - rect.top - rect.height / 2;
   const scaleFactor = 1 + (0.1 * -Math.sign(e.deltaY));
-  const newScale = Math.min(Math.max(transform.k * scaleFactor, 0.1), 10.0);
+  const newScale = Math.min(Math.max(transform.k * scaleFactor, 0.001), 1000.0);
   transform.x = mouseX - (mouseX - transform.x) * (newScale / transform.k);
   transform.y = mouseY - (mouseY - transform.y) * (newScale / transform.k);
   transform.k = newScale;
@@ -538,9 +571,69 @@ const handleMouseMove = (e) => {
   }
 };
 const handleMouseUp = () => { isPointerDown.value = false; setTimeout(() => isMapDragging.value = false, 0); };
-const handleTouchStart = (e) => { if(e.touches.length===1) handleMouseDown(e.touches[0]); };
-const handleTouchMove = (e) => { e.preventDefault(); if(e.touches.length===1) handleMouseMove(e.touches[0]); };
-const handleTouchEnd = () => handleMouseUp();
+
+// --- 移动端双指缩放逻辑 ---
+const getTouchDistance = (touches) => {
+  return Math.hypot(
+    touches[0].clientX - touches[1].clientX,
+    touches[0].clientY - touches[1].clientY
+  );
+};
+
+const getTouchCenter = (touches, rect) => {
+  const cx = (touches[0].clientX + touches[1].clientX) / 2;
+  const cy = (touches[0].clientY + touches[1].clientY) / 2;
+  return {
+    x: cx - rect.left - rect.width / 2,
+    y: cy - rect.top - rect.height / 2
+  };
+};
+
+const handleTouchStart = (e) => {
+  if (e.touches.length === 2) {
+    e.preventDefault();
+    isPinching.value = true;
+    isMapDragging.value = false; // 取消单指拖拽状态
+    lastTouchDist.value = getTouchDistance(e.touches);
+  } else if (e.touches.length === 1) {
+    isPinching.value = false;
+    handleMouseDown(e.touches[0]);
+  }
+};
+
+const handleTouchMove = (e) => {
+  e.preventDefault();
+  if (e.touches.length === 2 && isPinching.value) {
+    const currentDist = getTouchDistance(e.touches);
+    if (lastTouchDist.value > 0) {
+      const scaleFactor = currentDist / lastTouchDist.value;
+      const rect = viewportRef.value.getBoundingClientRect();
+      const center = getTouchCenter(e.touches, rect);
+
+      // 应用缩放
+      const newScale = Math.min(Math.max(transform.k * scaleFactor, 0.1), 10.0);
+
+      // 计算新的位移以保持中心点稳定
+      // 公式: NewPos = Center - (Center - OldPos) * (NewScale / OldScale)
+      const ratio = newScale / transform.k;
+      transform.x = center.x - (center.x - transform.x) * ratio;
+      transform.y = center.y - (center.y - transform.y) * ratio;
+      transform.k = newScale;
+
+      lastTouchDist.value = currentDist;
+    }
+  } else if (e.touches.length === 1 && !isPinching.value) {
+    handleMouseMove(e.touches[0]);
+  }
+};
+
+const handleTouchEnd = (e) => {
+  if (e.touches.length < 2) {
+    isPinching.value = false;
+  }
+  handleMouseUp();
+};
+
 const handleBackgroundClick = () => { if (!isMapDragging.value) closeTooltip(); };
 const closeTooltip = () => { tooltip.visible = false; };
 
@@ -560,7 +653,7 @@ const updateCursor = (e) => {
 let resizeObserver = null;
 onMounted(() => {
   if (viewportRef.value) {
-    resizeObserver = new ResizeObserver(() => updateBaseScale());
+    resizeObserver = new ResizeObserver(() => updateBaseScale(false));
     resizeObserver.observe(viewportRef.value);
   }
   if (stat_data.value) initMapPosition();
@@ -587,6 +680,7 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
   width: 100%; height: 100%; position: absolute; top: 0; left: 0;
   cursor: crosshair;
   background: radial-gradient(circle at center, #2a2f3a 0%, #15171c 100%);
+  touch-action: none; /* 禁止浏览器默认触摸行为 */
 }
 .map-transform-layer { width: 100%; height: 100%; position: absolute; will-change: transform; }
 .grid-lines {
@@ -793,8 +887,20 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
     gap: 10px;
   }
 
+  /* 缩小 HUD 字体 */
   .hud-block .value.main {
-    font-size: 1.1rem; /* 稍微调小字体 */
+    font-size: 1rem;
+  }
+  .hud-block .label {
+    font-size: 0.6rem;
+  }
+  .hud-block .value.sub {
+    font-size: 0.7rem;
+  }
+
+  /* 缩小面包屑字体 */
+  .breadcrumb-track .crumb-item {
+    font-size: 0.8rem;
   }
 
   /* 4. 详情弹窗 (Tooltip) 改为底部抽屉模式 */
@@ -826,6 +932,18 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
   .danger-alert {
     top: -30px;
     font-size: 0.8rem;
+  }
+
+  /* 7. 新增：缩小图标和字体 */
+  .node-icon-wrapper {
+    width: 24px; height: 24px; /* 强制缩小基础尺寸 */
+  }
+  .node-icon-wrapper.size-large { width: 32px; height: 32px; }
+  .node-icon-wrapper.size-small { width: 16px; height: 16px; }
+
+  .node-label {
+    font-size: 0.6rem; /* 缩小标签字体 */
+    padding: 1px 4px;
   }
 }
 </style>
