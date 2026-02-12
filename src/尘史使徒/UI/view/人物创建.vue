@@ -121,11 +121,29 @@
         <!-- 右侧：术之等级 (优化布局) -->
         <div class="column right-col">
           <h3 class="section-title">秘史造诣</h3>
+
           <div class="points-header">
-            <div class="points-label">剩余点数</div>
-            <div class="points-display">
-              <span class="points-val" :class="{ 'error': remainingPoints < 0 }">{{ remainingPoints }}</span>
-              <span class="points-total">/ 100</span>
+            <!-- 修改：点数显示逻辑 -->
+            <div class="points-info-group">
+              <div class="points-label">{{ isInfiniteMode ? '总消耗点数' : '剩余点数' }}</div>
+              <div class="points-display">
+                <template v-if="!isInfiniteMode">
+                  <span class="points-val" :class="{ 'error': remainingPoints < 0 }">{{ remainingPoints }}</span>
+                  <span class="points-total">/ 100</span>
+                </template>
+                <template v-else>
+                  <span class="points-val text-gold">{{ totalSpentPoints }}</span>
+                  <span class="points-total" style="font-size: 1.2rem;">∞</span>
+                </template>
+              </div>
+            </div>
+
+            <!-- 新增：无限点数开关 -->
+            <div class="infinite-toggle">
+              <label class="toggle-label">
+                <input type="checkbox" v-model="isInfiniteMode">
+                <span class="toggle-text">无限</span>
+              </label>
             </div>
           </div>
 
@@ -139,12 +157,16 @@
               <div class="art-controls">
                 <button class="ctrl-btn" @click="changeArtLevel(key, -1)" :disabled="data.当前等级 <= 0">-</button>
                 <div class="cost-preview">
-                  <span v-if="data.当前等级 < 10" class="cost-val">
+                  <span v-if="data.当前等级 < maxArtLevel" class="cost-val">
                     消耗 {{ getUpgradeCost(key, data.当前等级) }}
                   </span>
                   <span v-else class="cost-val">MAX</span>
                 </div>
-                <button class="ctrl-btn" @click="changeArtLevel(key, 1)" :disabled="remainingPoints < getUpgradeCost(key, data.当前等级) || data.当前等级 >= 10">+</button>
+                <!-- 修改：禁用逻辑，无限模式下不检查剩余点数，上限改为 maxArtLevel -->
+                <button class="ctrl-btn" @click="changeArtLevel(key, 1)"
+                        :disabled="(!isInfiniteMode && remainingPoints < getUpgradeCost(key, data.当前等级)) || data.当前等级 >= maxArtLevel">
+                  +
+                </button>
               </div>
             </div>
           </div>
@@ -157,7 +179,8 @@
       </div>
 
       <footer class="action-footer">
-        <button class="confirm-btn" :disabled="submitting || remainingPoints < 0" @click="submitCreation">
+        <!-- 修改：提交禁用逻辑，无限模式下允许负分 -->
+        <button class="confirm-btn" :disabled="submitting || (!isInfiniteMode && remainingPoints < 0)" @click="submitCreation">
           <span v-if="!submitting">铭刻真实</span>
           <span v-else>正在生成...</span>
         </button>
@@ -184,7 +207,6 @@
 </template>
 
 <script setup>
-// ... (Script 部分保持不变，逻辑完全兼容) ...
 import { reactive, ref, computed, watch, onMounted } from 'vue';
 import { ERAUtil } from '@/Utils/ERAUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
@@ -197,6 +219,7 @@ import ArtsModule from '@/尘史使徒/UI/components/role/ArtsModule.vue';
 const submitting = ref(false);
 const showMapModal = ref(false);
 const statStore = useStatStore();
+const isInfiniteMode = ref(false); // 新增：无限点数模式状态
 
 onMounted(() => {
   if (!statStore.stat_data) {
@@ -239,10 +262,6 @@ const formData = reactive({
     "启": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 }
   }
 });
-
-// ... (省略中间的 traitDefinitions, getTraitDetail, getTraitExtremes, getTraitColorClass, generatedPersonalitySummary, getUpgradeCost, totalSpentPoints, remainingPoints, changeArtLevel, watch, finalAppearance 逻辑，均保持不变) ...
-// 为了节省篇幅，这里假设中间逻辑代码与原文件一致
-// 请保留原文件中的所有 JS 逻辑代码
 
 const traitDefinitions = {
   "社交取向": [
@@ -329,6 +348,9 @@ const generatedPersonalitySummary = computed(() => {
   return `一位${parts.join("、")}的旅人。`;
 });
 
+// 新增：动态计算最大等级
+const maxArtLevel = computed(() => isInfiniteMode.value ? 21 : 10);
+
 const getUpgradeCost = (artKey, currentLevel) => {
   if (currentLevel === 0) {
     let unlockedCount = 0;
@@ -366,11 +388,14 @@ const remainingPoints = computed(() => {
 const changeArtLevel = (key, delta) => {
   const art = formData.arts[key];
   const newLevel = art.当前等级 + delta;
-  if (newLevel < 0 || newLevel > 10) return;
+
+  // 修改：使用动态的 maxArtLevel
+  if (newLevel < 0 || newLevel > maxArtLevel.value) return;
 
   if (delta > 0) {
     art.当前等级 = newLevel;
-    if (remainingPoints.value < 0) {
+    // 修改：仅在非无限模式下检查点数是否不足
+    if (!isInfiniteMode.value && remainingPoints.value < 0) {
       art.当前等级 -= delta;
       if (window.toastr) window.toastr.warning("点数不足");
     }
@@ -623,10 +648,17 @@ const submitCreation = async () => {
 
 /* 术之加点 UI (优化) */
 .points-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; }
-.points-label { font-family: 'Cinzel', serif; color: #aaa; }
+.points-info-group { display: flex; flex-direction: column; }
+.points-label { font-family: 'Cinzel', serif; color: #aaa; font-size: 0.8rem; }
 .points-val { font-size: 1.5rem; color: var(--c-gold); font-weight: bold; margin-right: 5px; }
 .points-val.error { color: var(--c-danger); }
 .points-total { color: #666; font-size: 0.9rem; }
+
+/* 无限点数开关样式 */
+.infinite-toggle { display: flex; align-items: center; }
+.toggle-label { display: flex; align-items: center; cursor: pointer; gap: 5px; font-size: 0.8rem; color: #888; }
+.toggle-label input { accent-color: var(--c-gold); width: 16px; height: 16px; cursor: pointer; }
+.toggle-label:hover { color: var(--c-gold); }
 
 .arts-list-scroll { flex: 1; overflow-y: auto; margin-bottom: 10px; padding-right: 5px; border: 1px solid #222; background: rgba(0,0,0,0.2); }
 .art-point-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid #333; transition: background 0.2s; }

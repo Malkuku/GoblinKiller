@@ -2,6 +2,7 @@ import { ERAEvents } from '@/Constants/ERAEvent';
 
 /**
  * 发送删除ERA对象事件
+ * 使用一个 空对象 {} 作为值，表示要删除该键对应的整个节点
  */
 const DeleteByObject = async (object: any) => {
   await eventEmit(ERAEvents.DELETE_BY_OBJECT, object);
