@@ -129,6 +129,7 @@
             </ul>
           </div>
           <div class="tooltip-footer">
+            <!-- 主要操作按钮组 -->
             <button v-if="hasChildren(tooltip.data)" class="action-btn primary" @click="enterArea(tooltip.data)">
               进入地区
             </button>
@@ -141,6 +142,11 @@
             <!-- 选择模式：确认为出生地 -->
             <button v-else class="action-btn confirm-selection" @click="handleSelectLocation(tooltip.data)">
               确定出生于此
+            </button>
+
+            <!-- 删除地图按钮 (独占一行) -->
+            <button v-if="mode === 'gameplay' && canDelete(tooltip.data)" class="action-btn delete-btn" @click="handleDeleteMap(tooltip.data)">
+              删除地图
             </button>
           </div>
         </div>
@@ -155,6 +161,7 @@ import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
+import { ERAUtil } from '@/utils/ERAUtil'; // 假设路径，请根据实际情况调整
 
 // === 新增 Props 和 Emits ===
 const props = defineProps({
@@ -310,8 +317,34 @@ const initMapPosition = () => {
   nextTick(() => { updateBaseScale(); resetView(); });
 };
 
+// 监听数据变化，自动刷新视图
 watch(() => stat_data.value, (newVal) => {
-  if (newVal && !currentRootNode.value) initMapPosition();
+  if (!newVal) return;
+
+  if (!currentRootNode.value) {
+    initMapPosition();
+  } else {
+    // 数据更新后，尝试保持在当前查看的层级
+    // 获取当前视图的名称（从面包屑末尾获取）
+    const currentViewName = breadcrumbs.value.length > 0
+      ? breadcrumbs.value[breadcrumbs.value.length - 1].name
+      : null;
+
+    if (currentViewName) {
+      // 在新数据中重新查找该节点
+      const result = findNodeAndPath(newVal.地图, currentViewName);
+      if (result) {
+        // 更新节点引用和面包屑路径（确保引用的是新数据对象）
+        currentRootNode.value = result.node;
+        breadcrumbs.value = result.path;
+      } else {
+        // 如果当前查看的节点被删除了，或者找不到了，则重置回初始位置
+        initMapPosition();
+      }
+    } else {
+      initMapPosition();
+    }
+  }
 }, { immediate: true });
 
 const currentDisplayNodes = computed(() => {
@@ -515,6 +548,74 @@ const getNavigationPath = (startName, endName) => {
 
   const fullPath = [...upPath, ...downPath];
   return fullPath.length > 0 ? fullPath : [endName];
+};
+
+// =====================
+// 删除地图功能
+// =====================
+
+/**
+ * 判断是否可以删除该节点
+ * 规则：不能删除包含玩家当前位置的节点（即不能是当前位置或其祖先节点）
+ */
+const canDelete = (node) => {
+  if (!stat_data.value?.地图) return false;
+
+  // 1. 获取玩家当前位置的完整路径
+  const playerPath = findPathStack(stat_data.value.地图, playerLocationName.value);
+  if (!playerPath) return true; // 玩家不在地图上？理论上可以删除任何东西
+
+  // 2. 获取目标节点的完整路径
+  // breadcrumbs 包含了当前视图容器的路径，加上目标节点名即为目标完整路径
+  const currentPathNames = breadcrumbs.value.map(b => b.name);
+  const targetPath = [...currentPathNames, node.name];
+
+  // 3. 检查目标节点是否是玩家位置的祖先（或本身）
+  // 如果玩家路径以目标路径开头，说明玩家在目标节点内部
+  if (playerPath.length < targetPath.length) return true; // 目标比玩家位置更深，肯定是子节点，安全
+
+  for (let i = 0; i < targetPath.length; i++) {
+    if (playerPath[i] !== targetPath[i]) return true; // 路径分叉，安全
+  }
+
+  // 路径完全匹配，说明目标是玩家位置的祖先或本身，不可删除
+  return false;
+};
+
+/**
+ * 处理删除地图操作
+ */
+const handleDeleteMap = async (node) => {
+  if (!confirm(`警告：确定要彻底删除 "${node.name}" 及其所有子区域吗？\n此操作将永久移除该地图节点，且不可恢复。`)) return;
+
+  // 构建删除对象的路径
+  // 结构示例: { "地图": { "World": { "子地图": { "City": { "子地图": { "Target": {} } } } } } }
+  const payload = { "地图": {} };
+  let ptr = payload["地图"];
+
+  // 遍历面包屑构建父级路径
+  for (const crumb of breadcrumbs.value) {
+    ptr[crumb.name] = { "子地图": {} };
+    ptr = ptr[crumb.name]["子地图"];
+  }
+
+  // 设置目标节点为空对象，触发删除
+  ptr[node.name] = {};
+
+  try {
+    await ERAUtil.DeleteByObject(payload);
+    closeTooltip();
+
+    // 延迟1秒后刷新数据
+    setTimeout(async () => {
+      await ERAUtil.EmitEraSnapshot();
+      // 数据更新后，上面的 watch 会自动处理视图刷新
+    }, 1000);
+
+  } catch (e) {
+    console.error("删除地图失败", e);
+    alert("删除失败，请检查控制台日志。");
+  }
 };
 
 // 处理"前往此处" (游戏模式)
@@ -796,14 +897,42 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 .tooltip-body { padding: 15px; color: #ccc; font-size: 0.9rem; }
 .tooltip-body .coords { font-family: monospace; color: #666; margin: 5px 0 10px; font-size: 0.8rem; }
 .details-list { padding-left: 20px; color: #888; font-size: 0.85rem; }
-.tooltip-footer { padding: 15px; display: flex; gap: 10px; }
-.action-btn { flex: 1; padding: 8px; cursor: pointer; font-family: var(--font-cinzel); transition: all 0.2s; }
+
+/* 优化后的底部按钮布局 */
+.tooltip-footer {
+  padding: 15px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap; /* 允许换行 */
+}
+.action-btn {
+  flex: 1 1 40%; /* 默认两个按钮一行 */
+  padding: 8px;
+  cursor: pointer;
+  font-family: var(--font-cinzel);
+  transition: all 0.2s;
+  min-width: 80px;
+}
 .action-btn.primary { background: var(--c-gold); border: none; color: #000; font-weight: bold; }
 .action-btn.primary:hover { background: #fff; }
 .action-btn.secondary { background: transparent; border: 1px solid #666; color: #aaa; }
 .action-btn.secondary:hover { border-color: #fff; color: #fff; }
 .action-btn.confirm-selection { background: var(--c-gold); border: 1px solid var(--c-gold); color: #000; font-weight: bold; }
 .action-btn.confirm-selection:hover { background: #fff; box-shadow: 0 0 15px rgba(197, 160, 89, 0.8); }
+
+/* 删除按钮样式 - 独占一行 */
+.action-btn.delete-btn {
+  flex: 1 1 100%; /* 强制占满一行 */
+  margin-top: 5px; /* 增加顶部间距 */
+  background: rgba(176, 58, 72, 0.15);
+  border: 1px solid #b03a48;
+  color: #b03a48;
+}
+.action-btn.delete-btn:hover {
+  background: #b03a48;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(176, 58, 72, 0.5);
+}
 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }

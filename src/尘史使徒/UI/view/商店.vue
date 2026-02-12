@@ -203,10 +203,9 @@
             <button class="btn-clear" @click="clearQueue">清空</button>
             <button
               class="btn-confirm"
-              :disabled="finalBalance < 0"
               @click="submitTransaction"
             >
-              <span class="btn-text">{{ finalBalance < 0 ? '资金不足' : '确认交易' }}</span>
+              <span class="btn-text">确认交易</span>
               <span class="btn-badge">{{ queueTotalCount }}</span>
             </button>
           </div>
@@ -393,7 +392,7 @@ const submitTransaction = () => {
     });
   }
 
-  const log = `<user>打算完成以下批量交易:\n<list>\n${JSON.stringify(items, null, 4)}\n</list>\n交易后预计剩余资产: ${finalBalance.value.toFixed(4)}g\n如果顺利，则离开当前场景\n`;
+  const log = `<user>打算完成以下批量交易:\n<list>\n${JSON.stringify(items, null, 4)}\n</list>\n如果顺利，则离开当前场景\n`;
   uiStore.setPendingInput(log);
   clearQueue();
   router.push('/选项');
