@@ -1,10 +1,18 @@
 <template>
   <div class="world-info-view ac-theme">
-    <!-- 顶部标签栏 -->
+    <!-- 背景动态噪点层 -->
+    <div class="global-noise"></div>
+
+    <!-- 顶部导航栏 -->
     <header class="wi-header">
-      <div class="wi-title">
-        <span class="icon-animus"></span>
-        <span class="text-glitch" data-text="WORLD_INTEL">WORLD_INTEL</span>
+      <div class="wi-title-group">
+        <div class="animus-logo">
+          <div class="triangle"></div>
+        </div>
+        <div class="title-text">
+          <span class="main">WORLD_INTEL</span>
+          <span class="sub">DATABASE // V.3.0.1</span>
+        </div>
       </div>
       <nav class="wi-tabs">
         <button
@@ -13,135 +21,188 @@
           :class="['tab-btn', { active: currentTab === tab.key }]"
           @click="currentTab = tab.key"
         >
-          {{ tab.name }}
+          <span class="btn-content">{{ tab.name }}</span>
+          <div class="active-bar"></div>
         </button>
       </nav>
     </header>
 
-    <!-- 内容区域 -->
+    <!-- 内容滚动区域 -->
     <div class="wi-content scroll-container">
 
-      <!-- 1. 时序与节庆 -->
+      <!-- ==================== 1. 时序与节庆 ==================== -->
       <section v-if="currentTab === 'time'" class="tab-pane time-pane">
-        <!-- 状态栏 -->
-        <div class="ac-status-bar">
-          <div class="ac-stat-item">
-            <span class="label">CURRENT_DATE</span>
-            <span class="value highlight">{{ worldData.时间 || 'UNKNOWN' }}</span>
+
+        <!-- [重构] 季节全屏特效 Hero Section -->
+        <div class="season-hero-wrapper" :class="currentSeason ? 'active' : 'inactive'">
+          <!-- 粒子特效层 -->
+          <div class="particle-layer layer-1"></div>
+          <div class="particle-layer layer-2"></div>
+          <div class="particle-layer layer-3"></div>
+          <div class="scan-grid"></div>
+
+          <div class="hero-content" v-if="currentSeason">
+            <div class="season-meta">CURRENT SEQUENCE DETECTED</div>
+            <h1 class="season-title" :data-text="currentSeason.name">{{ currentSeason.name }}</h1>
+
+            <div class="season-desc-box">
+              <div class="corner-bracket top-left"></div>
+              <div class="corner-bracket bottom-right"></div>
+              <p v-for="(desc, i) in normalizeArray(currentSeason.data.描述)" :key="i" class="desc-line">
+                {{ desc }}
+              </p>
+            </div>
           </div>
-          <div class="separator"></div>
-          <div class="ac-stat-item">
-            <span class="label">LOCATION</span>
-            <span class="value">{{ worldData.地点 || 'UNKNOWN' }}</span>
-          </div>
-          <div class="separator"></div>
-          <div class="ac-stat-item">
-            <span class="label">ENVIRONMENT</span>
-            <span class="value">{{ worldData.季节 }} <span class="dim">|</span> {{ worldData.天气 }}</span>
+
+          <div class="hero-content empty" v-else>
+            <h1 class="season-title">NO SEASON DATA</h1>
           </div>
         </div>
 
-        <!-- 近期事象 (UI优化版) -->
-        <div class="ac-section-header">
-          <span class="line"></span>
-          <span class="title">ACTIVE_SIGNALS // 近期事象</span>
-          <span class="line"></span>
+        <!-- [重构] HUD 状态栏 -->
+        <div class="hud-status-bar">
+          <div class="hud-block">
+            <span class="hud-label">DATE</span>
+            <span class="hud-value gold">{{ worldData.时间 || 'UNKNOWN' }}</span>
+          </div>
+          <div class="hud-divider"></div>
+          <div class="hud-block">
+            <span class="hud-label">LOC</span>
+            <span class="hud-value">{{ worldData.地点 || 'UNKNOWN' }}</span>
+          </div>
+          <div class="hud-divider"></div>
+          <div class="hud-block">
+            <span class="hud-label">ENV</span>
+            <span class="hud-value">{{ worldData.天气 || 'STABLE' }}</span>
+          </div>
         </div>
 
-        <div v-if="sortedEvents.length === 0" class="ac-empty-state">
-          NO ACTIVE SIGNALS DETECTED
-        </div>
+        <!-- 近期节日与会议 -->
+        <div class="events-section">
+          <div class="section-header-tech">
+            <span class="icon">💠</span> UPCOMING EVENTS
+            <div class="header-line"></div>
+          </div>
 
-        <!-- 紧凑网格布局 -->
-        <div class="events-grid">
-          <div
-            v-for="(event, index) in sortedEvents"
-            :key="index"
-            class="ac-card event-card-compact"
-            :class="[getEventClass(event.type), { 'is-active': event.isActive }]"
-          >
-            <!-- 动态背景装饰 -->
-            <div class="card-bg-deco"></div>
+          <div v-if="upcomingFestivals.length === 0" class="empty-state-tech">
+            // NO ACTIVE SIGNALS
+          </div>
 
-            <div class="compact-header">
-              <div class="header-main">
-                <span class="type-icon">{{ getEventIcon(event.type) }}</span>
-                <span class="event-name">{{ event.name }}</span>
+          <div class="events-grid">
+            <div
+              v-for="(event, index) in upcomingFestivals"
+              :key="index"
+              class="tech-card event-card"
+              :class="{ 'live-event': event.isActive }"
+            >
+              <div class="card-deco-corner"></div>
+              <div class="event-header">
+                <span class="event-type">{{ event.type }}</span>
+                <span class="event-status" v-if="event.isActive">● LIVE</span>
+                <span class="event-status future" v-else>○ SOON</span>
               </div>
-              <span class="status-indicator" :class="event.isActive ? 'live' : 'soon'">
-                 {{ event.isActive ? '● LIVE' : '○ SOON' }}
-              </span>
-            </div>
-
-            <div class="compact-meta">
-              <span class="meta-tag type-tag">{{ event.type }}</span>
-              <span class="meta-tag date-tag">{{ event.dateStr }}</span>
-            </div>
-
-            <div class="compact-body">
-              <p v-for="(desc, i) in normalizeArray(event.data.描述)" :key="i" class="desc-text">{{ desc }}</p>
+              <div class="event-main">
+                <div class="event-name">{{ event.name }}</div>
+                <div class="event-date">{{ event.dateStr }}</div>
+              </div>
+              <div class="event-desc">
+                {{ normalizeArray(event.data.描述)[0] }}
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- 全境节庆档案 (折叠) -->
-        <div class="ac-accordion-wrapper">
-          <button class="ac-accordion-btn" @click="toggleSection('time_archive')">
-            <span class="btn-text">GLOBAL_FESTIVAL_ARCHIVE // 全境节庆档案</span>
-            <span class="btn-icon">{{ isSectionOpen('time_archive') ? '▼' : '▶' }}</span>
-          </button>
+        <!-- [重构] 分离的全境档案 -->
+        <div class="archives-container">
+          <div class="archive-divider">
+            <span>DATABASE ARCHIVES</span>
+          </div>
 
-          <div v-if="isSectionOpen('time_archive')" class="ac-accordion-content">
-            <div class="ac-grid-list">
-              <div v-for="(item, idx) in almanacList" :key="idx" class="ac-mini-card">
-                <div class="mini-header">
-                  <span class="mini-title">{{ item.name }}</span>
-                  <span class="mini-date">{{ item.dateShort }}</span>
+          <!-- 1. 季节档案 -->
+          <div class="ac-accordion-wrapper">
+            <button class="ac-accordion-btn season-style" @click="toggleSection('archive_season')">
+              <span class="btn-text">SEASONAL CYCLES // 季节轮替</span>
+              <span class="btn-icon">{{ isSectionOpen('archive_season') ? '▼' : '▶' }}</span>
+            </button>
+            <div v-if="isSectionOpen('archive_season')" class="ac-accordion-content">
+              <div class="ac-grid-list">
+                <div v-for="(item, idx) in seasonArchive" :key="idx" class="ac-mini-card season-border">
+                  <div class="mini-header">
+                    <span class="mini-title">{{ item.name }}</span>
+                    <span class="mini-date">{{ item.dateShort }}</span>
+                  </div>
+                  <div class="mini-desc text-truncate">{{ normalizeArray(item.data.描述)[0] }}</div>
                 </div>
-                <div class="mini-body">
-                  <div class="mini-type">{{ item.type }}</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. 禁忌档案 -->
+          <div class="ac-accordion-wrapper">
+            <button class="ac-accordion-btn taboo-style" @click="toggleSection('archive_taboo')">
+              <span class="btn-text">FORBIDDEN KNOWLEDGE // 禁忌与灾害</span>
+              <span class="btn-icon">{{ isSectionOpen('archive_taboo') ? '▼' : '▶' }}</span>
+            </button>
+            <div v-if="isSectionOpen('archive_taboo')" class="ac-accordion-content">
+              <div class="ac-grid-list">
+                <div v-for="(item, idx) in tabooArchive" :key="idx" class="ac-mini-card taboo-border">
+                  <div class="mini-header">
+                    <span class="mini-title warning-text">{{ item.name }}</span>
+                    <span class="mini-date">{{ item.dateShort }}</span>
+                  </div>
+                  <div class="mini-desc text-truncate">{{ normalizeArray(item.data.描述)[0] }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3. 节日档案 -->
+          <div class="ac-accordion-wrapper">
+            <button class="ac-accordion-btn festival-style" @click="toggleSection('archive_festival')">
+              <span class="btn-text">CULTURAL EVENTS // 庆典与会议</span>
+              <span class="btn-icon">{{ isSectionOpen('archive_festival') ? '▼' : '▶' }}</span>
+            </button>
+            <div v-if="isSectionOpen('archive_festival')" class="ac-accordion-content">
+              <div class="ac-grid-list">
+                <div v-for="(item, idx) in festivalArchive" :key="idx" class="ac-mini-card festival-border">
+                  <div class="mini-header">
+                    <span class="mini-title gold-text">{{ item.name }}</span>
+                    <span class="mini-date">{{ item.dateShort }}</span>
+                  </div>
                   <div class="mini-desc text-truncate">{{ normalizeArray(item.data.描述)[0] }}</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+
       </section>
 
-      <!-- 2. 世界经济 -->
+      <!-- ==================== 2. 世界经济 ==================== -->
       <section v-if="currentTab === 'economy'" class="tab-pane economy-pane">
         <div v-for="(econ, region) in economyData" :key="region" class="ac-group-wrapper">
-          <!-- 地区折叠头 -->
           <button class="ac-accordion-btn region-btn" @click="toggleSection('econ_' + region)">
             <span class="btn-text">REGION: {{ region }}</span>
             <span class="btn-icon">{{ isSectionOpen('econ_' + region) ? '▼' : '▶' }}</span>
           </button>
 
           <div v-if="isSectionOpen('econ_' + region)" class="ac-accordion-content">
-            <!-- 货币 -->
             <div class="sub-section">
               <h4 class="ac-sub-title">CURRENCY_SYSTEM</h4>
               <div class="grid-container">
-                <div v-for="(curr, name) in filterTemplate(econ.货币体系)" :key="name" class="ac-card mini">
-                  <div class="ac-card-header gold-text">{{ name }}</div>
-                  <div class="ac-card-body">
-                    <p>VAL: {{ curr.价值 }}</p>
-                    <p class="dim-text">{{ curr.描述 }}</p>
-                  </div>
+                <div v-for="(desc, name) in filterTemplate(econ.货币体系)" :key="name" class="tech-card mini">
+                  <div class="mini-header gold-text">{{ name }}</div>
+                  <div class="mini-body dim-text">{{ desc }}</div>
                 </div>
               </div>
             </div>
-
-            <!-- 社会阶层 -->
+            <!-- 收入与物价 (保持逻辑，样式微调) -->
             <div class="sub-section">
-              <h4 class="ac-sub-title">SOCIAL_HIERARCHY</h4>
-              <div class="list-container ac-list-style">
-                <div v-for="(cls, name) in filterTemplate(econ.社会阶层)" :key="name" class="info-row">
-                  <span class="row-label">{{ name }}</span>
-                  <div class="row-content">
-                    <span class="income">AVG_INC: {{ cls.平均收入 }}</span>
-                    <span class="source">SRC: {{ normalizeArray(cls.收入来源).join(' / ') }}</span>
-                  </div>
+              <h4 class="ac-sub-title">ECONOMICS_DATA</h4>
+              <div class="data-table">
+                <div v-for="(income, className) in filterTemplate(econ.平均收入)" :key="className" class="data-row">
+                  <span class="label">{{ className }}</span>
+                  <span class="value">{{ income }}</span>
                 </div>
               </div>
             </div>
@@ -149,59 +210,49 @@
         </div>
       </section>
 
-      <!-- 3. 势力 (UI重构版) -->
+      <!-- ==================== 3. 势力 ==================== -->
       <section v-if="currentTab === 'faction'" class="tab-pane faction-pane">
-        <div class="ac-section-header">
-          <span class="line"></span>
-          <span class="title">FACTION_DATABASE // 势力档案</span>
-          <span class="line"></span>
+        <div class="section-header-tech">
+          <span class="icon">♟</span> FACTION DATABASE
+          <div class="header-line"></div>
         </div>
 
         <div class="masonry-layout">
-          <div v-for="(faction, name, index) in factionData" :key="name" class="ac-card faction-card">
-            <!-- 装饰性角标 -->
-            <div class="corner-mark top-right"></div>
-            <div class="corner-mark bottom-left"></div>
+          <div v-for="(faction, name, index) in factionData" :key="name" class="tech-card faction-card">
+            <div class="card-deco-corner top-right"></div>
+            <div class="card-deco-corner bottom-left"></div>
 
-            <div class="ac-card-header faction-header">
+            <div class="faction-header">
               <span class="card-title">{{ name }}</span>
               <span class="faction-id">ID: 0x{{ (index + 10).toString(16).toUpperCase() }}</span>
             </div>
 
-            <div class="ac-card-body">
-              <div class="desc-block">
-                <p v-for="(desc, i) in normalizeArray(faction.描述)" :key="i">{{ desc }}</p>
-              </div>
+            <div class="faction-body">
+              <button
+                class="ac-decrypt-btn"
+                :class="{ active: isSectionOpen('fac_' + name) }"
+                @click="toggleSection('fac_' + name)"
+              >
+                <span class="icon">{{ isSectionOpen('fac_' + name) ? '🔓' : '🔒' }}</span>
+                <span class="text">{{ isSectionOpen('fac_' + name) ? 'CLOSE_FILE' : 'DECRYPT_DATA' }}</span>
+                <div class="scan-line"></div>
+              </button>
 
-              <!-- 势力详情折叠 (按钮式) -->
-              <div v-if="faction.详情 && faction.详情.length" class="faction-footer">
-                <button
-                  class="ac-decrypt-btn"
-                  :class="{ active: isSectionOpen('fac_' + name) }"
-                  @click="toggleSection('fac_' + name)"
-                >
-                  <span class="icon">{{ isSectionOpen('fac_' + name) ? '🔓' : '🔒' }}</span>
-                  <span class="text">{{ isSectionOpen('fac_' + name) ? 'CLOSE_FILE' : 'ACCESS_RESTRICTED_DATA' }}</span>
-                  <div class="scan-line"></div>
-                </button>
-
-                <div v-if="isSectionOpen('fac_' + name)" class="details-terminal">
-                  <ul class="details-list">
-                    <li v-for="(detail, k) in faction.详情" :key="k">
-                      <span class="bullet">█</span> {{ detail }}
-                    </li>
-                  </ul>
-                </div>
+              <div v-if="isSectionOpen('fac_' + name)" class="details-terminal">
+                <ul class="details-list">
+                  <li v-for="(desc, i) in normalizeArray(faction.描述)" :key="i">
+                    <span class="bullet">></span> {{ desc }}
+                  </li>
+                </ul>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- 4. 种族 -->
+      <!-- ==================== 4. 种族 ==================== -->
       <section v-if="currentTab === 'race'" class="tab-pane race-pane">
         <div v-for="(races, category) in raceData" :key="category" class="ac-group-wrapper">
-          <!-- 种族分类折叠头 -->
           <button class="ac-accordion-btn category-btn" @click="toggleSection('race_' + category)">
             <span class="btn-text">CLASS: {{ category }}</span>
             <span class="btn-icon">{{ isSectionOpen('race_' + category) ? '▼' : '▶' }}</span>
@@ -209,12 +260,10 @@
 
           <div v-if="isSectionOpen('race_' + category)" class="ac-accordion-content">
             <div class="race-grid">
-              <div v-for="(traits, raceName) in filterTemplate(races)" :key="raceName" class="ac-card race-card">
-                <div class="ac-card-header">{{ raceName }}</div>
-                <div class="ac-card-body">
-                  <div class="tags">
-                    <span v-for="(trait, t) in traits" :key="t" class="ac-tag">{{ trait }}</span>
-                  </div>
+              <div v-for="(traits, raceName) in filterTemplate(races)" :key="raceName" class="tech-card race-card">
+                <div class="race-header">{{ raceName }}</div>
+                <div class="race-body">
+                  <span v-for="(trait, t) in traits" :key="t" class="tech-tag">{{ trait }}</span>
                 </div>
               </div>
             </div>
@@ -227,13 +276,13 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed } from 'vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 const statStore = useStatStore();
 
 // --- 状态管理 ---
 const currentTab = ref('time');
-const expandedKeys = ref({}); // 存储所有折叠区域的状态
+const expandedKeys = ref({});
 
 const tabs = [
   { name: 'TIMELINE', key: 'time' },
@@ -242,7 +291,7 @@ const tabs = [
   { name: 'SPECIES', key: 'race' },
 ];
 
-// --- 辅助函数：通用过滤 $template ---
+// --- 辅助函数 ---
 const filterTemplate = (obj) => {
   if (!obj || typeof obj !== 'object') return {};
   const result = {};
@@ -254,7 +303,6 @@ const filterTemplate = (obj) => {
   return result;
 };
 
-// --- 折叠控制 ---
 const toggleSection = (key) => {
   if (expandedKeys.value[key] === undefined) {
     expandedKeys.value[key] = true;
@@ -267,42 +315,21 @@ const isSectionOpen = (key) => {
   return !!expandedKeys.value[key];
 };
 
-// --- 数据计算属性 (应用过滤) ---
+const normalizeArray = (val) => {
+  if (!val) return [];
+  return Array.isArray(val) ? val : [val];
+};
+
+// --- 数据计算属性 ---
 const worldData = computed(() => statStore.stat_data?.["世界"] || {});
 const economyData = computed(() => filterTemplate(statStore.stat_data?.["世界经济"]));
 const factionData = computed(() => filterTemplate(statStore.stat_data?.["势力"]));
 const raceData = computed(() => filterTemplate(statStore.stat_data?.["种族"]));
 const rawFestivalData = computed(() => statStore.stat_data?.["季节与节日"] || {});
 
-// --- 辅助函数 ---
-const normalizeArray = (val) => {
-  if (!val) return [];
-  return Array.isArray(val) ? val : [val];
-};
-
-// --- 样式辅助函数 ---
-const getEventClass = (type) => {
-  if (!type) return 'style-default';
-  if (type.includes('季节')) return 'style-season';
-  if (type.includes('禁忌') || type.includes('灾害')) return 'style-taboo';
-  if (type.includes('节日') || type.includes('庆典')) return 'style-festival';
-  return 'style-default';
-};
-
-const getEventIcon = (type) => {
-  if (!type) return '💠';
-  if (type.includes('季节')) return '🌿';
-  if (type.includes('禁忌')) return '⚠️';
-  if (type.includes('节日')) return '🎉';
-  return '💠';
-};
-
-// --- 核心逻辑：日期解析与格式化 ---
-
-// 1. 解析逻辑 (用于计算)
+// --- 日期逻辑 ---
 const parseDateParts = (str) => {
   const s = String(str || "");
-  // 仅提取 YYYY-MM-DD 部分进行计算，忽略后面的 T00:00 和 [Sun]
   const match = s.match(/(\d{4}|xxxx)-(\d{2})-(\d{2})/);
   if (match) {
     return {
@@ -314,25 +341,15 @@ const parseDateParts = (str) => {
   return null;
 };
 
-// 2. 展示格式化逻辑 (用于UI显示)
 const formatDisplayDate = (rawStr) => {
   if (!rawStr) return '???';
   if (rawStr.includes('xx-xx')) return 'PERM';
-
-  // 提取 YYYY-MM-DD 或 xxxx-MM-DD，忽略 T... 和 [...]
   const match = rawStr.match(/(\d{4}|xxxx)-(\d{2})-(\d{2})/);
-
   if (match) {
     const [_, year, month, day] = match;
-    // 如果年份是 xxxx，只显示 MM-DD
-    if (year === 'xxxx') {
-      return `${month}-${day}`;
-    }
-    // 如果是具体年份，显示 YYYY-MM-DD
+    if (year === 'xxxx') return `${month}-${day}`;
     return `${year}-${month}-${day}`;
   }
-
-  // 如果正则没匹配到（比如格式完全不对），返回原始字符串
   return rawStr;
 };
 
@@ -343,635 +360,451 @@ const createSafeDate = (year, month, day) => {
   return d;
 };
 
-// 3. 智能排序与筛选列表 (近期/进行中)
-const sortedEvents = computed(() => {
+const checkDateActive = (item, currentWorldDate) => {
+  const startStr = item["开始日期"];
+  const endStr = item["截止日期"];
+  if (!startStr || !endStr) return { isActive: false, matched: false, dateStr: '' };
+
+  if (startStr.includes("xx-xx")) {
+    return { isActive: true, matched: true, dateStr: "PERMANENT" };
+  }
+
+  const sParts = parseDateParts(startStr);
+  const eParts = parseDateParts(endStr);
+  if (!sParts || !eParts) return { isActive: false, matched: false, dateStr: '' };
+
+  const oneDay = 24 * 60 * 60 * 1000;
+  const currentYear = currentWorldDate.getFullYear();
+  const yearsToCheck = [currentYear - 1, currentYear, currentYear + 1];
+
+  let matched = false;
+  let isActive = false;
+  let displayDateStr = `${formatDisplayDate(startStr)} ~ ${formatDisplayDate(endStr)}`;
+
+  for (let year of yearsToCheck) {
+    let startDate = createSafeDate(year, sParts.month, sParts.day);
+    let endDate = createSafeDate(year, eParts.month, eParts.day);
+    if (endDate < startDate) endDate.setFullYear(year + 1);
+
+    const showStart = new Date(startDate.getTime() - (7 * oneDay));
+    const showEnd = new Date(endDate.getTime() + (3 * oneDay));
+
+    if (currentWorldDate >= showStart && currentWorldDate <= showEnd) {
+      matched = true;
+      if (currentWorldDate >= startDate && currentWorldDate <= endDate) isActive = true;
+      break;
+    }
+  }
+  return { isActive, matched, dateStr: displayDateStr };
+};
+
+const getCurrentWorldDate = () => {
   const worldTimeStr = worldData.value["时间"];
-  const festivals = rawFestivalData.value;
-
-  if (!worldTimeStr) return [];
-
-  let currentWorldDate = null;
+  if (!worldTimeStr) return null;
   const worldParts = parseDateParts(worldTimeStr);
   if (worldParts && worldParts.yearStr !== 'xxxx') {
-    currentWorldDate = createSafeDate(parseInt(worldParts.yearStr), worldParts.month, worldParts.day);
-  } else {
-    return [];
+    return createSafeDate(parseInt(worldParts.yearStr), worldParts.month, worldParts.day);
   }
+  return null;
+};
 
-  const resultList = [];
-  const oneDay = 24 * 60 * 60 * 1000;
+// 1. 当前季节
+const currentSeason = computed(() => {
+  const currentWorldDate = getCurrentWorldDate();
+  if (!currentWorldDate) return null;
+  const festivals = rawFestivalData.value;
 
   for (const key in festivals) {
-    if (key === '$template') continue; // 过滤
-
+    if (key === '$template') continue;
     const item = festivals[key];
-    const startStr = item["开始日期"];
-    const endStr = item["截止日期"];
-
-    if (!startStr || !endStr) continue;
-    if (startStr.includes("xx-xx")) {
-      resultList.push({
-        name: key,
-        data: item,
-        type: item["类型"],
-        isActive: true,
-        dateStr: "PERMANENT"
-      });
-      continue;
-    }
-
-    const sParts = parseDateParts(startStr);
-    const eParts = parseDateParts(endStr);
-    if (!sParts || !eParts) continue;
-
-    const currentYear = currentWorldDate.getFullYear();
-    const yearsToCheck = [currentYear - 1, currentYear, currentYear + 1];
-
-    let matched = false;
-    let isActive = false;
-
-    // 使用新的格式化函数生成展示字符串
-    let displayDateStr = `${formatDisplayDate(startStr)} ~ ${formatDisplayDate(endStr)}`;
-
-    for (let year of yearsToCheck) {
-      let startDate = createSafeDate(year, sParts.month, sParts.day);
-      let endDate = createSafeDate(year, eParts.month, eParts.day);
-
-      if (endDate < startDate) endDate.setFullYear(year + 1);
-
-      const showStart = new Date(startDate.getTime() - (7 * oneDay));
-      const showEnd = new Date(endDate.getTime() + (3 * oneDay));
-
-      if (currentWorldDate >= showStart && currentWorldDate <= showEnd) {
-        matched = true;
-        if (currentWorldDate >= startDate && currentWorldDate <= endDate) {
-          isActive = true;
-        }
-        break;
-      }
-    }
-
-    if (matched) {
-      resultList.push({
-        name: key,
-        data: item,
-        type: item["类型"],
-        isActive: isActive,
-        dateStr: displayDateStr
-      });
-    }
+    if (item["类型"] !== '季节') continue;
+    const { isActive } = checkDateActive(item, currentWorldDate);
+    if (isActive) return { name: key, data: item };
   }
-
-  return resultList.sort((a, b) => {
-    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-    return 0;
-  });
+  return null;
 });
 
-// 4. 所有节日列表 (年鉴模式)
-const almanacList = computed(() => {
+// 2. 当前禁忌
+const activeTaboos = computed(() => {
+  const currentWorldDate = getCurrentWorldDate();
+  if (!currentWorldDate) return [];
   const festivals = rawFestivalData.value;
   const list = [];
 
   for (const key in festivals) {
-    if (key === '$template') continue; // 过滤
-
+    if (key === '$template') continue;
     const item = festivals[key];
+    if (item["类型"] !== '禁忌' && item["类型"] !== '灾害') continue;
+    const { isActive } = checkDateActive(item, currentWorldDate);
+    if (isActive) list.push({ name: key, data: item });
+  }
+  return list;
+});
+
+// 3. 近期节日/会议
+const upcomingFestivals = computed(() => {
+  const currentWorldDate = getCurrentWorldDate();
+  if (!currentWorldDate) return [];
+  const festivals = rawFestivalData.value;
+  const resultList = [];
+
+  for (const key in festivals) {
+    if (key === '$template') continue;
+    const item = festivals[key];
+    const type = item["类型"];
+    if (type === '季节' || type === '禁忌' || type === '灾害') continue;
+    const { isActive, matched, dateStr } = checkDateActive(item, currentWorldDate);
+    if (matched) {
+      resultList.push({
+        name: key, data: item, type: type, isActive: isActive, dateStr: dateStr
+      });
+    }
+  }
+  return resultList.sort((a, b) => (a.isActive !== b.isActive ? (a.isActive ? -1 : 1) : 0));
+});
+
+// 4. 档案分离逻辑
+const getArchiveList = (filterFn) => {
+  const festivals = rawFestivalData.value;
+  const list = [];
+  for (const key in festivals) {
+    if (key === '$template') continue;
+    const item = festivals[key];
+    if (!filterFn(item["类型"])) continue;
+
     const startStr = item["开始日期"] || "";
     let sortVal = 9999;
     let dateShort = "UNKNOWN";
-
     const parts = parseDateParts(startStr);
     if (parts) {
       sortVal = parts.month * 100 + parts.day;
-      // 同样应用格式化
       dateShort = formatDisplayDate(startStr);
     } else if (startStr.includes("xx-xx")) {
       sortVal = 0;
       dateShort = "PERM";
     }
-
     list.push({
-      name: key,
-      data: item,
-      type: item["类型"],
-      sortVal: sortVal,
-      dateShort: dateShort
+      name: key, data: item, type: item["类型"], sortVal: sortVal, dateShort: dateShort
     });
   }
   return list.sort((a, b) => a.sortVal - b.sortVal);
-});
+};
+
+const seasonArchive = computed(() => getArchiveList(t => t === '季节'));
+const tabooArchive = computed(() => getArchiveList(t => t === '禁忌' || t === '灾害'));
+const festivalArchive = computed(() => getArchiveList(t => t !== '季节' && t !== '禁忌' && t !== '灾害'));
+
 </script>
 
 <style scoped>
-/* --- 刺客信条风格主题变量 --- */
+/* --- 全局变量与主题 --- */
 .ac-theme {
   --ac-gold: #cda45e;
   --ac-gold-dim: rgba(205, 164, 94, 0.3);
-  --ac-bg-dark: rgba(10, 10, 10, 0.85);
-  --ac-bg-card: rgba(0, 0, 0, 0.6);
-  --ac-border: rgba(255, 255, 255, 0.15);
-  --ac-text-main: #eeeeee;
-  --ac-text-dim: #888888;
-  --ac-red: #b93a3a;
+  --ac-dark: #0a0a0a;
+  --ac-panel: rgba(15, 15, 15, 0.9);
+  --ac-border: rgba(255, 255, 255, 0.12);
+  --ac-text: #e0e0e0;
+  --ac-text-dim: #757575;
 
-  /* 新增类型颜色变量 */
-  --type-season: #4db6ac; /* 青色/翡翠 */
-  --type-taboo: #e53935;  /* 警示红 */
-  --type-festival: #ffb300; /* 亮金 */
+  --color-season: #00e5ff;
+  --color-season-dim: rgba(0, 229, 255, 0.15);
+  --color-taboo: #ff3d3d;
+  --color-taboo-dim: rgba(255, 61, 61, 0.1);
+  --color-festival: #ffb300;
 
-  --font-ac: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  --font-tech: 'Segoe UI', 'Roboto', Helvetica, Arial, sans-serif;
 
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: var(--font-ac);
-  color: var(--ac-text-main);
-  background: radial-gradient(circle at center, rgba(20,20,20,0.9) 0%, rgba(0,0,0,1) 100%);
+  background: #050505;
+  color: var(--ac-text);
+  font-family: var(--font-tech);
+  overflow: hidden;
+  position: relative;
 }
 
-/* 滚动条 */
-.scroll-container::-webkit-scrollbar { width: 4px; }
-.scroll-container::-webkit-scrollbar-track { background: transparent; }
-.scroll-container::-webkit-scrollbar-thumb { background: var(--ac-gold); }
+/* 全局噪点背景 */
+.global-noise {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+}
 
-/* --- 头部 --- */
+.scroll-container::-webkit-scrollbar { width: 4px; }
+.scroll-container::-webkit-scrollbar-track { background: #000; }
+.scroll-container::-webkit-scrollbar-thumb { background: var(--ac-gold); border-radius: 2px; }
+
+/* --- 顶部导航 --- */
 .wi-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 40px;
+  padding: 15px 30px;
+  background: rgba(0,0,0,0.8);
   border-bottom: 1px solid var(--ac-border);
-  background: linear-gradient(90deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 100%);
+  backdrop-filter: blur(10px);
+  z-index: 10;
 }
 
-.wi-title {
-  font-size: 1.5rem;
-  color: var(--ac-text-main);
-  letter-spacing: 2px;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  font-weight: 300;
-}
-
-.icon-animus {
-  width: 12px;
-  height: 12px;
-  background: var(--ac-red);
-  box-shadow: 0 0 10px var(--ac-red);
+.wi-title-group { display: flex; align-items: center; gap: 15px; }
+.animus-logo {
+  width: 30px; height: 30px;
+  border: 1px solid var(--ac-gold);
+  display: flex; align-items: center; justify-content: center;
   transform: rotate(45deg);
 }
+.triangle { width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 10px solid var(--ac-gold); }
 
-.wi-tabs { display: flex; gap: 20px; }
+.title-text { display: flex; flex-direction: column; }
+.title-text .main { font-size: 1.2rem; letter-spacing: 2px; font-weight: 300; color: #fff; }
+.title-text .sub { font-size: 0.6rem; color: var(--ac-gold); letter-spacing: 1px; }
 
+.wi-tabs { display: flex; gap: 5px; }
 .tab-btn {
-  background: transparent;
-  border: none;
+  background: transparent; border: none;
   color: var(--ac-text-dim);
-  font-size: 0.9rem;
-  font-weight: bold;
-  letter-spacing: 1px;
+  padding: 8px 15px;
   cursor: pointer;
-  padding: 5px 0;
   position: relative;
-  transition: color 0.3s;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  transition: all 0.3s;
 }
-
-.tab-btn:hover { color: var(--ac-text-main); }
-.tab-btn.active { color: var(--ac-text-main); }
-.tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -21px;
-  left: 0;
-  width: 100%;
-  height: 3px;
-  background: var(--ac-gold);
-  box-shadow: 0 -2px 10px var(--ac-gold);
+.tab-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.tab-btn.active { color: var(--ac-gold); font-weight: bold; }
+.active-bar {
+  position: absolute; bottom: 0; left: 0; width: 0%; height: 2px;
+  background: var(--ac-gold); transition: width 0.3s;
 }
+.tab-btn.active .active-bar { width: 100%; }
 
 /* --- 内容区 --- */
-.wi-content {
-  flex: 1;
-  overflow-y: auto;
-  padding: 30px 40px;
-}
+.wi-content { flex: 1; padding: 30px; overflow-y: auto; position: relative; z-index: 1; }
 
-/* --- AC 状态栏 --- */
-.ac-status-bar {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--ac-border);
-  padding: 15px;
-  margin-bottom: 40px;
-  backdrop-filter: blur(5px);
-}
-
-.ac-stat-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 0 30px;
-}
-
-.ac-stat-item .label {
-  font-size: 0.7rem;
-  letter-spacing: 2px;
-  color: var(--ac-text-dim);
-  margin-bottom: 5px;
-}
-
-.ac-stat-item .value {
-  font-size: 1.2rem;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.ac-stat-item .value.highlight { color: var(--ac-gold); text-shadow: 0 0 5px var(--ac-gold-dim); }
-.separator { width: 1px; height: 30px; background: var(--ac-border); }
-
-/* --- 标题分割线 --- */
-.ac-section-header {
-  display: flex;
-  align-items: center;
-  margin-bottom: 20px;
-  gap: 15px;
-}
-.ac-section-header .line { flex: 1; height: 1px; background: var(--ac-border); }
-.ac-section-header .title {
-  color: var(--ac-gold);
-  font-size: 0.9rem;
-  letter-spacing: 3px;
-  font-weight: bold;
-}
-
-/* --- 近期事象：紧凑网格布局 --- */
-.events-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 12px;
-  margin-bottom: 30px;
-}
-
-.event-card-compact {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid var(--ac-border);
-  padding: 12px 15px;
+/* --- 1. 季节 Hero Section (重构) --- */
+.season-hero-wrapper {
   position: relative;
+  width: 100%;
+  min-height: 300px;
+  margin-bottom: 40px;
+  border: 1px solid var(--ac-border);
+  background: radial-gradient(circle at center, #1a2a2a 0%, #000 100%);
   overflow: hidden;
-  transition: all 0.2s ease;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.event-card-compact:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-}
-
-/* 头部：名称与状态 */
-.compact-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.header-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
+  box-shadow: 0 0 30px rgba(0,0,0,0.8);
 }
 
-.type-icon { font-size: 1.1rem; }
-.event-name {
-  font-weight: bold;
-  font-size: 1rem;
-  letter-spacing: 0.5px;
-  color: var(--ac-text-main);
+/* 粒子特效 */
+.particle-layer {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background-image: radial-gradient(var(--color-season) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.3;
+  animation: particleMove 60s linear infinite;
+}
+.layer-2 { background-size: 90px 90px; opacity: 0.15; animation-duration: 90s; animation-direction: reverse; }
+.layer-3 { background-size: 150px 150px; opacity: 0.1; animation-duration: 120s; }
+
+@keyframes particleMove {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-100px) rotate(5deg); }
 }
 
-.status-indicator {
-  font-size: 0.65rem;
-  font-weight: bold;
-  padding: 2px 6px;
-  border-radius: 2px;
-  letter-spacing: 1px;
-}
-.status-indicator.live { color: #000; background: var(--ac-gold); }
-.status-indicator.soon { color: var(--ac-text-dim); border: 1px solid var(--ac-border); }
-
-/* Meta信息：类型与日期 */
-.compact-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 0.75rem;
-  font-family: monospace;
+.scan-grid {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  background: linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  z-index: 1;
 }
 
-.meta-tag {
-  padding: 1px 6px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 2px;
-}
-.type-tag { color: #aaa; text-transform: uppercase; }
-.date-tag { color: var(--ac-gold); }
-
-/* 内容描述 */
-.compact-body {
-  font-size: 0.85rem;
-  color: #bbb;
-  line-height: 1.4;
-  border-top: 1px solid rgba(255,255,255,0.05);
-  padding-top: 8px;
-}
-.desc-text {
-  margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2; /* 限制显示2行 */
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+.hero-content {
+  position: relative; z-index: 5;
+  text-align: center; width: 80%;
+  animation: fadeInScale 0.8s ease-out;
 }
 
-/* --- 特效分类样式 --- */
-
-/* 1. 季节 (Season) - 青色系，自然感 */
-.style-season {
-  border-left: 3px solid var(--type-season);
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
-.style-season .event-name { color: var(--type-season); }
-.style-season .date-tag { color: var(--type-season); }
-.style-season:hover { background: linear-gradient(to right, rgba(77, 182, 172, 0.1), transparent); }
 
-/* 2. 禁忌 (Taboo) - 红色系，警告感，Glitch纹理 */
-.style-taboo {
-  border: 1px solid var(--type-taboo);
-  border-left: 4px solid var(--type-taboo);
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(229, 57, 53, 0.05),
-    rgba(229, 57, 53, 0.05) 10px,
-    rgba(0, 0, 0, 0.6) 10px,
-    rgba(0, 0, 0, 0.6) 20px
-  );
+.season-meta {
+  font-size: 0.7rem; letter-spacing: 6px; color: var(--color-season);
+  margin-bottom: 10px; opacity: 0.8;
 }
-.style-taboo .event-name {
-  color: var(--type-taboo);
-  text-shadow: 2px 0 rgba(255,0,0,0.3);
+
+.season-title {
+  font-size: 4rem; font-weight: 100; letter-spacing: 15px;
+  color: #fff; margin: 0;
+  text-shadow: 0 0 20px var(--color-season);
+  position: relative;
 }
-.style-taboo .status-indicator.live { background: var(--type-taboo); color: #fff; }
-.style-taboo .date-tag { color: var(--type-taboo); }
-
-/* 3. 节日 (Festival) - 金色系，庆典感，光晕 */
-.style-festival {
-  border-left: 3px solid var(--type-festival);
-  box-shadow: inset 0 0 20px rgba(255, 179, 0, 0.05);
+/* 故障文字效果 */
+.season-title::before {
+  content: attr(data-text);
+  position: absolute; left: 2px; text-shadow: -1px 0 red;
+  top:0; color: #fff; background: transparent;
+  overflow: hidden; clip: rect(0, 900px, 0, 0);
+  animation: noise-anim-2 3s infinite linear alternate-reverse;
 }
-.style-festival .event-name { color: var(--type-festival); text-shadow: 0 0 5px rgba(255, 179, 0, 0.5); }
-.style-festival .date-tag { color: var(--type-festival); }
-.style-festival .status-indicator.live { background: var(--type-festival); }
 
-/* 默认样式 */
-.style-default { border-left: 3px solid var(--ac-text-dim); }
+@keyframes noise-anim-2 {
+  0% { clip: rect(10px, 9999px, 30px, 0); }
+  5% { clip: rect(50px, 9999px, 60px, 0); }
+  10% { clip: rect(0, 0, 0, 0); }
+  100% { clip: rect(0, 0, 0, 0); }
+}
 
-/* --- 卡片通用 (旧版保留用于其他区域) --- */
-.ac-card {
-  background: var(--ac-bg-card);
+.season-subtitle {
+  display: flex; align-items: center; justify-content: center; gap: 15px;
+  color: var(--color-season); font-size: 1.1rem; letter-spacing: 3px;
+  margin-bottom: 25px;
+}
+.deco-line { width: 40px; height: 1px; background: var(--color-season); }
+
+.season-desc-box {
+  background: rgba(0,0,0,0.6);
   border: 1px solid rgba(255,255,255,0.1);
   padding: 20px;
-  margin-bottom: 15px;
+  max-width: 600px;
+  margin: 0 auto;
   position: relative;
+  backdrop-filter: blur(5px);
 }
-.ac-card.mini { padding: 15px; border-left: 2px solid var(--ac-gold); }
-.ac-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-  font-size: 1.1rem;
-  color: var(--ac-text-main);
-  letter-spacing: 1px;
-  text-transform: uppercase;
+.corner-bracket {
+  position: absolute; width: 10px; height: 10px;
+  border: 2px solid var(--color-season);
 }
-.ac-card-body {
-  font-size: 0.95rem;
-  color: #ccc;
-  line-height: 1.6;
-}
+.top-left { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+.bottom-right { bottom: -1px; right: -1px; border-left: none; border-top: none; }
 
-/* --- 折叠区域通用样式 --- */
-.ac-group-wrapper { margin-bottom: 15px; }
+.desc-line { color: #ccc; font-size: 0.9rem; margin: 5px 0; line-height: 1.5; }
 
-.ac-accordion-wrapper { margin-top: 50px; }
-
-.ac-accordion-btn {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: rgba(0,0,0,0.5);
+/* --- 2. HUD 状态栏 --- */
+.hud-status-bar {
+  display: flex; justify-content: center; align-items: center;
+  background: rgba(20, 20, 20, 0.8);
   border: 1px solid var(--ac-border);
-  border-left: 4px solid var(--ac-text-dim);
-  padding: 15px 20px;
-  color: var(--ac-text-main);
-  cursor: pointer;
-  transition: all 0.3s;
+  border-top: 2px solid var(--ac-gold);
+  padding: 15px; margin-bottom: 40px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
+.hud-block { text-align: center; padding: 0 30px; }
+.hud-label { display: block; font-size: 0.65rem; color: var(--ac-text-dim); letter-spacing: 2px; margin-bottom: 4px; }
+.hud-value { font-size: 1.2rem; letter-spacing: 1px; font-family: monospace; }
+.hud-value.gold { color: var(--ac-gold); text-shadow: 0 0 8px var(--ac-gold-dim); }
+.hud-divider { width: 1px; height: 25px; background: rgba(255,255,255,0.1); transform: skewX(-20deg); }
 
-.ac-accordion-btn:hover, .ac-accordion-btn.active {
-  background: rgba(205, 164, 94, 0.1);
-  color: var(--ac-gold);
-  border-color: var(--ac-gold);
-}
-
-.btn-text { letter-spacing: 2px; font-weight: bold; font-size: 0.9rem; text-transform: uppercase; }
-
-.ac-accordion-content {
-  background: rgba(0,0,0,0.3);
-  border: 1px solid var(--ac-border);
-  border-top: none;
-  padding: 20px;
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* --- 经济面板样式 --- */
-.ac-sub-title {
-  color: var(--ac-text-main);
-  border-left: 3px solid var(--ac-red);
-  padding-left: 10px;
-  margin-bottom: 15px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-.grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-.info-row {
-  display: flex; justify-content: space-between;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  padding: 8px 0;
-}
-.row-label { color: var(--ac-gold); }
-.row-content { color: var(--ac-text-dim); font-size: 0.9rem; }
-
-/* --- 势力面板样式 (增强版) --- */
-.masonry-layout { column-count: 2; column-gap: 20px; }
-
-.faction-card {
-  break-inside: avoid;
-  display: inline-block;
-  width: 100%;
-  border: 1px solid rgba(255,255,255,0.05);
-  background: linear-gradient(135deg, rgba(20,20,20,0.9) 0%, rgba(10,10,10,0.95) 100%);
-  padding: 0; /* 重置padding，由内部元素控制 */
-  margin-bottom: 20px;
-}
-
-/* 角标装饰 */
-.corner-mark {
-  position: absolute;
-  width: 10px; height: 10px;
-  border: 2px solid var(--ac-gold);
-  opacity: 0.5;
-  transition: all 0.3s;
-}
-.corner-mark.top-right { top: 0; right: 0; border-bottom: none; border-left: none; }
-.corner-mark.bottom-left { bottom: 0; left: 0; border-top: none; border-right: none; }
-.faction-card:hover .corner-mark { width: 15px; height: 15px; opacity: 1; }
-
-.faction-header {
-  padding: 15px 20px;
-  background: rgba(255,255,255,0.03);
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  margin-bottom: 0;
-}
-.faction-id {
-  font-family: monospace;
-  font-size: 0.7rem;
-  color: var(--ac-text-dim);
-  letter-spacing: 1px;
-}
-
-.faction-card .ac-card-body {
-  padding: 20px;
-}
-
-/* 解密按钮 */
-.faction-footer { margin-top: 20px; }
-.ac-decrypt-btn {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-  background: rgba(0,0,0,0.5);
-  border: 1px solid var(--ac-border);
-  color: var(--ac-gold);
-  padding: 8px;
-  cursor: pointer;
-  font-family: monospace;
-  letter-spacing: 2px;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s;
-}
-.ac-decrypt-btn:hover {
-  background: rgba(205, 164, 94, 0.1);
-  box-shadow: 0 0 10px rgba(205, 164, 94, 0.1);
-}
-.ac-decrypt-btn.active {
-  background: var(--ac-gold);
-  color: #000;
-  font-weight: bold;
-}
-
-/* 扫描线动画 */
-.scan-line {
-  position: absolute;
-  top: 0; left: -100%;
-  width: 50%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-  transform: skewX(-20deg);
-  transition: left 0.5s;
-}
-.ac-decrypt-btn:hover .scan-line {
-  left: 150%;
-  transition: left 1s;
-}
-
-/* 详情终端样式 */
-.details-terminal {
-  background: rgba(0,0,0,0.6);
-  border: 1px solid var(--ac-border);
-  border-top: none;
+/* --- 4. 节日与会议 --- */
+.events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+.tech-card {
+  background: rgba(20, 20, 20, 0.8);
+  border: 1px solid rgba(255,255,255,0.1);
   padding: 15px;
-  font-family: monospace;
-  font-size: 0.85rem;
-  color: #aaa;
-  animation: slideDown 0.2s ease-out;
+  position: relative;
+  transition: all 0.2s;
 }
-.details-list {
-  list-style: none;
-  padding: 0; margin: 0;
+.tech-card:hover { border-color: var(--ac-gold); transform: translateY(-2px); }
+.card-deco-corner {
+  position: absolute; top: 0; right: 0; width: 0; height: 0;
+  border-top: 10px solid var(--ac-gold); border-left: 10px solid transparent;
+  opacity: 0.5;
 }
-.details-list li {
-  margin-bottom: 5px;
-  display: flex;
-  gap: 8px;
-}
-.bullet { color: var(--ac-gold); font-size: 0.7rem; line-height: 1.5; }
 
-/* --- 种族面板样式 --- */
-.race-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
-.ac-tag {
-  background: rgba(255,255,255,0.1);
-  padding: 2px 8px;
-  font-size: 0.8rem;
-  margin-right: 5px;
-  border: 1px solid transparent;
-  display: inline-block; margin-bottom: 5px;
-}
-.ac-tag:hover { border-color: var(--ac-gold); }
+.event-card.live-event { border-left: 3px solid var(--ac-gold); background: linear-gradient(90deg, rgba(205,164,94,0.05), transparent); }
+.event-header { display: flex; justify-content: space-between; font-size: 0.7rem; color: #888; margin-bottom: 5px; }
+.event-status { color: var(--ac-gold); font-weight: bold; }
+.event-status.future { color: #666; }
 
-/* --- 节庆年鉴小卡片 --- */
-.ac-grid-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 15px;
+.event-main { margin-bottom: 8px; }
+.event-name { font-size: 1.1rem; color: #fff; font-weight: bold; margin-bottom: 2px; }
+.event-date { font-family: monospace; color: var(--ac-gold); font-size: 0.8rem; }
+.event-desc { font-size: 0.85rem; color: #aaa; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* --- 5. 分离的档案 --- */
+.archives-container { margin-top: 60px; }
+.archive-divider {
+  text-align: center; margin-bottom: 20px; position: relative;
 }
-.ac-mini-card {
-  border: 1px solid var(--ac-border);
-  padding: 10px;
-  background: rgba(0,0,0,0.4);
-  transition: border-color 0.2s;
+.archive-divider span {
+  background: #050505; padding: 0 15px; color: var(--ac-text-dim); font-size: 0.8rem; letter-spacing: 3px; position: relative; z-index: 1;
 }
-.ac-mini-card:hover { border-color: var(--ac-gold); }
-.mini-header {
-  display: flex; justify-content: space-between;
-  margin-bottom: 5px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;
+.archive-divider::before {
+  content: ''; position: absolute; top: 50%; left: 0; width: 100%; height: 1px; background: var(--ac-border); z-index: 0;
 }
-.mini-title { color: var(--ac-gold); font-size: 0.9rem; font-weight: bold; }
-.mini-date { font-family: monospace; font-size: 0.8rem; color: var(--ac-text-dim); }
-.mini-type { font-size: 0.7rem; color: var(--ac-text-dim); text-transform: uppercase; margin-bottom: 3px; }
-.mini-desc { font-size: 0.8rem; color: #aaa; }
+
+.ac-accordion-wrapper { margin-bottom: 10px; }
+.ac-accordion-btn {
+  width: 100%; display: flex; justify-content: space-between; align-items: center;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--ac-border);
+  padding: 12px 20px; color: #ccc; cursor: pointer; transition: all 0.2s;
+}
+.ac-accordion-btn:hover { background: rgba(255,255,255,0.08); }
+
+/* 分类颜色 */
+.season-style { border-left: 3px solid var(--color-season); }
+.season-style:hover { color: var(--color-season); }
+.taboo-style { border-left: 3px solid var(--color-taboo); }
+.taboo-style:hover { color: var(--color-taboo); }
+.festival-style { border-left: 3px solid var(--color-festival); }
+.festival-style:hover { color: var(--color-festival); }
+
+.ac-accordion-content { background: rgba(0,0,0,0.5); border: 1px solid var(--ac-border); border-top: none; padding: 15px; }
+.ac-grid-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.ac-mini-card { padding: 10px; background: rgba(255,255,255,0.02); border: 1px solid transparent; }
+.ac-mini-card:hover { background: rgba(255,255,255,0.05); }
+
+.season-border:hover { border-color: var(--color-season); }
+.taboo-border:hover { border-color: var(--color-taboo); }
+.festival-border:hover { border-color: var(--color-festival); }
+
+.mini-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.85rem; }
+.mini-title { font-weight: bold; color: #eee; }
+.warning-text { color: var(--color-taboo); }
+.gold-text { color: var(--ac-gold); }
+.mini-date { font-family: monospace; color: #666; }
+.mini-desc { font-size: 0.75rem; color: #888; }
 .text-truncate { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* --- 经济与势力通用 --- */
+.data-table { display: flex; flex-direction: column; gap: 5px; }
+.data-row { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.data-row .label { color: var(--ac-gold); }
+.data-row .value { color: #ccc; }
+
+.faction-card { padding: 0; }
+.faction-header { padding: 15px; background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; justify-content: space-between; align-items: center; }
+.faction-body { padding: 15px; }
+.ac-decrypt-btn {
+  width: 100%; padding: 10px; background: rgba(0,0,0,0.3); border: 1px solid var(--ac-border);
+  color: var(--ac-gold); font-family: monospace; cursor: pointer; display: flex; justify-content: center; gap: 10px;
+  transition: all 0.3s;
+}
+.ac-decrypt-btn:hover { background: var(--ac-gold-dim); color: #fff; }
+.details-terminal { margin-top: 10px; padding: 10px; background: rgba(0,0,0,0.5); border-left: 2px solid var(--ac-gold); font-size: 0.85rem; color: #aaa; }
+.details-list { list-style: none; padding: 0; margin: 0; }
+.details-list li { margin-bottom: 5px; }
+
+/* --- 种族 --- */
+.race-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.race-card { padding: 12px; }
+.race-header { color: #fff; font-weight: bold; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px; }
+.tech-tag { display: inline-block; font-size: 0.75rem; padding: 2px 6px; background: rgba(255,255,255,0.1); margin: 0 4px 4px 0; border-radius: 2px; color: #ccc; }
 
 /* 响应式 */
 @media (max-width: 768px) {
-  .wi-header { flex-direction: column; align-items: flex-start; gap: 15px; padding: 15px; }
-  .wi-content { padding: 15px; }
-  .ac-status-bar { flex-direction: column; gap: 15px; }
-  .separator { width: 30px; height: 1px; }
+  .wi-header { flex-direction: column; align-items: flex-start; gap: 15px; }
+  .season-title { font-size: 2.5rem; letter-spacing: 5px; }
+  .hud-status-bar { flex-direction: column; gap: 10px; }
+  .hud-divider { width: 30px; height: 1px; transform: none; }
   .masonry-layout { column-count: 1; }
-  .events-grid { grid-template-columns: 1fr; } /* 移动端单列 */
 }
 </style>

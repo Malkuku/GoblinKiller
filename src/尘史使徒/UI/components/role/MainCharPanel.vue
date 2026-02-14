@@ -44,7 +44,6 @@
           <h3>实时监控</h3>
           <p><strong>当前行动:</strong> {{ data.当前行动 || '无' }}</p>
           <p><strong>当前想法:</strong> <span class="thought-text">{{ data.当前想法 || '...' }}</span></p>
-          <p><strong>检索区域:</strong> {{ data.区域检索词?.join(', ') }}</p>
         </section>
 
         <section class="info-block" v-if="data.特殊状态">

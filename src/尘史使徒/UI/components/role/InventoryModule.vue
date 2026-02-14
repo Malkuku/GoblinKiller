@@ -158,7 +158,7 @@ const getItemStyle = (name, type) => {
   if (n.includes('刃') || n.includes('剑') || n.includes('刀') || n.includes('枪') || n.includes('斧')) return 'style-weapon';
   if (n.includes('仪式') || n.includes('阵') || n.includes('祭') || t === '仪式') return 'style-ritual';
   if (n.includes('币') || n.includes('金') || n.includes('银') || t === '货币') return 'style-currency';
-  if (n.includes('药') || n.includes('剂') || n.includes('水') || n.includes('露') || t === '药物') return 'style-medicine';
+  if (n.includes('药') || n.includes('剂') || n.includes('水') || n.includes('露') || t === '药食') return 'style-medicine';
   if (n.includes('杯') || n.includes('血')) return 'style-grail';
   if (n.includes('镜') || n.includes('灯') || n.includes('光')) return 'style-lantern';
   if (t === '器具') return 'style-tool';

@@ -1,8 +1,5 @@
 <template>
   <div class="shop-view" @click="handleGlobalClick">
-    <!-- 全局遮罩：用于点击空白处关闭资产详情 -->
-    <div v-if="showAssetDetail" class="click-mask" @click.stop="showAssetDetail = false"></div>
-
     <!-- 顶部资产概览 -->
     <div class="shop-header">
       <div class="header-content">
@@ -11,45 +8,16 @@
           <span class="sub-title">Trade & Barter</span>
         </div>
 
-        <!-- 可点击的资产显示区域 -->
+        <!-- 资产显示区域 (已移除下拉详情交互) -->
         <div class="gold-wrapper">
-          <div
-            class="gold-display"
-            @click.stop="showAssetDetail = !showAssetDetail"
-            :class="{ 'active': showAssetDetail }"
-          >
-            <span class="label">总资产估值</span>
+          <div class="gold-display">
+            <span class="label">当前资金</span>
             <div class="value-row">
               <span class="currency-symbol">⟡</span>
-              <span class="value">{{ totalGold.toFixed(2) }}</span>
+              <span class="value">{{ totalGold.toFixed(4) }}</span>
               <span class="unit">g</span>
-              <span class="dropdown-arrow">▼</span>
             </div>
           </div>
-
-          <!-- 资产详情悬浮窗 -->
-          <Transition name="fade-slide">
-            <div v-if="showAssetDetail" class="asset-dropdown" @click.stop>
-              <div class="dropdown-header">货币构成</div>
-              <div class="currency-list">
-                <div v-for="(info, name) in currencyBreakdown" :key="name" class="currency-row">
-                  <div class="c-name">{{ name }}</div>
-                  <div class="c-calc">
-                    <span class="c-qty">x{{ info.count }}</span>
-                    <span class="c-price">(@{{ info.price }}g)</span>
-                  </div>
-                  <div class="c-total">{{ info.total.toFixed(1) }}g</div>
-                </div>
-                <div v-if="Object.keys(currencyBreakdown).length === 0" class="empty-currency">
-                  身无分文
-                </div>
-              </div>
-              <div class="dropdown-footer">
-                <span>Total</span>
-                <span class="total-val">{{ totalGold.toFixed(2) }}g</span>
-              </div>
-            </div>
-          </Transition>
         </div>
       </div>
     </div>
@@ -185,8 +153,8 @@
             <div class="info-block">
               <span class="lbl">预计变动</span>
               <div class="val-group">
-                <span class="v-gain" v-if="pendingGain > 0">+{{ pendingGain.toFixed(2) }}</span>
-                <span class="v-cost" v-if="pendingCost > 0">-{{ pendingCost.toFixed(2) }}</span>
+                <span class="v-gain" v-if="pendingGain > 0">+{{ pendingGain.toFixed(4) }}</span>
+                <span class="v-cost" v-if="pendingCost > 0">-{{ pendingCost.toFixed(4) }}</span>
                 <span class="v-neutral" v-if="pendingGain === 0 && pendingCost === 0">0</span>
               </div>
             </div>
@@ -194,7 +162,7 @@
             <div class="info-block result-block">
               <span class="lbl">交易后余额</span>
               <span class="val final" :class="finalBalance < 0 ? 'danger' : 'safe'">
-                {{ finalBalance.toFixed(2) }}g
+                {{ finalBalance.toFixed(4) }}g
               </span>
             </div>
           </div>
@@ -229,12 +197,11 @@ const uiStore = useUiStore();
 
 // --- 状态管理 ---
 const expandedItem = ref<string | null>(null);
-const showAssetDetail = ref(false);
 const transactionQueue = reactive<Record<string, { type: 'buy' | 'sell', count: number, price: number, info: any }>>({});
 
 // --- 交互逻辑 ---
 const handleGlobalClick = () => {
-  // 备用：如果点击遮罩层不够，这里可以处理全局点击关闭
+  // 预留全局点击处理
 };
 
 const toggleExpand = (name: string) => {
@@ -283,52 +250,14 @@ const clearQueue = () => {
 };
 
 // --- 数据获取 ---
-const userInventory = computed(() => statStore.stat_data?.角色?.user?.物品 || {});
-const currencySystem = computed(() => {
-  const economy = statStore.stat_data?.世界经济 || {};
-  for (const key in economy) {
-    if (economy[key].货币体系) return economy[key].货币体系;
-  }
-  return {};
-});
 
-const userCurrencies = computed(() => {
-  const currencies: Record<string, any> = {};
-  const inventory = userInventory.value;
-  const system = currencySystem.value;
-  if (typeof inventory === 'string') return {};
-  for (const itemName in inventory) {
-    if (system[itemName]) currencies[itemName] = inventory[itemName];
-  }
-  return currencies;
-});
-
-// 计算货币详情列表
-const currencyBreakdown = computed(() => {
-  const list: Record<string, { count: number, price: number, total: number }> = {};
-  const currencies = userCurrencies.value;
-  const system = currencySystem.value;
-
-  for (const name in currencies) {
-    const count = currencies[name].数量 || 0;
-    const price = system[name]?.价值 || 0;
-    list[name] = {
-      count,
-      price,
-      total: count * price
-    };
-  }
-  return list;
-});
-
+// 获取用户金钱 (直接从 user 数据中读取)
 const totalGold = computed(() => {
-  let total = 0;
-  const list = currencyBreakdown.value;
-  for (const name in list) {
-    total += list[name].total;
-  }
-  return total;
+  return statStore.stat_data?.角色?.user?.金钱 || 0;
 });
+
+// 获取用户物品 (用于出售逻辑)
+const userInventory = computed(() => statStore.stat_data?.角色?.user?.物品 || {});
 
 const buyableItems = computed(() => {
   const result: Record<string, any> = {};
@@ -384,15 +313,23 @@ const submitTransaction = () => {
       物品名称: name,
       数量: data.count,
       方向: data.type === 'buy' ? '购买' : '出售',
-      单价: data.price,
-      总价: (data.price * data.count).toFixed(4)+"g黄金",
       描述: data.info.描述,
       作用: data.info.作用,
       耐久信息: data.type === 'sell' ? `当前耐久:${data.info.当前耐久}` : `最大耐久:${data.info.最大耐久}`
     });
   }
 
-  const log = `<user>打算完成以下批量交易:\n<list>\n${JSON.stringify(items, null, 4)}\n</list>\n如果顺利，则离开当前场景\n`;
+  // 计算余额信息与警告
+  const balance = finalBalance.value;
+  let balanceInfo = `交易完成后余额: ${balance.toFixed(4)}g`;
+
+  if (balance < 0) {
+    balanceInfo += `（<user>没有足够的金钱，需要说服店主，交易可能失败）`;
+  }
+
+  // 将余额信息添加到日志中
+  const log = `<user>打算完成以下交易:\n<list>\n${JSON.stringify(items, null, 4)}\n</list>\n${balanceInfo}\n如果顺利，则离开当前场景\n`;
+
   uiStore.setPendingInput(log);
   clearQueue();
   router.push('/选项');
@@ -426,12 +363,6 @@ const submitTransaction = () => {
   font-family: var(--font-sans);
   position: relative;
   overflow: hidden;
-}
-
-/* --- 遮罩层 --- */
-.click-mask {
-  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-  z-index: 90; cursor: default;
 }
 
 /* --- 顶部 Header --- */
@@ -469,7 +400,7 @@ const submitTransaction = () => {
   margin-left: 2px;
 }
 
-/* --- 资产显示与下拉 --- */
+/* --- 资产显示 --- */
 .gold-wrapper {
   position: relative;
 }
@@ -479,16 +410,10 @@ const submitTransaction = () => {
   border: 1px solid rgba(255, 255, 255, 0.1);
   padding: 8px 16px;
   border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 160px;
+  min-width: 140px;
   backdrop-filter: blur(5px);
-}
-
-.gold-display:hover, .gold-display.active {
-  background: rgba(230, 193, 92, 0.1);
-  border-color: var(--c-gold);
-  box-shadow: 0 0 15px rgba(230, 193, 92, 0.15);
+  /* 移除点击手势 */
+  cursor: default;
 }
 
 .gold-display .label {
@@ -509,63 +434,6 @@ const submitTransaction = () => {
 .currency-symbol { font-size: 1.2rem; }
 .value { font-family: var(--font-mono); font-size: 1.4rem; font-weight: bold; }
 .unit { font-size: 0.9rem; color: var(--c-gold-dim); }
-.dropdown-arrow { margin-left: auto; font-size: 0.8rem; opacity: 0.7; transition: transform 0.3s; }
-.gold-display.active .dropdown-arrow { transform: rotate(180deg); }
-
-/* 下拉菜单 */
-.asset-dropdown {
-  position: absolute;
-  top: 110%; right: 0;
-  width: 280px;
-  background: rgba(15, 17, 23, 0.95);
-  border: 1px solid var(--c-gold-dim);
-  border-radius: 8px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-  z-index: 101;
-  padding: 15px;
-  backdrop-filter: blur(10px);
-  transform-origin: top right;
-}
-
-.dropdown-header {
-  font-size: 0.8rem;
-  color: var(--c-text-dim);
-  text-transform: uppercase;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
-  padding-bottom: 8px;
-  margin-bottom: 10px;
-  letter-spacing: 1px;
-}
-
-.currency-list {
-  max-height: 200px;
-  overflow-y: auto;
-}
-
-.currency-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 6px 0;
-  font-size: 0.9rem;
-  border-bottom: 1px dashed rgba(255,255,255,0.05);
-}
-.currency-row:last-child { border-bottom: none; }
-
-.c-name { color: #fff; font-weight: 500; }
-.c-calc { font-size: 0.8rem; color: var(--c-text-dim); margin-left: auto; margin-right: 10px; }
-.c-total { font-family: var(--font-mono); color: var(--c-gold); }
-
-.dropdown-footer {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255,255,255,0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-weight: bold;
-}
-.total-val { color: var(--c-gold); font-family: var(--font-mono); font-size: 1.1rem; }
 
 /* --- 主内容区 --- */
 .shop-content {
@@ -620,7 +488,6 @@ const submitTransaction = () => {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
-  /* 增加底部padding，防止桌面端长列表被交易栏遮挡 */
   padding-bottom: 100px;
 }
 
@@ -819,7 +686,6 @@ const submitTransaction = () => {
 /* --- 移动端适配 --- */
 @media (max-width: 768px) {
   .shop-view {
-    /* 移动端改为页面级滚动，避免嵌套滚动体验不佳 */
     height: auto;
     min-height: 100vh;
     overflow-y: auto;
@@ -854,7 +720,6 @@ const submitTransaction = () => {
   .shop-content {
     flex-direction: column;
     padding: 10px;
-    /* 移动端不需要大额padding了，因为交易栏不再悬浮 */
     padding-bottom: 20px;
     height: auto;
     overflow: visible;
@@ -871,7 +736,7 @@ const submitTransaction = () => {
   .scroll-area {
     height: auto;
     overflow: visible;
-    padding-bottom: 0; /* 移动端由外层容器控制底部间距 */
+    padding-bottom: 0;
   }
 
   .divider-visual {
@@ -884,19 +749,17 @@ const submitTransaction = () => {
   .line { width: auto; height: 1px; flex: 1; background: linear-gradient(to right, transparent, var(--c-panel-border), transparent); }
   .icon { padding: 0 10px; }
 
-  /* 移动端交易栏：改为流式布局，跟在内容最后 */
   .trade-bar-wrapper {
-    position: relative; /* 不再悬浮 */
+    position: relative;
     bottom: auto;
     left: auto;
     transform: none;
     width: 94%;
     max-width: none;
-    margin: 0 auto 40px auto; /* 居中并留出底部空隙 */
+    margin: 0 auto 40px auto;
     z-index: 1;
   }
 
-  /* 覆盖动画，避免移动端出现奇怪的位移 */
   .slide-up-enter-from, .slide-up-leave-to {
     transform: translateY(20px);
     opacity: 0;
@@ -920,13 +783,6 @@ const submitTransaction = () => {
   .btn-confirm {
     flex: 1;
     justify-content: center;
-  }
-
-  .asset-dropdown {
-    width: 100%;
-    left: 0;
-    top: 100%;
-    margin-top: 5px;
   }
 }
 </style>

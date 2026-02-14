@@ -99,8 +99,8 @@ const formatName = (name) => {
 };
 
 // 定义两类维度的键名
-const bipolarKeys = ['信任度', '好感度', '浪漫度', '情欲', '依赖度'];
-const unipolarKeys = ['熟悉度', '洞察度', '影响力', '责任义务', '利用价值'];
+const bipolarKeys = ['好感度', '浪漫度', '情欲', '依赖度'];
+const unipolarKeys = ['熟悉度', '影响力', '责任义务', '利用价值'];
 
 // 计算双极进度条样式 (-100 到 100)
 const getBipolarStyle = (val = 0) => {

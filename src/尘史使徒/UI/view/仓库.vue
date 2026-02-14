@@ -45,15 +45,25 @@
       </div>
 
       <!-- 左侧：随身行囊 -->
-      <!-- 增加 class 绑定：mobile-hidden -->
       <div
         class="pane backpack-pane"
         :class="{ 'mobile-hidden': activeMobileTab !== 'backpack' }"
       >
         <div class="pane-header">
           <h3>行囊 <small>INVENTORY</small></h3>
-          <div class="pane-tools">
-            <input v-model="searchQuery" placeholder="检索物品..." class="ac-input" />
+
+          <!-- 新增：头部控制区（包含金钱和搜索） -->
+          <div class="header-controls">
+            <!-- 金钱显示 -->
+            <div class="money-display" title="持有金钱">
+              <span class="currency-symbol">◈</span>
+              <span class="currency-val">{{ localMoney }}</span>
+              <span class="currency-unit">g</span>
+            </div>
+
+            <div class="pane-tools">
+              <input v-model="searchQuery" placeholder="检索物品..." class="ac-input" />
+            </div>
           </div>
         </div>
 
@@ -134,7 +144,6 @@
       </div>
 
       <!-- 右侧：漫宿仓库 -->
-      <!-- 增加 class 绑定：mobile-hidden -->
       <div
         class="pane warehouse-pane"
         :class="{ 'mobile-hidden': activeMobileTab !== 'warehouse' }"
@@ -229,6 +238,7 @@ import { MessageUtil } from '@/Utils/MessageUtil';
 const statStore = useStatStore();
 const localBackpack = ref({});
 const localWarehouse = ref({});
+const localMoney = ref(0); // 新增：金钱
 const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
 const searchQuery = ref('');
@@ -250,6 +260,9 @@ onMounted(() => {
 function resetInventory() {
   const rawBackpack = statStore.stat_data?.角色.user.物品 || {};
   const rawWarehouse = statStore.stat_data?.仓库 || {};
+
+  // 获取金钱，默认为0
+  localMoney.value = statStore.stat_data?.角色?.user?.金钱 ?? 0;
 
   localBackpack.value = JSON.parse(JSON.stringify(rawBackpack));
   localWarehouse.value = JSON.parse(JSON.stringify(rawWarehouse));
@@ -583,6 +596,46 @@ async function saveAllChanges() {
   margin-left: 8px;
 }
 
+/* 新增：头部控制区布局 */
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+/* 新增：金钱显示样式 */
+.money-display {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  color: var(--c-gold);
+  font-family: var(--font-title);
+  background: rgba(212, 175, 55, 0.1);
+  padding: 4px 10px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 2px;
+  user-select: none;
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+.currency-symbol {
+  font-size: 1.1rem;
+  text-shadow: 0 0 5px var(--c-gold);
+}
+
+.currency-val {
+  font-size: 1.1rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.currency-unit {
+  font-size: 0.8rem;
+  color: #888;
+  margin-left: 2px;
+}
+
 .ac-input {
   background: rgba(0,0,0,0.3);
   border: none;
@@ -897,6 +950,26 @@ async function saveAllChanges() {
   .ac-btn {
     padding: 8px 12px;
     font-size: 0.8rem;
+  }
+
+  /* 新增：移动端头部控制区适配 */
+  .header-controls {
+    gap: 8px;
+  }
+
+  .money-display {
+    padding: 2px 6px;
+  }
+
+  .currency-val {
+    font-size: 0.9rem;
+  }
+
+  .ac-input {
+    width: 80px;
+  }
+  .ac-input:focus {
+    width: 100px;
   }
 }
 </style>

@@ -62,6 +62,15 @@
 
       <!-- ================= 物品页 ================= -->
       <div v-if="currentTab === '物品'" class="tab-content">
+        <!-- 新增：金钱显示区域 -->
+        <section class="info-block" v-if="data.金钱 !== undefined">
+          <h3>持有金</h3>
+          <div class="currency-row">
+            <span class="currency-value">{{ data.金钱 }}</span>
+            <span class="currency-unit">g</span>
+          </div>
+        </section>
+
         <InventoryModule :data="data.物品" />
       </div>
     </div>
@@ -114,6 +123,11 @@ const currentTab = ref('状态');
 
 .info-block { margin-bottom: 25px; background: var(--c-bg-dark); padding: 20px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
 .info-block h3 { color: var(--c-gold); border-left: 3px solid var(--c-gold); padding-left: 10px; margin-top: 0; font-family: var(--font-title); margin-bottom: 15px; }
+
+/* --- 金钱样式 (新增) --- */
+.currency-row { display: flex; align-items: baseline; gap: 5px; }
+.currency-value { font-family: var(--font-title); font-size: 1.8rem; color: var(--c-gold); font-weight: bold; text-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
+.currency-unit { font-family: var(--font-title); font-size: 1.2rem; color: var(--c-text-dim); }
 
 /* --- 其他通用 --- */
 .text-content { white-space: pre-wrap; line-height: 1.6; color: #ccc; }

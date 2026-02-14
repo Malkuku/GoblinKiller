@@ -31,15 +31,11 @@
       </section>
 
       <section class="info-block">
-        <h3>能力与物品</h3>
+        <h3>能力</h3>
         <!-- 术之等级：如果是对象则使用模块，否则显示文本 -->
         <div class="mb-3">
           <ArtsModule v-if="typeof data.术之等级 === 'object'" :arts-data="data.术之等级" />
           <p v-else><strong>术之等级:</strong> {{ data.术之等级 || '未知' }}</p>
-        </div>
-
-        <div class="mb-3">
-          <InventoryModule :data="data.物品" />
         </div>
       </section>
     </div>
@@ -55,7 +51,6 @@ import { ERAUtil } from '@/Utils/ERAUtil';
 
 // 修改 1: 接收 charId 和 category
 const props = defineProps(['data', 'charId', 'category']);
-const openItemModal = () => { alert('物品弹窗接口预留'); };
 
 /**
  * 删除角色功能
