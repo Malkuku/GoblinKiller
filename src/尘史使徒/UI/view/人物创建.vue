@@ -441,17 +441,6 @@ const submitCreation = async () => {
 
   submitting.value = true;
   try {
-    const processedArts = {};
-    for (const key in formData.arts) {
-      const art = formData.arts[key];
-      const lv = art.当前等级;
-      processedArts[key] = {
-        "当前等级": lv,
-        "累计经验值": 0,
-        "下一级需求经验": (lv === 0) ? -1 : (lv * 100)
-      };
-    }
-
     const updatePayload = {
       "世界": { "地图索引": formData.location, "地点": formData.location },
       "角色": {
@@ -462,7 +451,6 @@ const submitCreation = async () => {
             ...formData.personality,
             "性格总结": [generatedPersonalitySummary.value]
           },
-          "术之等级": processedArts,
           "外貌": [finalAppearance.value]
         }
       },
@@ -470,6 +458,32 @@ const submitCreation = async () => {
     };
 
     await ERAUtil.UpdateByObject(updatePayload);
+
+    const artsToInsert = {};
+    let hasArts = false;
+    for (const key in formData.arts) {
+      const art = formData.arts[key];
+      const lv = art.当前等级;
+      if (lv > 0) {
+        artsToInsert[key] = {
+          "当前等级": lv,
+          "累计经验值": 0,
+          "下一级需求经验": lv < 14 ? lv * 100 : -1
+        };
+        hasArts = true;
+      }
+    }
+
+    if (hasArts) {
+      const insertPayload = {
+        "角色": {
+          "user": {
+            "术之等级": artsToInsert
+          }
+        }
+      };
+      await ERAUtil.InsertByObject(insertPayload);
+    }
 
     const msgId = getLastMessageId();
     let injectionText = `于破碎的镜面之中，{{user}}看到了自己\n`;

@@ -41,8 +41,6 @@
 
         <!-- 详情模式下显示的实时监控信息 -->
         <section v-if="showDetails" class="info-block detail-block">
-          <h3>实时监控</h3>
-          <p><strong>当前行动:</strong> {{ data.当前行动 || '无' }}</p>
           <p><strong>当前想法:</strong> <span class="thought-text">{{ data.当前想法 || '...' }}</span></p>
         </section>
 
@@ -57,7 +55,6 @@
         <section class="info-block">
           <h3>性格倾向</h3>
           <PersonalityModule :data="data.性格" />
-          <p v-if="showDetails" class="mt-2"><strong>爱好:</strong> {{ formatHobbies(data.爱好) }}</p>
         </section>
 
         <section class="info-block">

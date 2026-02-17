@@ -182,7 +182,7 @@ const getArtDetails = (name) => {
 
 const calculateXpPercent = (art) => {
   if (!art) return 0;
-  if (art.下一级需求经验 === -1) return 100;
+  if (art.下一级需求经验 === -1) return 0;
   return Math.min((art.累计经验值 / art.下一级需求经验) * 100, 100);
 };
 
