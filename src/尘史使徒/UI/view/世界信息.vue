@@ -161,7 +161,7 @@ import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
-import { ERAUtil } from '@/utils/ERAUtil'; // 假设路径，请根据实际情况调整
+import { ERAUtil } from '@/Utils/ERAUtil';
 
 // === 新增 Props 和 Emits ===
 const props = defineProps({

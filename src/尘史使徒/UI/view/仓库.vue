@@ -1,5 +1,5 @@
 <template>
-  <div class="ac-inventory-manager">
+  <div class="ac-inventory-manager" :class="{ 'mode-delete': isDeleteMode }">
     <!-- 顶部状态栏 -->
     <header class="manager-header">
       <div class="header-title">
@@ -8,6 +8,17 @@
       </div>
 
       <div class="header-actions">
+        <!-- 新增：删除模式切换按钮 -->
+        <button
+          class="ac-btn delete-mode-btn"
+          :class="{ 'is-active': isDeleteMode }"
+          @click="toggleDeleteMode"
+          :disabled="isSaving"
+        >
+          <span v-if="isDeleteMode">⚠ 删除模式开启</span>
+          <span v-else>🗑 删除模式</span>
+        </button>
+
         <div v-if="hasUnsavedChanges" class="unsaved-warning">
           <span class="blink">⚠</span> 检测到未同步的现实扭曲
         </div>
@@ -26,7 +37,7 @@
     <!-- 主体双栏区域 -->
     <div class="manager-body">
 
-      <!-- 新增：移动端 Tab 切换栏 (仅移动端显示) -->
+      <!-- 移动端 Tab 切换栏 -->
       <div class="mobile-tabs">
         <div
           class="mobile-tab-item"
@@ -51,16 +62,12 @@
       >
         <div class="pane-header">
           <h3>行囊 <small>INVENTORY</small></h3>
-
-          <!-- 新增：头部控制区（包含金钱和搜索） -->
           <div class="header-controls">
-            <!-- 金钱显示 -->
             <div class="money-display" title="持有金钱">
               <span class="currency-symbol">◈</span>
               <span class="currency-val">{{ localMoney }}</span>
               <span class="currency-unit">g</span>
             </div>
-
             <div class="pane-tools">
               <input v-model="searchQuery" placeholder="检索物品..." class="ac-input" />
             </div>
@@ -79,7 +86,7 @@
             ]"
             @click="toggleItemExpand(item, 'toWarehouse', 'bag')"
           >
-            <!-- 1. 卡片头部 (始终显示) -->
+            <!-- 卡片头部 -->
             <div class="card-inner">
               <div class="item-icon">{{ item.name[0] }}</div>
               <div class="item-info">
@@ -94,13 +101,12 @@
               <div class="item-qty">x{{ item.quantity }}</div>
             </div>
 
-            <!-- 2. 展开区域 (包含详情 + 操作栏) -->
+            <!-- 展开区域 -->
             <div
               v-if="activeItemId === 'bag-' + item.name"
               class="expanded-panel"
               @click.stop
             >
-              <!-- 详情文本 -->
               <div class="item-details">
                 <p v-if="item.raw.描述" class="detail-desc">"{{ item.raw.描述 }}"</p>
                 <p v-if="item.raw.作用" class="detail-effect">
@@ -110,8 +116,7 @@
 
               <!-- 操作栏 -->
               <div class="transfer-action-bar">
-                <div class="slider-wrapper">
-                  <!-- 只有数量大于1时才显示滑动条 -->
+                <div class="slider-wrapper" :class="{ 'danger-zone': isDeleteMode }">
                   <template v-if="item.quantity > 1">
                     <span class="qty-label">{{ transferAmount }}</span>
                     <input
@@ -123,13 +128,25 @@
                     >
                     <span class="qty-max">/ {{ item.quantity }}</span>
                   </template>
-                  <!-- 数量为1时显示静态文本 -->
                   <template v-else>
                     <span class="qty-static">仅有 1 个</span>
                   </template>
                 </div>
-                <button class="mini-confirm-btn" @click="confirmTransfer">
+
+                <!-- 根据模式显示不同按钮 -->
+                <button
+                  v-if="!isDeleteMode"
+                  class="mini-confirm-btn"
+                  @click="confirmTransfer"
+                >
                   存入 ➔
+                </button>
+                <button
+                  v-else
+                  class="mini-confirm-btn btn-danger"
+                  @click="confirmDelete"
+                >
+                  丢弃 🗑
                 </button>
               </div>
             </div>
@@ -138,9 +155,10 @@
         </div>
       </div>
 
-      <!-- 中间：装饰性连接符 (移动端隐藏) -->
+      <!-- 中间：装饰性连接符 -->
       <div class="divider-column">
-        <div class="arrow-icon">⇄</div>
+        <div class="arrow-icon" v-if="!isDeleteMode">⇄</div>
+        <div class="arrow-icon danger-icon" v-else>🗑</div>
       </div>
 
       <!-- 右侧：漫宿仓库 -->
@@ -150,9 +168,7 @@
       >
         <div class="pane-header">
           <h3>仓库 <small>WAREHOUSE</small></h3>
-          <div class="pane-tools">
-            <!-- 可以在此添加仓库特定的筛选 -->
-          </div>
+          <div class="pane-tools"></div>
         </div>
 
         <div class="item-grid custom-scroll">
@@ -167,7 +183,7 @@
             ]"
             @click="toggleItemExpand(item, 'toBackpack', 'wh')"
           >
-            <!-- 1. 卡片头部 -->
+            <!-- 卡片头部 -->
             <div class="card-inner">
               <div class="item-icon">{{ item.name[0] }}</div>
               <div class="item-info">
@@ -182,13 +198,12 @@
               <div class="item-qty">x{{ item.quantity }}</div>
             </div>
 
-            <!-- 2. 展开区域 -->
+            <!-- 展开区域 -->
             <div
               v-if="activeItemId === 'wh-' + item.name"
               class="expanded-panel"
               @click.stop
             >
-              <!-- 详情文本 -->
               <div class="item-details">
                 <p v-if="item.raw.描述" class="detail-desc">"{{ item.raw.描述 }}"</p>
                 <p v-if="item.raw.作用" class="detail-effect">
@@ -198,7 +213,7 @@
 
               <!-- 操作栏 -->
               <div class="transfer-action-bar">
-                <div class="slider-wrapper">
+                <div class="slider-wrapper" :class="{ 'danger-zone': isDeleteMode }">
                   <template v-if="item.quantity > 1">
                     <span class="qty-label">{{ transferAmount }}</span>
                     <input
@@ -214,8 +229,21 @@
                     <span class="qty-static">仅有 1 个</span>
                   </template>
                 </div>
-                <button class="mini-confirm-btn" @click="confirmTransfer">
+
+                <!-- 根据模式显示不同按钮 -->
+                <button
+                  v-if="!isDeleteMode"
+                  class="mini-confirm-btn"
+                  @click="confirmTransfer"
+                >
                   取出 ➔
+                </button>
+                <button
+                  v-else
+                  class="mini-confirm-btn btn-danger"
+                  @click="confirmDelete"
+                >
+                  销毁 🗑
                 </button>
               </div>
             </div>
@@ -238,18 +266,21 @@ import { MessageUtil } from '@/Utils/MessageUtil';
 const statStore = useStatStore();
 const localBackpack = ref({});
 const localWarehouse = ref({});
-const localMoney = ref(0); // 新增：金钱
+const localMoney = ref(0);
 const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
 const searchQuery = ref('');
 
+// 新增：删除模式状态
+const isDeleteMode = ref(false);
+
 // 移动端 Tab 状态
-const activeMobileTab = ref('backpack'); // 'backpack' | 'warehouse'
+const activeMobileTab = ref('backpack');
 
 // 交互状态
-const activeItemId = ref(null); // 格式: 'bag-itemName' 或 'wh-itemName'
+const activeItemId = ref(null);
 const pendingTransferItem = ref(null);
-const pendingTransferDirection = ref(''); // 'toWarehouse' | 'toBackpack'
+const pendingTransferDirection = ref('');
 const transferAmount = ref(1);
 
 // --- 初始化 ---
@@ -258,16 +289,19 @@ onMounted(() => {
 });
 
 function resetInventory() {
-  const rawBackpack = statStore.stat_data?.角色.user.物品 || {};
+  // 路径修正：角色.user.物品
+  const rawBackpack = statStore.stat_data?.角色?.user?.物品 || {};
   const rawWarehouse = statStore.stat_data?.仓库 || {};
 
-  // 获取金钱，默认为0
   localMoney.value = statStore.stat_data?.角色?.user?.金钱 ?? 0;
 
+  // 深拷贝断开引用，确保本地修改不影响 store
   localBackpack.value = JSON.parse(JSON.stringify(rawBackpack));
   localWarehouse.value = JSON.parse(JSON.stringify(rawWarehouse));
+
   hasUnsavedChanges.value = false;
   activeItemId.value = null;
+  isDeleteMode.value = false;
 }
 
 // --- 数据处理 ---
@@ -307,6 +341,11 @@ const getItemStyle = (item) => {
 
 // --- 交互逻辑 ---
 
+function toggleDeleteMode() {
+  isDeleteMode.value = !isDeleteMode.value;
+  closeTransfer();
+}
+
 function toggleItemExpand(item, direction, prefix) {
   const id = `${prefix}-${item.name}`;
 
@@ -316,7 +355,6 @@ function toggleItemExpand(item, direction, prefix) {
     activeItemId.value = id;
     pendingTransferItem.value = item;
     pendingTransferDirection.value = direction;
-    // 默认数量：如果有多个，默认为1；如果只有1个，也为1
     transferAmount.value = 1;
   }
 }
@@ -343,13 +381,14 @@ function confirmTransfer() {
     sourceObj[item.name].isModified = true;
     if (sourceObj[item.name].数量 <= 0) {
       delete sourceObj[item.name];
-      closeTransfer(); // 物品没了，关闭展开
+      closeTransfer();
     }
   }
 
   // 2. 增加目标
   if (targetObj[item.name]) {
     const existing = targetObj[item.name];
+    // 简单的耐久合并逻辑
     const newDurability = Math.ceil((existing.耐久 + item.durability) / 2);
     existing.数量 += qty;
     existing.耐久 = newDurability;
@@ -364,42 +403,158 @@ function confirmTransfer() {
   }
 
   hasUnsavedChanges.value = true;
-  // 如果源物品还有剩余，保持展开方便继续操作
   if (sourceObj[item.name]) {
-    // 重置滑块
     transferAmount.value = 1;
   }
 }
 
-// --- 保存逻辑 ---
+function confirmDelete() {
+  if (!pendingTransferItem.value || transferAmount.value <= 0) return;
+
+  const item = pendingTransferItem.value;
+  const qty = transferAmount.value;
+  const direction = pendingTransferDirection.value;
+  const isFromBackpack = direction === 'toWarehouse';
+  const sourceObj = isFromBackpack ? localBackpack.value : localWarehouse.value;
+
+  if (sourceObj[item.name]) {
+    sourceObj[item.name].数量 -= qty;
+    sourceObj[item.name].isModified = true;
+    if (sourceObj[item.name].数量 <= 0) {
+      delete sourceObj[item.name];
+      closeTransfer();
+    }
+  }
+
+  hasUnsavedChanges.value = true;
+  if (sourceObj[item.name]) {
+    transferAmount.value = 1;
+  }
+}
+
+// --- 核心优化：严格差分保存逻辑 ---
+
+/**
+ * 辅助函数：清理对象中的临时字段 (如 isModified)
+ */
+function cleanData(item) {
+  const { isModified, ...rest } = item;
+  return rest;
+}
+
+/**
+ * 辅助函数：构建嵌套 Payload
+ * 确保同一层级的多个修改能合并到同一个对象中
+ * 例如: root['仓库']['苹果'] = ... 和 root['仓库']['香蕉'] = ...
+ */
+function addToPayload(root, pathArr, key, value) {
+  let current = root;
+  // 遍历路径，构建中间层对象
+  pathArr.forEach(pathKey => {
+    if (!current[pathKey]) {
+      current[pathKey] = {};
+    }
+    current = current[pathKey];
+  });
+  // 设置最终的值
+  current[key] = value;
+}
+
+/**
+ * 辅助函数：生成差分
+ * @param {Object} localObj 本地数据 (如 localBackpack.value)
+ * @param {Object} remoteObj 远程数据 (如 statStore...物品)
+ * @param {Array} pathArr 数据在全局状态中的路径 (如 ['角色', 'user', '物品'])
+ * @param {Object} payloads 包含 delete, insert, update 三个容器
+ */
+function generateDiff(localObj, remoteObj, pathArr, payloads) {
+  // 获取所有涉及的键（并集）
+  const allKeys = new Set([...Object.keys(localObj), ...Object.keys(remoteObj)]);
+
+  allKeys.forEach(key => {
+    if (key === '$template') return;
+
+    const localItem = localObj[key];
+    const remoteItem = remoteObj[key];
+
+    // 情况 1: 远程有，本地无 -> 删除 (Delete)
+    // 场景：物品被移走，或者被丢弃
+    if (remoteItem && !localItem) {
+      // API 规定：空对象 {} 表示删除该节点
+      addToPayload(payloads.delete, pathArr, key, {});
+    }
+
+      // 情况 2: 本地有，远程无 -> 插入 (Insert)
+    // 场景：物品是从别处移过来的，或者是新生成的
+    else if (localItem && !remoteItem) {
+      addToPayload(payloads.insert, pathArr, key, cleanData(localItem));
+    }
+
+      // 情况 3: 两边都有 -> 检查是否需要更新 (Update)
+    // 场景：物品还在，但数量或耐久变了
+    else if (localItem && remoteItem) {
+      const cleanLocal = cleanData(localItem);
+      // 简单深比较，如果数据不一致则更新
+      if (JSON.stringify(cleanLocal) !== JSON.stringify(remoteItem)) {
+        addToPayload(payloads.update, pathArr, key, cleanLocal);
+      }
+    }
+  });
+}
+
 async function saveAllChanges() {
   if (isSaving.value) return;
   isSaving.value = true;
 
   try {
-    const deletePayload = { "器具": {}, "仓库": {} };
-    const insertPayload = { "器具": {}, "仓库": {} };
-    const exchangeLogs = [];
+    // 1. 初始化 Payloads 容器
+    const payloads = {
+      delete: {},
+      insert: {},
+      update: {}
+    };
 
-    const remoteBackpack = statStore.stat_data?.器具 || {};
+    // 2. 获取远程快照 (作为对比基准)
+    const remoteBackpack = statStore.stat_data?.角色?.user?.物品 || {};
     const remoteWarehouse = statStore.stat_data?.仓库 || {};
 
-    Object.keys(remoteBackpack).forEach(k => { if(k!=='$template') deletePayload["器具"][k] = {}; });
-    Object.keys(remoteWarehouse).forEach(k => { if(k!=='$template') deletePayload["仓库"][k] = {}; });
+    // 3. 计算差分
+    // 3.1 计算背包的变动 (路径: 角色 -> user -> 物品)
+    generateDiff(
+      localBackpack.value,
+      remoteBackpack,
+      ['角色', 'user', '物品'],
+      payloads
+    );
 
-    Object.entries(localBackpack.value).forEach(([k, v]) => {
-      if(k!=='$template') {
-        const { isModified, ...clean } = v;
-        insertPayload["器具"][k] = clean;
-      }
-    });
-    Object.entries(localWarehouse.value).forEach(([k, v]) => {
-      if(k!=='$template') {
-        const { isModified, ...clean } = v;
-        insertPayload["仓库"][k] = clean;
-      }
-    });
+    // 3.2 计算仓库的变动 (路径: 仓库)
+    generateDiff(
+      localWarehouse.value,
+      remoteWarehouse,
+      ['仓库'],
+      payloads
+    );
 
+    // 4. 按顺序执行 API 调用
+    // 注意：这里必须分步执行，因为 API 是按类型区分的
+
+    // 4.1 执行删除 (DeleteByObject)
+    if (Object.keys(payloads.delete).length > 0) {
+      await ERAUtil.DeleteByObject(payloads.delete);
+    }
+
+    // 4.2 执行更新 (UpdateByObject)
+    if (Object.keys(payloads.update).length > 0) {
+      await ERAUtil.UpdateByObject(payloads.update);
+    }
+
+    // 4.3 执行插入 (InsertByObject)
+    if (Object.keys(payloads.insert).length > 0) {
+      await ERAUtil.InsertByObject(payloads.insert);
+    }
+
+    // 5. 生成并发送日志 (仅用于显示，不影响数据)
+    const exchangeLogs = [];
     const allNames = new Set([
       ...Object.keys(remoteBackpack), ...Object.keys(remoteWarehouse),
       ...Object.keys(localBackpack.value), ...Object.keys(localWarehouse.value)
@@ -415,6 +570,7 @@ async function saveAllChanges() {
       const bagDiff = newBag - oldBag;
       const whDiff = newWh - oldWh;
 
+      // 日志逻辑：只有当一边减少且另一边增加时，才视为“交换”
       if (bagDiff < 0 && whDiff > 0) {
         exchangeLogs.push({ "名称": name, "数量": Math.min(Math.abs(bagDiff), whDiff), "方向": "存入仓库" });
       } else if (bagDiff > 0 && whDiff < 0) {
@@ -422,22 +578,19 @@ async function saveAllChanges() {
       }
     });
 
-    if (Object.keys(deletePayload["器具"]).length > 0 || Object.keys(deletePayload["仓库"]).length > 0) {
-      await ERAUtil.DeleteByObject(deletePayload);
-    }
-    if (Object.keys(insertPayload["器具"]).length > 0 || Object.keys(insertPayload["仓库"]).length > 0) {
-      await ERAUtil.InsertByObject(insertPayload);
-    }
-
     if (exchangeLogs.length > 0) {
       const logText = `\n<user>与漫宿之上的神秘空间完成了物品交换:\n${JSON.stringify(exchangeLogs, null, 0)}\n`;
-      await MessageUtil.mergeContentToMessage(getLastMessageId(), logText, 'none');
+      // 兼容性处理：确保 getLastMessageId 存在
+      const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
+      await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
     }
 
+    // 6. 重置本地状态
     hasUnsavedChanges.value = false;
     Object.values(localBackpack.value).forEach(i => i.isModified = false);
     Object.values(localWarehouse.value).forEach(i => i.isModified = false);
     activeItemId.value = null;
+    isDeleteMode.value = false;
 
   } catch (e) {
     console.error("Inventory Sync Failed:", e);
@@ -456,6 +609,7 @@ async function saveAllChanges() {
   --c-bg-panel: #16161a;
   --c-text: #e0e0e0;
   --c-danger: #ff4d4d;
+  --c-danger-dim: rgba(255, 77, 77, 0.3);
   --font-title: 'Cinzel', serif;
   --font-body: 'EB Garamond', serif;
 
@@ -467,6 +621,14 @@ async function saveAllChanges() {
   color: var(--c-text);
   font-family: var(--font-body);
   overflow: hidden;
+  transition: background 0.5s;
+}
+
+/* 删除模式下的全局氛围 */
+.ac-inventory-manager.mode-delete {
+  --c-gold: #ff4d4d; /* 将主色调临时替换为红色 */
+  --c-gold-dim: rgba(255, 77, 77, 0.3);
+  background: #1a0f0f;
 }
 
 /* --- 头部 --- */
@@ -478,6 +640,7 @@ async function saveAllChanges() {
   border-bottom: 2px solid var(--c-gold);
   background: linear-gradient(to right, rgba(0,0,0,0.8), transparent);
   flex-shrink: 0;
+  transition: border-color 0.3s;
 }
 
 .header-title h2 {
@@ -548,6 +711,24 @@ async function saveAllChanges() {
   box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.1);
 }
 
+/* 删除模式按钮特定样式 */
+.delete-mode-btn {
+  border-color: #666;
+  color: #888;
+}
+.delete-mode-btn:hover {
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+  background: transparent;
+  box-shadow: none;
+}
+.delete-mode-btn.is-active {
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+  background: rgba(255, 77, 77, 0.1);
+  box-shadow: 0 0 10px var(--c-danger-dim);
+}
+
 /* --- 主体区域 --- */
 .manager-body {
   flex: 1;
@@ -596,14 +777,12 @@ async function saveAllChanges() {
   margin-left: 8px;
 }
 
-/* 新增：头部控制区布局 */
 .header-controls {
   display: flex;
   align-items: center;
   gap: 15px;
 }
 
-/* 新增：金钱显示样式 */
 .money-display {
   display: flex;
   align-items: baseline;
@@ -616,6 +795,12 @@ async function saveAllChanges() {
   border-radius: 2px;
   user-select: none;
   box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+}
+
+/* 删除模式下金钱显示变暗，不突出 */
+.mode-delete .money-display {
+  filter: grayscale(1);
+  opacity: 0.5;
 }
 
 .currency-symbol {
@@ -662,6 +847,12 @@ async function saveAllChanges() {
   font-size: 1.5rem;
 }
 
+.danger-icon {
+  color: var(--c-danger);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+
 /* --- 物品网格 --- */
 .item-grid {
   flex: 1;
@@ -669,7 +860,6 @@ async function saveAllChanges() {
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  /* 允许卡片高度自适应 */
   grid-auto-rows: minmax(70px, auto);
   gap: 10px;
   align-content: start;
@@ -834,7 +1024,12 @@ async function saveAllChanges() {
   background: rgba(0,0,0,0.4);
   padding: 4px 8px;
   border-radius: 4px;
-  height: 32px; /* 固定高度 */
+  height: 32px;
+}
+
+.slider-wrapper.danger-zone {
+  border: 1px solid rgba(255, 77, 77, 0.2);
+  background: rgba(255, 0, 0, 0.05);
 }
 
 .qty-label {
@@ -883,6 +1078,15 @@ async function saveAllChanges() {
   box-shadow: 0 0 10px var(--c-gold);
 }
 
+.mini-confirm-btn.btn-danger {
+  background: var(--c-danger);
+  color: #fff;
+}
+.mini-confirm-btn.btn-danger:hover {
+  background: #ff8888;
+  box-shadow: 0 0 10px var(--c-danger);
+}
+
 /* 样式变体 */
 .style-weapon .item-icon { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
 .style-lore .item-icon { color: #a29bfe; border-color: rgba(162, 155, 254, 0.3); }
@@ -895,7 +1099,6 @@ async function saveAllChanges() {
     padding: 10px;
   }
 
-  /* 显示 Tab 栏 */
   .mobile-tabs {
     display: flex;
     gap: 10px;
@@ -922,12 +1125,10 @@ async function saveAllChanges() {
     box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.05);
   }
 
-  /* 隐藏中间的箭头 */
   .divider-column {
     display: none;
   }
 
-  /* 隐藏非激活的面板 */
   .pane.mobile-hidden {
     display: none;
   }
@@ -935,7 +1136,6 @@ async function saveAllChanges() {
   .pane {
     width: 100%;
     flex: 1;
-    /* 确保在移动端高度也能撑满 */
     height: 100%;
   }
 
@@ -952,7 +1152,6 @@ async function saveAllChanges() {
     font-size: 0.8rem;
   }
 
-  /* 新增：移动端头部控制区适配 */
   .header-controls {
     gap: 8px;
   }

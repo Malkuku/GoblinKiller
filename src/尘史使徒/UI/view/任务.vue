@@ -6,26 +6,41 @@
     </header>
 
     <nav class="quest-tabs">
-      <button
-        v-if="hasBoardData"
-        :class="['tab-btn', { active: currentTab === 'board' }]"
-        @click="currentTab = 'board'"
-      >
-        <span class="tab-icon">€</span>
-        <span class="tab-name">委托</span>
-        <span class="tab-badge-dot"></span>
-      </button>
+      <div class="tabs-group">
+        <button
+          v-if="hasBoardData"
+          :class="['tab-btn', { active: currentTab === 'board' }]"
+          @click="currentTab = 'board'"
+        >
+          <span class="tab-icon">€</span>
+          <span class="tab-name">委托</span>
+          <span class="tab-badge-dot"></span>
+        </button>
 
-      <button
-        v-for="tab in tabs"
-        :key="tab.id"
-        :class="['tab-btn', { active: currentTab === tab.id }]"
-        @click="currentTab = tab.id"
-      >
-        <span class="tab-icon">{{ tab.icon }}</span>
-        <span class="tab-name">{{ tab.name }}</span>
-        <span v-if="tab.count > 0" class="tab-count">{{ tab.count }}</span>
-      </button>
+        <button
+          v-for="tab in tabs"
+          :key="tab.id"
+          :class="['tab-btn', { active: currentTab === tab.id }]"
+          @click="currentTab = tab.id"
+        >
+          <span class="tab-icon">{{ tab.icon }}</span>
+          <span class="tab-name">{{ tab.name }}</span>
+          <span v-if="tab.count > 0" class="tab-count">{{ tab.count }}</span>
+        </button>
+      </div>
+
+      <!-- 编辑模式切换按钮 (仅在插曲和因果页面显示) -->
+      <transition name="fade">
+        <button
+          v-if="currentTab === 'tasks' || currentTab === 'events'"
+          class="edit-mode-btn"
+          :class="{ 'is-editing': isEditMode }"
+          @click="toggleEditMode"
+        >
+          <span class="icon">{{ isEditMode ? '✓' : '✎' }}</span>
+          <span class="text">{{ isEditMode ? '完成' : '编辑' }}</span>
+        </button>
+      </transition>
     </nav>
 
     <div class="quest-content">
@@ -116,7 +131,24 @@
         <div v-else-if="currentTab === 'tasks'" key="tasks" class="panel-tasks">
           <div v-if="filteredTasks.length === 0" class="empty-state">暂无进行中的委托</div>
           <div class="task-grid">
-            <div v-for="task in filteredTasks" :key="task.title" class="task-card">
+            <div
+              v-for="task in filteredTasks"
+              :key="task.title"
+              class="task-card"
+              :class="{ 'shake-anim': isEditMode }"
+            >
+              <!-- 删除按钮 (编辑模式) -->
+              <transition name="scale-in">
+                <button
+                  v-if="isEditMode"
+                  class="card-delete-btn"
+                  @click.stop="handleDelete(task)"
+                  title="放弃委托"
+                >
+                  ×
+                </button>
+              </transition>
+
               <div class="task-header">
                 <h3>{{ task.title }}</h3>
                 <div class="decoration-line"></div>
@@ -149,6 +181,15 @@
               <div class="event-progress">
                 <div class="progress-text"><span>进度</span><span>{{ evt.进度 }}</span></div>
               </div>
+
+              <!-- 删除按钮 (编辑模式) -->
+              <transition name="fade">
+                <div v-if="isEditMode" class="event-actions">
+                  <button class="row-delete-btn" @click.stop="handleDelete(evt)">
+                    删除
+                  </button>
+                </div>
+              </transition>
             </div>
           </div>
         </div>
@@ -159,11 +200,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, inject } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 import MainQuestCard from '@/尘史使徒/UI/components/task/MainQuestCard.vue';
+import { ERAUtil } from '@/Utils/ERAUtil';
 
 const router = useRouter();
 const questStore = useQuestStore();
@@ -181,6 +223,11 @@ watch(hasBoardData, (val) => {
   if (val) currentTab.value = 'board';
 });
 
+// 切换 Tab 时退出编辑模式
+watch(currentTab, () => {
+  isEditMode.value = false;
+});
+
 // 过滤已接取任务
 const filteredMainQuests = computed(() => questStore.mainQuests.filter(q => q.title !== '$template'));
 const filteredTasks = computed(() => questStore.tasks.filter(t => t.title !== '$template'));
@@ -191,6 +238,54 @@ const tabs = computed(() => [
   { id: 'tasks', name: '插曲', icon: '◌', count: filteredTasks.value.length },
   { id: 'events', name: '因果', icon: '⫩', count: filteredEvents.value.length },
 ]);
+
+// --- 编辑/删除逻辑 ---
+const isEditMode = ref(false);
+
+const toggleEditMode = () => {
+  isEditMode.value = !isEditMode.value;
+};
+
+const handleDelete = async (object: any) => {
+  // 必须要有 title 才能定位 Key
+  if (!object || !object.title) return;
+
+  const confirmText = `确定要删除 "${object.title}" 吗？`;
+  if (!window.confirm(confirmText)) return;
+
+  // 1. 根据当前 Tab 确定在全局数据中的根节点 Key
+  let rootKey = '';
+  switch (currentTab.value) {
+    case 'tasks':
+      rootKey = '任务';
+      break;
+    case 'events':
+      rootKey = '事件';
+      break;
+    case 'main':
+      rootKey = '主线';
+      break;
+    default:
+      console.warn('当前标签页不支持删除操作');
+      return;
+  }
+
+  // 2. 构造 Payload： { "根节点": { "对象名": {} } }
+  // 使用空对象 {} 标记删除
+  const payload = {
+    [rootKey]: {
+      [object.title]: {}
+    }
+  };
+
+  try {
+    // 3. 调用 API
+    await ERAUtil.DeleteByObject(payload);
+
+  } catch (e) {
+    console.error('删除失败', e);
+  }
+};
 
 // --- 接取逻辑 ---
 const selectedQuests = ref<Set<string>>(new Set());
@@ -291,9 +386,16 @@ const confirmQuests = async () => {
 /* --- Tabs --- */
 .quest-tabs {
   display: flex;
-  gap: 20px;
+  justify-content: space-between; /* 两端对齐，容纳编辑按钮 */
+  align-items: center;
   margin-bottom: 30px;
   border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-right: 10px;
+}
+
+.tabs-group {
+  display: flex;
+  gap: 20px;
 }
 
 .tab-btn {
@@ -355,6 +457,37 @@ const confirmQuests = async () => {
   padding: 2px 6px;
   border-radius: 4px;
   font-family: sans-serif;
+}
+
+/* --- Edit Mode Button --- */
+.edit-mode-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--c-text-dim);
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+}
+
+.edit-mode-btn:hover {
+  border-color: var(--c-gold);
+  color: var(--c-gold);
+}
+
+.edit-mode-btn.is-editing {
+  background: var(--c-accent-danger);
+  border-color: var(--c-accent-danger);
+  color: white;
+  box-shadow: 0 0 10px rgba(168, 50, 50, 0.4);
+}
+
+.edit-mode-btn.is-editing:hover {
+  background: #c0392b;
 }
 
 /* --- Content Area --- */
@@ -718,6 +851,7 @@ const confirmQuests = async () => {
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
+  position: relative; /* For delete btn */
 }
 
 .task-card:hover {
@@ -770,6 +904,33 @@ const confirmQuests = async () => {
   font-size: 0.85rem;
 }
 
+/* --- Delete Button (Card) --- */
+.card-delete-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--c-accent-danger);
+  color: white;
+  border: 2px solid #1a1a1a;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+  transition: transform 0.2s;
+}
+
+.card-delete-btn:hover {
+  transform: scale(1.1);
+  background: #c0392b;
+}
+
 /* --- Event List --- */
 .event-row {
   display: flex;
@@ -780,6 +941,7 @@ const confirmQuests = async () => {
   border-bottom: 1px solid var(--c-border);
   padding: 20px;
   margin-bottom: 10px;
+  position: relative;
 }
 
 .event-row:hover {
@@ -818,13 +980,134 @@ const confirmQuests = async () => {
   gap: 15px;
 }
 
-/* --- Responsive --- */
+/* --- Delete Button (Row) --- */
+.event-actions {
+  margin-left: 20px;
+}
+
+.row-delete-btn {
+  background: rgba(168, 50, 50, 0.2);
+  border: 1px solid var(--c-accent-danger);
+  color: #ff8a80;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.row-delete-btn:hover {
+  background: var(--c-accent-danger);
+  color: white;
+}
+
+/* --- Mobile Optimization --- */
 @media (max-width: 768px) {
-  .quest-view { padding: 15px; }
-  .event-row { flex-direction: column; align-items: flex-start; }
-  .event-progress { width: 100%; margin-top: 15px; justify-content: flex-start; }
-  .task-grid, .board-grid { grid-template-columns: 1fr; }
-  .signature-bar { width: 90%; justify-content: space-between; }
+  /* 1. 容器调整：减少内边距，防止溢出 */
+  .quest-view {
+    padding: 10px 15px;
+    height: 100vh; /* 确保占满视口 */
+  }
+
+  /* 2. 头部调整：减小字号，紧凑布局 */
+  .quest-header {
+    margin-bottom: 15px;
+  }
+  .page-title {
+    font-size: 1.5rem;
+  }
+  .subtitle {
+    display: block; /* 换行显示副标题，避免挤压 */
+    margin-left: 0;
+    margin-top: 4px;
+    font-size: 0.75rem;
+  }
+
+  /* 3. Tab 栏优化：支持横向滚动，隐藏滚动条 */
+  .quest-tabs {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 5px; /* 留出滚动条空间或触控空间 */
+    margin-bottom: 20px;
+    -webkit-overflow-scrolling: touch;
+    /* 隐藏滚动条 */
+    scrollbar-width: none;
+  }
+  .quest-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tabs-group {
+    gap: 10px;
+  }
+
+  .tab-btn {
+    padding: 8px 12px;
+    font-size: 1rem;
+    flex-shrink: 0; /* 防止按钮被压缩 */
+  }
+
+  /* 编辑按钮独立一行或浮动，视情况而定，这里保持在流中但允许滚动 */
+  .edit-mode-btn {
+    margin-left: auto; /* 挤到最右边 */
+    padding-left: 15px;
+    flex-shrink: 0;
+  }
+
+  /* 4. 内容区域：增加底部留白，防止被签署栏遮挡 */
+  .quest-content {
+    padding-right: 0; /* 移动端通常不需要右侧滚动条留白 */
+    padding-bottom: 100px; /* 增加底部空间 */
+  }
+
+  /* 5. 列表与卡片调整 */
+  .board-grid, .task-grid {
+    grid-template-columns: 1fr; /* 强制单列 */
+    gap: 15px;
+  }
+
+  .board-card {
+    min-height: auto; /* 允许高度自适应 */
+  }
+
+  .event-row {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 15px;
+  }
+
+  .event-info {
+    padding-right: 0;
+    margin-bottom: 12px;
+  }
+
+  .event-progress {
+    width: 100%;
+    justify-content: space-between; /* 两端对齐进度条 */
+  }
+
+  /* 6. 签署栏优化：宽度适配，位置调整 */
+  .signature-bar {
+    width: calc(100% - 30px); /* 减去容器 padding */
+    bottom: 20px;
+    padding: 10px 15px;
+    flex-direction: row;
+    justify-content: space-between;
+  }
+
+  .sign-btn {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+
+  /* 7. 删除按钮优化：增大触控区域 */
+  .card-delete-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 20px;
+    top: -12px;
+    right: -5px;
+  }
 }
 
 /* --- Animation --- */
@@ -852,5 +1135,25 @@ const confirmQuests = async () => {
 .slide-up-leave-to {
   opacity: 0;
   transform: translate(-50%, 20px);
+}
+
+.fade-enter-active, .fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from, .fade-leave-to {
+  opacity: 0;
+}
+
+/* Shake Animation for Edit Mode */
+@keyframes shake {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(0.5deg); }
+  50% { transform: rotate(0deg); }
+  75% { transform: rotate(-0.5deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.shake-anim {
+  animation: shake 0.5s infinite;
 }
 </style>

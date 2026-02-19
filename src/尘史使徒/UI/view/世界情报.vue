@@ -34,11 +34,20 @@
       <section v-if="currentTab === 'time'" class="tab-pane time-pane">
 
         <!-- [重构] 季节全屏特效 Hero Section -->
-        <div class="season-hero-wrapper" :class="currentSeason ? 'active' : 'inactive'">
+        <!-- 动态绑定 season-style 类名 -->
+        <div
+          class="season-hero-wrapper"
+          :class="[currentSeason ? 'active' : 'inactive', currentSeason?.styleKey]"
+        >
+          <!-- 动态环境层 -->
+          <div class="ambient-light"></div>
+
           <!-- 粒子特效层 -->
           <div class="particle-layer layer-1"></div>
           <div class="particle-layer layer-2"></div>
           <div class="particle-layer layer-3"></div>
+
+          <!-- 扫描网格 -->
           <div class="scan-grid"></div>
 
           <div class="hero-content" v-if="currentSeason">
@@ -196,7 +205,7 @@
                 </div>
               </div>
             </div>
-            <!-- 收入与物价 (保持逻辑，样式微调) -->
+            <!-- 收入与物价 -->
             <div class="sub-section">
               <h4 class="ac-sub-title">ECONOMICS_DATA</h4>
               <div class="data-table">
@@ -408,6 +417,16 @@ const getCurrentWorldDate = () => {
   return null;
 };
 
+// --- 季节样式映射逻辑 ---
+const getSeasonStyle = (name) => {
+  if (!name) return 'default';
+  if (name.includes('复苏') || name.includes('春')) return 'spring';
+  if (name.includes('熔炉') || name.includes('夏')) return 'summer';
+  if (name.includes('长风') || name.includes('秋')) return 'autumn';
+  if (name.includes('静默') || name.includes('冬')) return 'winter';
+  return 'default';
+};
+
 // 1. 当前季节
 const currentSeason = computed(() => {
   const currentWorldDate = getCurrentWorldDate();
@@ -419,7 +438,13 @@ const currentSeason = computed(() => {
     const item = festivals[key];
     if (item["类型"] !== '季节') continue;
     const { isActive } = checkDateActive(item, currentWorldDate);
-    if (isActive) return { name: key, data: item };
+    if (isActive) {
+      return {
+        name: key,
+        data: item,
+        styleKey: getSeasonStyle(key) // 添加样式Key
+      };
+    }
   }
   return null;
 });
@@ -507,8 +532,10 @@ const festivalArchive = computed(() => getArchiveList(t => t !== '季节' && t !
   --ac-text: #e0e0e0;
   --ac-text-dim: #757575;
 
+  /* 默认季节色 */
   --color-season: #00e5ff;
   --color-season-dim: rgba(0, 229, 255, 0.15);
+
   --color-taboo: #ff3d3d;
   --color-taboo-dim: rgba(255, 61, 61, 0.1);
   --color-festival: #ffb300;
@@ -593,34 +620,153 @@ const festivalArchive = computed(() => getArchiveList(t => t !== '季节' && t !
   min-height: 300px;
   margin-bottom: 40px;
   border: 1px solid var(--ac-border);
-  background: radial-gradient(circle at center, #1a2a2a 0%, #000 100%);
+  background: #000;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow: 0 0 30px rgba(0,0,0,0.8);
+  transition: border-color 0.5s;
 }
 
-/* 粒子特效 */
+/* 通用粒子层 */
 .particle-layer {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background-image: radial-gradient(var(--color-season) 1px, transparent 1px);
-  background-size: 50px 50px;
   opacity: 0.3;
-  animation: particleMove 60s linear infinite;
+  pointer-events: none;
 }
-.layer-2 { background-size: 90px 90px; opacity: 0.15; animation-duration: 90s; animation-direction: reverse; }
-.layer-3 { background-size: 150px 150px; opacity: 0.1; animation-duration: 120s; }
+.ambient-light {
+  position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  opacity: 0.2;
+  transition: background 0.5s;
+}
 
-@keyframes particleMove {
-  0% { transform: translateY(0) rotate(0deg); }
-  100% { transform: translateY(-100px) rotate(5deg); }
+/* ================== 季节特定特效 ================== */
+
+/* 1. 复苏季 (Spring) - 绿色，漂浮孢子 */
+.season-hero-wrapper.spring {
+  --color-season: #69f0ae;
+  border-color: rgba(105, 240, 174, 0.3);
 }
+.season-hero-wrapper.spring .ambient-light {
+  background: radial-gradient(circle at bottom, rgba(105, 240, 174, 0.2) 0%, transparent 70%);
+}
+.season-hero-wrapper.spring .particle-layer {
+  background-image: radial-gradient(var(--color-season) 1px, transparent 1px);
+  background-size: 40px 40px;
+  animation: floatUp 20s linear infinite;
+}
+.season-hero-wrapper.spring .layer-2 { background-size: 70px 70px; animation-duration: 35s; opacity: 0.2; }
+.season-hero-wrapper.spring .layer-3 { background-size: 120px 120px; animation-duration: 50s; opacity: 0.1; }
+
+@keyframes floatUp {
+  0% { transform: translateY(0) translateX(0); }
+  50% { transform: translateY(-50px) translateX(10px); }
+  100% { transform: translateY(-100px) translateX(0); }
+}
+
+/* 2. 熔炉季 (Summer) - 红色，热浪与火星 */
+.season-hero-wrapper.summer {
+  --color-season: #ff5252;
+  border-color: rgba(255, 82, 82, 0.3);
+}
+.season-hero-wrapper.summer .ambient-light {
+  background: radial-gradient(circle at center, rgba(255, 82, 82, 0.15) 0%, transparent 80%);
+  animation: heatPulse 4s ease-in-out infinite;
+}
+.season-hero-wrapper.summer .particle-layer {
+  background-image: linear-gradient(0deg, var(--color-season) 1px, transparent 1px);
+  background-size: 100% 60px; /* 垂直线条模拟上升气流 */
+  opacity: 0.2;
+  animation: riseFast 2s linear infinite;
+}
+.season-hero-wrapper.summer .layer-2 {
+  background-image: radial-gradient(#ffab40 2px, transparent 2px); /* 火星 */
+  background-size: 100px 100px;
+  animation: riseEmbers 5s linear infinite;
+  opacity: 0.4;
+}
+
+@keyframes heatPulse {
+  0%, 100% { opacity: 0.15; transform: scale(1); }
+  50% { opacity: 0.25; transform: scale(1.02); }
+}
+@keyframes riseFast {
+  from { background-position: 0 0; }
+  to { background-position: 0 -60px; }
+}
+@keyframes riseEmbers {
+  from { transform: translateY(100px); opacity: 0; }
+  50% { opacity: 0.6; }
+  to { transform: translateY(-100px); opacity: 0; }
+}
+
+/* 3. 长风季 (Autumn) - 金色，横向风速线 */
+.season-hero-wrapper.autumn {
+  --color-season: #ffc107;
+  border-color: rgba(255, 193, 7, 0.3);
+}
+.season-hero-wrapper.autumn .ambient-light {
+  background: linear-gradient(90deg, rgba(0,0,0,0) 0%, rgba(255, 193, 7, 0.1) 50%, rgba(0,0,0,0) 100%);
+}
+.season-hero-wrapper.autumn .particle-layer {
+  background-image: linear-gradient(90deg, var(--color-season) 2px, transparent 2px);
+  background-size: 200px 100%;
+  opacity: 0.1;
+  animation: windBlow 1s linear infinite;
+}
+.season-hero-wrapper.autumn .layer-2 {
+  /* 模拟落叶/碎片 */
+  background-image: radial-gradient(square, #d4a017 2px, transparent 2px);
+  background-size: 150px 150px;
+  animation: debrisFly 4s linear infinite;
+  opacity: 0.3;
+}
+
+@keyframes windBlow {
+  from { transform: translateX(0); }
+  to { transform: translateX(-200px); }
+}
+@keyframes debrisFly {
+  from { transform: translateX(200px) translateY(-50px) rotate(0deg); }
+  to { transform: translateX(-200px) translateY(50px) rotate(90deg); }
+}
+
+/* 4. 静默季 (Winter) - 冰蓝，静止/下落雪花 */
+.season-hero-wrapper.winter {
+  --color-season: #40c4ff;
+  border-color: rgba(64, 196, 255, 0.3);
+}
+.season-hero-wrapper.winter .ambient-light {
+  background: radial-gradient(circle at top, rgba(64, 196, 255, 0.15) 0%, transparent 80%);
+  filter: blur(5px);
+}
+.season-hero-wrapper.winter .particle-layer {
+  background-image: radial-gradient(#fff 1px, transparent 1px);
+  background-size: 30px 30px;
+  animation: snowFall 10s linear infinite;
+  opacity: 0.4;
+}
+.season-hero-wrapper.winter .layer-2 {
+  background-size: 80px 80px;
+  animation-duration: 20s;
+  opacity: 0.2;
+}
+.season-hero-wrapper.winter .scan-grid {
+  opacity: 0.1; /* 冬季网格更淡 */
+}
+
+@keyframes snowFall {
+  from { transform: translateY(-100px); }
+  to { transform: translateY(100px); }
+}
+
+/* ================== 通用 Hero 内容 ================== */
 
 .scan-grid {
   position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-  background: linear-gradient(rgba(0, 229, 255, 0.03) 1px, transparent 1px),
-  linear-gradient(90deg, rgba(0, 229, 255, 0.03) 1px, transparent 1px);
+  background: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+  linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 40px 40px;
   z-index: 1;
 }
@@ -646,6 +792,7 @@ const festivalArchive = computed(() => getArchiveList(t => t !== '季节' && t !
   color: #fff; margin: 0;
   text-shadow: 0 0 20px var(--color-season);
   position: relative;
+  transition: text-shadow 0.3s;
 }
 /* 故障文字效果 */
 .season-title::before {
@@ -663,13 +810,6 @@ const festivalArchive = computed(() => getArchiveList(t => t !== '季节' && t !
   100% { clip: rect(0, 0, 0, 0); }
 }
 
-.season-subtitle {
-  display: flex; align-items: center; justify-content: center; gap: 15px;
-  color: var(--color-season); font-size: 1.1rem; letter-spacing: 3px;
-  margin-bottom: 25px;
-}
-.deco-line { width: 40px; height: 1px; background: var(--color-season); }
-
 .season-desc-box {
   background: rgba(0,0,0,0.6);
   border: 1px solid rgba(255,255,255,0.1);
@@ -682,6 +822,7 @@ const festivalArchive = computed(() => getArchiveList(t => t !== '季节' && t !
 .corner-bracket {
   position: absolute; width: 10px; height: 10px;
   border: 2px solid var(--color-season);
+  transition: border-color 0.3s;
 }
 .top-left { top: -1px; left: -1px; border-right: none; border-bottom: none; }
 .bottom-right { bottom: -1px; right: -1px; border-left: none; border-top: none; }

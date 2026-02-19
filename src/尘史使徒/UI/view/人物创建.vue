@@ -112,9 +112,18 @@
             </div>
           </div>
 
+          <!-- 修改：性格总结部分允许编辑 -->
           <div class="personality-summary-box">
-            <label>性格侧写</label>
-            <div class="summary-text">{{ generatedPersonalitySummary }}</div>
+            <div class="summary-header-row">
+              <label>性格侧写</label>
+              <span v-if="isManualSummary" class="reset-btn" @click="resetSummary" title="恢复为根据滑块自动生成">↺ 重置自动</span>
+            </div>
+            <textarea
+              v-model="finalPersonalitySummary"
+              @input="handleSummaryInput"
+              class="summary-textarea"
+              rows="3"
+            ></textarea>
           </div>
         </div>
 
@@ -335,6 +344,7 @@ const getTraitColorClass = (val) => {
   return 'text-gray';
 };
 
+// 自动生成的性格总结（计算属性）
 const generatedPersonalitySummary = computed(() => {
   const p = formData.personality;
   const parts = [];
@@ -347,6 +357,29 @@ const generatedPersonalitySummary = computed(() => {
   if (parts.length === 0) return "一位性格平衡、中庸的旅人。";
   return `一位${parts.join("、")}的旅人。`;
 });
+
+// 最终显示的性格总结（可编辑）
+const finalPersonalitySummary = ref("");
+// 标记是否手动编辑过
+const isManualSummary = ref(false);
+
+// 监听自动生成的内容，如果用户没有手动编辑过，则同步更新
+watch(generatedPersonalitySummary, (newVal) => {
+  if (!isManualSummary.value) {
+    finalPersonalitySummary.value = newVal;
+  }
+}, { immediate: true });
+
+// 用户手动输入时触发
+const handleSummaryInput = () => {
+  isManualSummary.value = true;
+};
+
+// 重置为自动生成
+const resetSummary = () => {
+  isManualSummary.value = false;
+  finalPersonalitySummary.value = generatedPersonalitySummary.value;
+};
 
 // 新增：动态计算最大等级
 const maxArtLevel = computed(() => isInfiniteMode.value ? 21 : 10);
@@ -449,7 +482,7 @@ const submitCreation = async () => {
           "当前身份": formData.identity,
           "性格": {
             ...formData.personality,
-            "性格总结": [generatedPersonalitySummary.value]
+            "性格总结": [finalPersonalitySummary.value] // 使用最终编辑的总结
           },
           "外貌": [finalAppearance.value]
         }
@@ -493,7 +526,7 @@ const submitCreation = async () => {
     injectionText += `出生地：${formData.location}\n`;
     if (formData.identity) injectionText += `身份：${formData.identity}\n`;
     injectionText += `外貌：${finalAppearance.value}\n`;
-    injectionText += `性格：${generatedPersonalitySummary.value}\n`;
+    injectionText += `性格：${finalPersonalitySummary.value}\n`; // 使用最终编辑的总结
     if (formData.specialStatus) injectionText += `特殊状态：${formData.specialStatus}\n`;
     injectionText += `</mirror>\n`;
     injectionText += `随后伴随着一阵天旋地转，{{user}}的意识又陷入一片混沌，当{{user}}再次醒来之时——\n`;
@@ -658,7 +691,23 @@ const submitCreation = async () => {
 .trait-desc-text { font-size: 0.75rem; color: #888; margin-top: 4px; font-style: italic; min-height: 1.2em; }
 
 .personality-summary-box { margin-top: auto; padding: 15px; background: rgba(197, 160, 89, 0.05); border: 1px solid rgba(197, 160, 89, 0.3); text-align: center; }
-.summary-text { color: var(--c-gold); font-weight: bold; margin-top: 5px; font-family: 'Cinzel', serif; font-size: 1.1rem; }
+.summary-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+.reset-btn { font-size: 0.7rem; color: #666; cursor: pointer; transition: color 0.3s; }
+.reset-btn:hover { color: var(--c-gold); }
+.summary-textarea {
+  color: var(--c-gold);
+  font-weight: bold;
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  background: transparent;
+  border: none;
+  resize: none;
+  text-align: center;
+  width: 100%;
+  padding: 0;
+  margin-top: 5px;
+}
+.summary-textarea:focus { outline: none; background: rgba(0,0,0,0.2); }
 
 /* 术之加点 UI (优化) */
 .points-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; }
