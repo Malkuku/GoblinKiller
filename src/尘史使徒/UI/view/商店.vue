@@ -8,7 +8,6 @@
           <span class="sub-title">Trade & Barter</span>
         </div>
 
-        <!-- 资产显示区域 (已移除下拉详情交互) -->
         <div class="gold-wrapper">
           <div class="gold-display">
             <span class="label">当前资金</span>
@@ -23,8 +22,8 @@
     </div>
 
     <div class="shop-content">
-      <!-- 左侧：出售列表 -->
-      <div class="panel left-panel">
+      <!-- 左侧：出售列表 (移动端仅在 activeTab === 'sell' 时显示) -->
+      <div class="panel left-panel" :class="{ 'mobile-hidden': activeTab !== 'sell' }">
         <div class="panel-header">
           <div class="ph-left">
             <h3>行囊</h3>
@@ -43,7 +42,6 @@
             class="item-card"
             :class="{ 'expanded': expandedItem === name, 'in-queue': getQueueCount(name, 'sell') > 0 }"
           >
-            <!-- 核心行 -->
             <div class="card-main" @click="toggleExpand(name)">
               <div class="main-left">
                 <div class="item-name">{{ name }}</div>
@@ -57,7 +55,6 @@
               </div>
             </div>
 
-            <!-- 详情折叠区 -->
             <div class="card-details" v-if="expandedItem === name">
               <div class="desc-text">{{ item.shopInfo.描述 }}</div>
               <div class="effect-text" v-if="item.shopInfo.作用">
@@ -65,7 +62,6 @@
               </div>
             </div>
 
-            <!-- 操作栏 -->
             <div class="card-actions">
               <div class="qty-control">
                 <button class="q-btn minus" @click.stop="updateQueue(name, 'sell', -1, item.userItem.数量)">−</button>
@@ -80,15 +76,15 @@
         </div>
       </div>
 
-      <!-- 中间装饰 -->
-      <div class="divider-visual">
+      <!-- 中间装饰 (仅PC显示) -->
+      <div class="divider-visual desktop-only">
         <div class="line"></div>
         <div class="icon">⚖</div>
         <div class="line"></div>
       </div>
 
-      <!-- 右侧：购买列表 -->
-      <div class="panel right-panel">
+      <!-- 右侧：购买列表 (移动端仅在 activeTab === 'buy' 时显示) -->
+      <div class="panel right-panel" :class="{ 'mobile-hidden': activeTab !== 'buy' }">
         <div class="panel-header">
           <div class="ph-left">
             <h3>货架</h3>
@@ -107,7 +103,6 @@
             class="item-card"
             :class="{ 'expanded': expandedItem === name, 'in-queue': getQueueCount(name, 'buy') > 0 }"
           >
-            <!-- 核心行 -->
             <div class="card-main" @click="toggleExpand(name)">
               <div class="main-left">
                 <div class="item-name">{{ name }}</div>
@@ -121,7 +116,6 @@
               </div>
             </div>
 
-            <!-- 详情 -->
             <div class="card-details" v-if="expandedItem === name">
               <div class="desc-text">{{ item.描述 }}</div>
               <div class="effect-text" v-if="item.作用">
@@ -129,7 +123,6 @@
               </div>
             </div>
 
-            <!-- 操作栏 -->
             <div class="card-actions">
               <div class="qty-control">
                 <button class="q-btn minus" @click.stop="updateQueue(name, 'buy', -1, item.最大数量)">−</button>
@@ -143,43 +136,116 @@
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 底部交易结算栏 -->
-    <Transition name="slide-up">
-      <div class="trade-bar-wrapper" v-if="queueTotalCount > 0">
-        <div class="trade-bar">
-          <div class="trade-info">
-            <div class="info-block">
-              <span class="lbl">预计变动</span>
-              <div class="val-group">
-                <span class="v-gain" v-if="pendingGain > 0">+{{ pendingGain.toFixed(4) }}</span>
-                <span class="v-cost" v-if="pendingCost > 0">-{{ pendingCost.toFixed(4) }}</span>
-                <span class="v-neutral" v-if="pendingGain === 0 && pendingCost === 0">0</span>
+      <!-- 移动端专用：交易确认页 (仅在 activeTab === 'confirm' 时显示) -->
+      <div class="panel confirm-panel mobile-only" v-if="activeTab === 'confirm'">
+        <div class="panel-header">
+          <div class="ph-left">
+            <h3>交易清单</h3>
+            <span class="hint">Invoice</span>
+          </div>
+          <div class="ph-right" @click="clearQueue" style="color: #ff4d4d; cursor: pointer;">清空</div>
+        </div>
+
+        <div class="scroll-area custom-scrollbar invoice-area">
+          <div v-if="queueTotalCount === 0" class="empty-tip">
+            <span>📝</span><br>暂无交易项
+          </div>
+
+          <!-- 交易列表 -->
+          <div class="invoice-list" v-else>
+            <div v-for="(data, name) in transactionQueue" :key="name" class="invoice-item">
+              <div class="inv-left">
+                <div class="inv-name">{{ name }}</div>
+                <div class="inv-type" :class="data.type">
+                  {{ data.type === 'buy' ? '购买' : '出售' }}
+                </div>
               </div>
-            </div>
-            <div class="separator"></div>
-            <div class="info-block result-block">
-              <span class="lbl">交易后余额</span>
-              <span class="val final" :class="finalBalance < 0 ? 'danger' : 'safe'">
-                {{ finalBalance.toFixed(4) }}g
-              </span>
+              <div class="inv-right">
+                <div class="inv-calc">{{ data.count }} × {{ data.price }}g</div>
+                <div class="inv-total" :class="data.type === 'buy' ? 'cost' : 'gain'">
+                  {{ data.type === 'buy' ? '-' : '+' }}{{ (data.count * data.price).toFixed(2) }}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div class="trade-btns">
-            <button class="btn-clear" @click="clearQueue">清空</button>
-            <button
-              class="btn-confirm"
-              @click="submitTransaction"
-            >
+          <!-- 结算汇总区域 -->
+          <div class="invoice-summary" v-if="queueTotalCount > 0">
+            <div class="summary-row">
+              <span>当前资金</span>
+              <span>{{ totalGold.toFixed(2) }}g</span>
+            </div>
+            <div class="summary-row">
+              <span>总收入</span>
+              <span class="gain">+{{ pendingGain.toFixed(2) }}g</span>
+            </div>
+            <div class="summary-row">
+              <span>总支出</span>
+              <span class="cost">-{{ pendingCost.toFixed(2) }}g</span>
+            </div>
+            <div class="divider-dashed"></div>
+            <div class="summary-row final">
+              <span>预计结余</span>
+              <span :class="finalBalance < 0 ? 'danger' : 'safe'">{{ finalBalance.toFixed(2) }}g</span>
+            </div>
+
+            <button class="btn-mobile-confirm" :disabled="queueTotalCount === 0" @click="submitTransaction">
+              确认交易
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PC端：底部悬浮交易栏 (移动端隐藏) -->
+    <Transition name="slide-up">
+      <div class="trade-bar-wrapper desktop-only" v-if="queueTotalCount > 0">
+        <div class="trade-bar">
+          <div class="trade-info-compact">
+            <div class="info-group">
+              <span class="label">预计结余</span>
+              <div class="value-main" :class="finalBalance < 0 ? 'danger' : 'safe'">
+                <span class="symbol">⟡</span>{{ finalBalance.toFixed(2) }}
+              </div>
+            </div>
+            <div class="separator"></div>
+            <div class="info-group">
+              <span class="label">变动</span>
+              <div class="value-sub">
+                <span class="diff-val gain" v-if="pendingGain > 0">+{{ pendingGain.toFixed(2) }}</span>
+                <span class="diff-val cost" v-if="pendingCost > 0"> -{{ pendingCost.toFixed(2) }}</span>
+                <span class="diff-val neutral" v-if="pendingGain === 0 && pendingCost === 0">0</span>
+              </div>
+            </div>
+          </div>
+          <div class="trade-actions-compact">
+            <button class="btn-icon-clear" @click="clearQueue" title="清空">✕</button>
+            <button class="btn-confirm-compact" @click="submitTransaction">
               <span class="btn-text">确认交易</span>
-              <span class="btn-badge">{{ queueTotalCount }}</span>
+              <span class="badge">{{ queueTotalCount }}</span>
             </button>
           </div>
         </div>
       </div>
     </Transition>
+
+    <!-- 移动端：底部导航栏 (非悬浮，Flex布局) -->
+    <div class="mobile-nav mobile-only">
+      <div class="nav-item" :class="{ active: activeTab === 'sell' }" @click="activeTab = 'sell'">
+        <span class="nav-icon">🎒</span>
+        <span class="nav-label">出售</span>
+      </div>
+      <div class="nav-item" :class="{ active: activeTab === 'buy' }" @click="activeTab = 'buy'">
+        <span class="nav-icon">🛒</span>
+        <span class="nav-label">购买</span>
+      </div>
+      <div class="nav-item" :class="{ active: activeTab === 'confirm' }" @click="activeTab = 'confirm'">
+        <span class="nav-icon">🧾</span>
+        <span class="nav-label">结算</span>
+        <span class="nav-badge" v-if="queueTotalCount > 0">{{ queueTotalCount }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -197,6 +263,7 @@ const uiStore = useUiStore();
 
 // --- 状态管理 ---
 const expandedItem = ref<string | null>(null);
+const activeTab = ref<'sell' | 'buy' | 'confirm'>('sell'); // 移动端Tab状态
 const transactionQueue = reactive<Record<string, { type: 'buy' | 'sell', count: number, price: number, info: any }>>({});
 
 // --- 交互逻辑 ---
@@ -250,13 +317,7 @@ const clearQueue = () => {
 };
 
 // --- 数据获取 ---
-
-// 获取用户金钱 (直接从 user 数据中读取)
-const totalGold = computed(() => {
-  return statStore.stat_data?.角色?.user?.金钱 || 0;
-});
-
-// 获取用户物品 (用于出售逻辑)
+const totalGold = computed(() => statStore.stat_data?.角色?.user?.金钱 || 0);
 const userInventory = computed(() => statStore.stat_data?.角色?.user?.物品 || {});
 
 const buyableItems = computed(() => {
@@ -319,7 +380,6 @@ const submitTransaction = () => {
     });
   }
 
-  // 计算余额信息与警告
   const balance = finalBalance.value;
   let balanceInfo = `交易完成后余额: ${balance.toFixed(4)}g`;
 
@@ -327,7 +387,6 @@ const submitTransaction = () => {
     balanceInfo += `（<user>没有足够的金钱，需要说服店主，交易可能失败）`;
   }
 
-  // 将余额信息添加到日志中
   const log = `<user>打算完成以下交易:\n<list>\n${JSON.stringify(items, null, 4)}\n</list>\n${balanceInfo}\n如果顺利，则离开当前场景\n`;
 
   uiStore.setPendingInput(log);
@@ -412,7 +471,6 @@ const submitTransaction = () => {
   border-radius: 8px;
   min-width: 140px;
   backdrop-filter: blur(5px);
-  /* 移除点击手势 */
   cursor: default;
 }
 
@@ -488,7 +546,7 @@ const submitTransaction = () => {
   flex: 1;
   overflow-y: auto;
   padding: 15px;
-  padding-bottom: 100px;
+  padding-bottom: 120px;
 }
 
 /* --- 卡片样式 --- */
@@ -516,7 +574,6 @@ const submitTransaction = () => {
   background: linear-gradient(90deg, rgba(230, 193, 92, 0.05), transparent);
 }
 
-/* 卡片主体 */
 .card-main {
   display: flex;
   justify-content: space-between;
@@ -543,7 +600,6 @@ const submitTransaction = () => {
 .gain { color: var(--c-accent-sell); text-shadow: 0 0 10px rgba(100, 255, 218, 0.3); }
 .cost { color: var(--c-accent-buy); text-shadow: 0 0 10px rgba(255, 126, 103, 0.3); }
 
-/* 详情 */
 .card-details {
   padding: 0 15px 15px 15px;
   font-size: 0.85rem;
@@ -556,7 +612,6 @@ const submitTransaction = () => {
 .desc-text { font-style: italic; margin-bottom: 6px; line-height: 1.4; }
 .effect-text .label { color: var(--c-gold-dim); margin-right: 5px; }
 
-/* 操作栏 */
 .card-actions {
   display: flex;
   justify-content: space-between;
@@ -602,62 +657,61 @@ const submitTransaction = () => {
 }
 .max-btn:hover { border-color: var(--c-gold); color: var(--c-gold); }
 
-/* --- 底部交易栏 --- */
+/* --- PC端 底部交易栏 (默认显示) --- */
 .trade-bar-wrapper {
   position: absolute;
-  bottom: 20px; left: 50%;
+  bottom: 30px;
+  left: 50%;
   transform: translateX(-50%);
-  width: 90%; max-width: 800px;
-  z-index: 50;
+  width: auto;
+  min-width: 400px;
+  max-width: 90%;
+  z-index: 500;
+  pointer-events: none;
+  display: flex; /* PC端默认显示 */
 }
 
 .trade-bar {
-  background: rgba(22, 24, 30, 0.95);
-  border: 1px solid var(--c-gold);
-  border-radius: 12px;
-  padding: 15px 25px;
+  pointer-events: auto;
+  background: rgba(11, 12, 16, 0.85);
+  border: 1px solid rgba(230, 193, 92, 0.3);
+  border-top: 1px solid rgba(230, 193, 92, 0.5);
+  border-radius: 16px;
+  padding: 12px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.5), 0 0 20px rgba(230, 193, 92, 0.1);
-  backdrop-filter: blur(10px);
+  gap: 30px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
 }
 
-.trade-info { display: flex; align-items: center; gap: 20px; }
-.info-block { display: flex; flex-direction: column; }
-.lbl { font-size: 0.7rem; color: var(--c-text-dim); text-transform: uppercase; margin-bottom: 2px; }
-.val-group { display: flex; gap: 10px; font-family: var(--font-mono); font-weight: bold; font-size: 1.1rem; }
-.v-gain { color: var(--c-accent-sell); }
-.v-cost { color: var(--c-accent-buy); }
-.v-neutral { color: #666; }
+.trade-info-compact { display: flex; align-items: center; gap: 20px; }
+.info-group { display: flex; flex-direction: column; justify-content: center; }
+.info-group .label { font-size: 0.7rem; color: var(--c-text-dim); text-transform: uppercase; margin-bottom: 2px; }
+.value-main { font-family: var(--font-mono); font-size: 1.3rem; font-weight: 700; display: flex; align-items: center; gap: 4px; }
+.value-main.safe { color: var(--c-gold); }
+.value-main.danger { color: #ff4d4d; }
+.separator { width: 1px; height: 24px; background: rgba(255,255,255,0.15); }
+.value-sub { font-family: var(--font-mono); font-size: 1.1rem; font-weight: 600; }
+.diff-val.gain { color: var(--c-accent-sell); }
+.diff-val.cost { color: var(--c-accent-buy); }
+.diff-val.neutral { color: var(--c-text-dim); }
 
-.separator { width: 1px; height: 30px; background: rgba(255,255,255,0.1); }
+.trade-actions-compact { display: flex; align-items: center; gap: 12px; }
+.btn-icon-clear { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--c-text-dim); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.btn-icon-clear:hover { color: #ff4d4d; border-color: rgba(255,77,77,0.4); }
 
-.result-block .final { font-family: var(--font-mono); font-size: 1.4rem; font-weight: bold; }
-.final.safe { color: var(--c-gold); }
-.final.danger { color: #ff4d4d; }
-
-.trade-btns { display: flex; align-items: center; gap: 15px; }
-.btn-clear { background: none; border: none; color: var(--c-text-dim); cursor: pointer; text-decoration: underline; font-size: 0.9rem; }
-.btn-clear:hover { color: #fff; }
-
-.btn-confirm {
-  background: var(--c-gold);
-  color: #1a1c24;
-  border: none;
-  padding: 10px 24px;
-  border-radius: 6px;
-  font-weight: bold;
-  font-family: var(--font-serif);
-  font-size: 1rem;
-  cursor: pointer;
-  display: flex; align-items: center; gap: 8px;
-  transition: all 0.2s;
-  box-shadow: 0 4px 15px rgba(230, 193, 92, 0.3);
+.btn-confirm-compact {
+  background: linear-gradient(135deg, var(--c-gold) 0%, #b8860b 100%);
+  border: none; padding: 0 24px; height: 44px; border-radius: 8px;
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  box-shadow: 0 4px 15px rgba(230, 193, 92, 0.25);
+  transition: all 0.2s ease;
 }
-.btn-confirm:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(230, 193, 92, 0.5); background: #ffd700; }
-.btn-confirm:disabled { background: #4a5568; color: #718096; cursor: not-allowed; box-shadow: none; }
-.btn-badge { background: rgba(0,0,0,0.2); color: inherit; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; font-family: var(--font-mono); }
+.btn-confirm-compact:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.btn-text { color: #0b0c10; font-weight: 800; font-family: var(--font-serif); }
+.badge { background: #0b0c10; color: var(--c-gold); font-family: var(--font-mono); font-size: 0.8rem; padding: 2px 8px; border-radius: 10px; }
 
 /* --- 装饰分割线 --- */
 .divider-visual {
@@ -667,122 +721,137 @@ const submitTransaction = () => {
 .line { flex: 1; width: 1px; background: linear-gradient(to bottom, transparent, var(--c-panel-border), transparent); }
 .icon { padding: 10px 0; font-size: 1.2rem; opacity: 0.5; }
 
+/* --- 移动端专用组件 (默认隐藏) --- */
+.mobile-nav { display: none; } /* PC端隐藏导航栏 */
+.confirm-panel { display: none; } /* PC端隐藏确认面板 */
+
+/* 移动端交易清单页样式 */
+.invoice-list { padding: 10px 0; }
+.invoice-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  background: rgba(255,255,255,0.02);
+}
+.inv-left { display: flex; flex-direction: column; gap: 4px; }
+.inv-name { font-weight: bold; color: #fff; }
+.inv-type { font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; display: inline-block; width: fit-content; }
+.inv-type.buy { background: rgba(255, 126, 103, 0.2); color: var(--c-accent-buy); }
+.inv-type.sell { background: rgba(100, 255, 218, 0.2); color: var(--c-accent-sell); }
+
+.inv-right { text-align: right; }
+.inv-calc { font-size: 0.8rem; color: var(--c-text-dim); font-family: var(--font-mono); }
+.inv-total { font-family: var(--font-mono); font-weight: bold; }
+.inv-total.gain { color: var(--c-accent-sell); }
+.inv-total.cost { color: var(--c-accent-buy); }
+
+.invoice-summary {
+  margin-top: 20px; padding: 20px;
+  background: rgba(0,0,0,0.3); border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+.summary-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; color: var(--c-text-dim); }
+.summary-row span:last-child { font-family: var(--font-mono); color: #fff; }
+.summary-row .gain { color: var(--c-accent-sell) !important; }
+.summary-row .cost { color: var(--c-accent-buy) !important; }
+.divider-dashed { border-bottom: 1px dashed rgba(255,255,255,0.1); margin: 15px 0; }
+.summary-row.final { font-size: 1.2rem; font-weight: bold; color: #fff; margin-bottom: 20px; }
+.summary-row.final .safe { color: var(--c-gold) !important; }
+.summary-row.final .danger { color: #ff4d4d !important; }
+
+.btn-mobile-confirm {
+  width: 100%; padding: 15px; border: none; border-radius: 8px;
+  background: var(--c-gold); color: #0b0c10;
+  font-weight: bold; font-size: 1.1rem; font-family: var(--font-serif);
+  cursor: pointer; transition: all 0.2s;
+}
+.btn-mobile-confirm:disabled { background: #4a5568; color: #718096; cursor: not-allowed; }
+
 /* --- 滚动条与动画 --- */
 .custom-scrollbar::-webkit-scrollbar { width: 6px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
 .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
-
 .empty-tip { text-align: center; color: var(--c-text-dim); padding-top: 50px; font-style: italic; opacity: 0.5; }
 .empty-tip span { font-size: 2rem; display: block; margin-bottom: 10px; filter: grayscale(1); }
-
-/* 动画 */
-.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.2s ease; }
-.fade-slide-enter-from, .fade-slide-leave-to { opacity: 0; transform: translateY(-10px); }
-
 .slide-up-enter-active, .slide-up-leave-active { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
 .slide-up-enter-from, .slide-up-leave-to { transform: translate(-50%, 100%); opacity: 0; }
 
-/* --- 移动端适配 --- */
+/* --- 响应式适配 (关键逻辑) --- */
 @media (max-width: 768px) {
+  /* 1. 隐藏PC端元素 */
+  .desktop-only { display: none !important; }
+  .trade-bar-wrapper { display: none !important; } /* 隐藏PC悬浮条 */
+  .divider-visual { display: none; }
+
+  /* 2. 显示移动端元素 */
+  .mobile-only { display: flex; }
+  .confirm-panel { display: flex; } /* 允许显示确认面板 */
+
+  /* 3. 移动端导航栏样式 (非悬浮，Flex布局) */
+  .mobile-nav {
+    /* 取消 fixed 定位，改为文档流 */
+    position: relative;
+    width: 100%;
+    height: 60px;
+    background: #14161c;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: flex !important; /* 强制显示 */
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    padding-bottom: env(safe-area-inset-bottom);
+    flex-shrink: 0; /* 防止被挤压 */
+  }
+
+  .nav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 100%; color: var(--c-text-dim); position: relative;
+    transition: all 0.2s;
+  }
+  .nav-item.active { color: var(--c-gold); background: rgba(255,255,255,0.03); }
+  .nav-icon { font-size: 1.2rem; margin-bottom: 2px; }
+  .nav-label { font-size: 0.7rem; }
+  .nav-badge {
+    position: absolute; top: 5px; right: 25%;
+    background: #ff4d4d; color: white; font-size: 0.6rem;
+    padding: 2px 5px; border-radius: 10px; font-weight: bold;
+  }
+
+  /* 4. 布局调整 */
   .shop-view {
-    height: auto;
-    min-height: 100vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .shop-header {
-    padding: 15px;
-  }
-
-  .header-content {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 15px;
-  }
-
-  .title-group {
-    text-align: center;
-  }
-
-  .gold-wrapper {
-    width: 100%;
-  }
-
-  .gold-display {
-    width: 100%;
-    box-sizing: border-box;
+    height: 100vh; /* 兼容旧浏览器 */
+    height: 100dvh; /* 适配移动端动态视口 */
+    overflow: hidden;
     display: flex;
-    justify-content: space-between;
+    flex-direction: column; /* 垂直排列：Header -> Content -> Nav */
   }
+
+  .shop-header { padding: 15px; flex-shrink: 0; }
+  .header-content { flex-direction: column; gap: 10px; align-items: stretch; }
+  .title-group { text-align: center; }
+  .gold-wrapper { width: 100%; }
+  .gold-display { width: 100%; box-sizing: border-box; justify-content: space-between; }
 
   .shop-content {
+    flex: 1; /* 自动占据剩余空间 */
     flex-direction: column;
     padding: 10px;
-    padding-bottom: 20px;
-    height: auto;
-    overflow: visible;
+    gap: 0;
+    height: auto; /* 取消固定高度计算 */
+    overflow: hidden; /* 内部滚动 */
   }
 
   .panel {
-    flex: none;
-    height: auto;
-    max-height: none;
-    margin-bottom: 20px;
-    overflow: visible;
+    height: 100%; border: none; background: transparent; box-shadow: none;
+    display: flex; flex-direction: column;
   }
 
-  .scroll-area {
-    height: auto;
-    overflow: visible;
-    padding-bottom: 0;
-  }
+  /* 5. 隐藏非当前Tab的面板 (仅在移动端生效) */
+  .mobile-hidden { display: none !important; }
 
-  .divider-visual {
-    width: 100%;
-    height: 40px;
-    flex-direction: row;
-    margin: 0;
-  }
+  .scroll-area { padding-bottom: 20px; /* 底部不再需要为悬浮栏留白 */ }
 
-  .line { width: auto; height: 1px; flex: 1; background: linear-gradient(to right, transparent, var(--c-panel-border), transparent); }
-  .icon { padding: 0 10px; }
-
-  .trade-bar-wrapper {
-    position: relative;
-    bottom: auto;
-    left: auto;
-    transform: none;
-    width: 94%;
-    max-width: none;
-    margin: 0 auto 40px auto;
-    z-index: 1;
-  }
-
-  .slide-up-enter-from, .slide-up-leave-to {
-    transform: translateY(20px);
-    opacity: 0;
-  }
-
-  .trade-bar {
-    flex-direction: column;
-    gap: 12px;
-    padding: 15px;
-  }
-
-  .trade-info {
-    width: 100%;
-    justify-content: space-between;
-  }
-
-  .trade-btns {
-    width: 100%;
-  }
-
-  .btn-confirm {
-    flex: 1;
-    justify-content: center;
-  }
+  /* 确认页特殊处理 */
+  .confirm-panel { background: var(--c-panel-bg); border-radius: 12px; height: 100%; }
+  .invoice-area { padding: 15px; padding-bottom: 20px; }
 }
 </style>
