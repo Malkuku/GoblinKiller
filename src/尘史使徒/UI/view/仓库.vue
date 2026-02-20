@@ -8,7 +8,7 @@
       </div>
 
       <div class="header-actions">
-        <!-- 新增：删除模式切换按钮 -->
+        <!-- 删除模式切换按钮 -->
         <button
           class="ac-btn delete-mode-btn"
           :class="{ 'is-active': isDeleteMode }"
@@ -34,6 +34,21 @@
       </div>
     </header>
 
+    <!-- 新增：分类筛选栏 -->
+    <div class="category-bar-wrapper">
+      <div class="category-scroll">
+        <button
+          v-for="cat in categories"
+          :key="cat"
+          class="cat-btn"
+          :class="{ active: activeCategory === cat }"
+          @click="activeCategory = cat"
+        >
+          {{ cat }}
+        </button>
+      </div>
+    </div>
+
     <!-- 主体双栏区域 -->
     <div class="manager-body">
 
@@ -44,14 +59,14 @@
           :class="{ active: activeMobileTab === 'backpack' }"
           @click="activeMobileTab = 'backpack'"
         >
-          行囊 ({{ Object.keys(localBackpack).length }})
+          行囊 ({{ backpackList.length }})
         </div>
         <div
           class="mobile-tab-item"
           :class="{ active: activeMobileTab === 'warehouse' }"
           @click="activeMobileTab = 'warehouse'"
         >
-          仓库 ({{ Object.keys(localWarehouse).length }})
+          仓库 ({{ warehouseList.length }})
         </div>
       </div>
 
@@ -133,7 +148,6 @@
                   </template>
                 </div>
 
-                <!-- 根据模式显示不同按钮 -->
                 <button
                   v-if="!isDeleteMode"
                   class="mini-confirm-btn"
@@ -151,7 +165,9 @@
               </div>
             </div>
           </div>
-          <div v-if="backpackList.length === 0" class="empty-state">行囊空空如也</div>
+          <div v-if="backpackList.length === 0" class="empty-state">
+            {{ activeCategory !== '全部' ? '该分类下无物品' : '行囊空空如也' }}
+          </div>
         </div>
       </div>
 
@@ -230,7 +246,6 @@
                   </template>
                 </div>
 
-                <!-- 根据模式显示不同按钮 -->
                 <button
                   v-if="!isDeleteMode"
                   class="mini-confirm-btn"
@@ -248,7 +263,9 @@
               </div>
             </div>
           </div>
-          <div v-if="warehouseList.length === 0" class="empty-state">仓库空置</div>
+          <div v-if="warehouseList.length === 0" class="empty-state">
+            {{ activeCategory !== '全部' ? '该分类下无物品' : '仓库空置' }}
+          </div>
         </div>
       </div>
 
@@ -270,6 +287,9 @@ const localMoney = ref(0);
 const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
 const searchQuery = ref('');
+
+// 新增：分类状态
+const activeCategory = ref('全部');
 
 // 新增：删除模式状态
 const isDeleteMode = ref(false);
@@ -302,9 +322,29 @@ function resetInventory() {
   hasUnsavedChanges.value = false;
   activeItemId.value = null;
   isDeleteMode.value = false;
+  activeCategory.value = '全部'; // 重置分类
 }
 
 // --- 数据处理 ---
+
+// 新增：动态计算所有可用分类（合并行囊和仓库）
+const categories = computed(() => {
+  const types = new Set();
+
+  const collectTypes = (obj) => {
+    Object.entries(obj).forEach(([key, val]) => {
+      if (key !== '$template' && val.类型) {
+        types.add(val.类型);
+      }
+    });
+  };
+
+  collectTypes(localBackpack.value);
+  collectTypes(localWarehouse.value);
+
+  return ['全部', ...Array.from(types).sort()];
+});
+
 const processList = (sourceObj) => {
   return Object.entries(sourceObj)
     .filter(([key]) => key !== '$template')
@@ -316,9 +356,21 @@ const processList = (sourceObj) => {
       raw: val
     }))
     .filter(item => {
-      if (!searchQuery.value) return true;
-      return item.name.includes(searchQuery.value) ||
-        (item.raw.类型 && item.raw.类型.includes(searchQuery.value));
+      // 1. 搜索过滤
+      if (searchQuery.value) {
+        const query = searchQuery.value;
+        const matchesSearch = item.name.includes(query) ||
+          (item.raw.类型 && item.raw.类型.includes(query));
+        if (!matchesSearch) return false;
+      }
+
+      // 2. 分类过滤 (新增逻辑)
+      if (activeCategory.value !== '全部') {
+        const type = item.raw.类型 || '杂物'; // 处理无类型情况
+        if (type !== activeCategory.value) return false;
+      }
+
+      return true;
     })
     .sort((a, b) => {
       if (a.isModified && !b.isModified) return -1;
@@ -434,41 +486,23 @@ function confirmDelete() {
 
 // --- 核心优化：严格差分保存逻辑 ---
 
-/**
- * 辅助函数：清理对象中的临时字段 (如 isModified)
- */
 function cleanData(item) {
   const { isModified, ...rest } = item;
   return rest;
 }
 
-/**
- * 辅助函数：构建嵌套 Payload
- * 确保同一层级的多个修改能合并到同一个对象中
- * 例如: root['仓库']['苹果'] = ... 和 root['仓库']['香蕉'] = ...
- */
 function addToPayload(root, pathArr, key, value) {
   let current = root;
-  // 遍历路径，构建中间层对象
   pathArr.forEach(pathKey => {
     if (!current[pathKey]) {
       current[pathKey] = {};
     }
     current = current[pathKey];
   });
-  // 设置最终的值
   current[key] = value;
 }
 
-/**
- * 辅助函数：生成差分
- * @param {Object} localObj 本地数据 (如 localBackpack.value)
- * @param {Object} remoteObj 远程数据 (如 statStore...物品)
- * @param {Array} pathArr 数据在全局状态中的路径 (如 ['角色', 'user', '物品'])
- * @param {Object} payloads 包含 delete, insert, update 三个容器
- */
 function generateDiff(localObj, remoteObj, pathArr, payloads) {
-  // 获取所有涉及的键（并集）
   const allKeys = new Set([...Object.keys(localObj), ...Object.keys(remoteObj)]);
 
   allKeys.forEach(key => {
@@ -477,24 +511,14 @@ function generateDiff(localObj, remoteObj, pathArr, payloads) {
     const localItem = localObj[key];
     const remoteItem = remoteObj[key];
 
-    // 情况 1: 远程有，本地无 -> 删除 (Delete)
-    // 场景：物品被移走，或者被丢弃
     if (remoteItem && !localItem) {
-      // API 规定：空对象 {} 表示删除该节点
       addToPayload(payloads.delete, pathArr, key, {});
     }
-
-      // 情况 2: 本地有，远程无 -> 插入 (Insert)
-    // 场景：物品是从别处移过来的，或者是新生成的
     else if (localItem && !remoteItem) {
       addToPayload(payloads.insert, pathArr, key, cleanData(localItem));
     }
-
-      // 情况 3: 两边都有 -> 检查是否需要更新 (Update)
-    // 场景：物品还在，但数量或耐久变了
     else if (localItem && remoteItem) {
       const cleanLocal = cleanData(localItem);
-      // 简单深比较，如果数据不一致则更新
       if (JSON.stringify(cleanLocal) !== JSON.stringify(remoteItem)) {
         addToPayload(payloads.update, pathArr, key, cleanLocal);
       }
@@ -507,53 +531,17 @@ async function saveAllChanges() {
   isSaving.value = true;
 
   try {
-    // 1. 初始化 Payloads 容器
-    const payloads = {
-      delete: {},
-      insert: {},
-      update: {}
-    };
-
-    // 2. 获取远程快照 (作为对比基准)
+    const payloads = { delete: {}, insert: {}, update: {} };
     const remoteBackpack = statStore.stat_data?.角色?.user?.物品 || {};
     const remoteWarehouse = statStore.stat_data?.仓库 || {};
 
-    // 3. 计算差分
-    // 3.1 计算背包的变动 (路径: 角色 -> user -> 物品)
-    generateDiff(
-      localBackpack.value,
-      remoteBackpack,
-      ['角色', 'user', '物品'],
-      payloads
-    );
+    generateDiff(localBackpack.value, remoteBackpack, ['角色', 'user', '物品'], payloads);
+    generateDiff(localWarehouse.value, remoteWarehouse, ['仓库'], payloads);
 
-    // 3.2 计算仓库的变动 (路径: 仓库)
-    generateDiff(
-      localWarehouse.value,
-      remoteWarehouse,
-      ['仓库'],
-      payloads
-    );
+    if (Object.keys(payloads.delete).length > 0) await ERAUtil.DeleteByObject(payloads.delete);
+    if (Object.keys(payloads.update).length > 0) await ERAUtil.UpdateByObject(payloads.update);
+    if (Object.keys(payloads.insert).length > 0) await ERAUtil.InsertByObject(payloads.insert);
 
-    // 4. 按顺序执行 API 调用
-    // 注意：这里必须分步执行，因为 API 是按类型区分的
-
-    // 4.1 执行删除 (DeleteByObject)
-    if (Object.keys(payloads.delete).length > 0) {
-      await ERAUtil.DeleteByObject(payloads.delete);
-    }
-
-    // 4.2 执行更新 (UpdateByObject)
-    if (Object.keys(payloads.update).length > 0) {
-      await ERAUtil.UpdateByObject(payloads.update);
-    }
-
-    // 4.3 执行插入 (InsertByObject)
-    if (Object.keys(payloads.insert).length > 0) {
-      await ERAUtil.InsertByObject(payloads.insert);
-    }
-
-    // 5. 生成并发送日志 (仅用于显示，不影响数据)
     const exchangeLogs = [];
     const allNames = new Set([
       ...Object.keys(remoteBackpack), ...Object.keys(remoteWarehouse),
@@ -570,7 +558,6 @@ async function saveAllChanges() {
       const bagDiff = newBag - oldBag;
       const whDiff = newWh - oldWh;
 
-      // 日志逻辑：只有当一边减少且另一边增加时，才视为“交换”
       if (bagDiff < 0 && whDiff > 0) {
         exchangeLogs.push({ "名称": name, "数量": Math.min(Math.abs(bagDiff), whDiff), "方向": "存入仓库" });
       } else if (bagDiff > 0 && whDiff < 0) {
@@ -580,12 +567,10 @@ async function saveAllChanges() {
 
     if (exchangeLogs.length > 0) {
       const logText = `\n<user>与漫宿之上的神秘空间完成了物品交换:\n${JSON.stringify(exchangeLogs, null, 0)}\n`;
-      // 兼容性处理：确保 getLastMessageId 存在
       const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
       await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
     }
 
-    // 6. 重置本地状态
     hasUnsavedChanges.value = false;
     Object.values(localBackpack.value).forEach(i => i.isModified = false);
     Object.values(localWarehouse.value).forEach(i => i.isModified = false);
@@ -711,7 +696,6 @@ async function saveAllChanges() {
   box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.1);
 }
 
-/* 删除模式按钮特定样式 */
 .delete-mode-btn {
   border-color: #666;
   color: #888;
@@ -727,6 +711,49 @@ async function saveAllChanges() {
   color: var(--c-danger);
   background: rgba(255, 77, 77, 0.1);
   box-shadow: 0 0 10px var(--c-danger-dim);
+}
+
+/* --- 新增：分类栏样式 --- */
+.category-bar-wrapper {
+  padding: 10px 20px 0 20px;
+  flex-shrink: 0;
+  background: rgba(0,0,0,0.2);
+}
+
+.category-scroll {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  scrollbar-width: none; /* Firefox */
+}
+.category-scroll::-webkit-scrollbar { display: none; }
+
+.cat-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #888;
+  padding: 6px 16px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: 0.3s;
+  font-family: var(--font-title);
+  font-size: 0.85rem;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.cat-btn:hover {
+  color: #ccc;
+  background: rgba(255,255,255,0.05);
+}
+
+.cat-btn.active {
+  color: var(--c-gold);
+  border-color: var(--c-gold-dim);
+  background: rgba(212, 175, 55, 0.08);
+  box-shadow: inset 0 0 8px rgba(212, 175, 55, 0.05);
 }
 
 /* --- 主体区域 --- */
@@ -797,7 +824,6 @@ async function saveAllChanges() {
   box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
 }
 
-/* 删除模式下金钱显示变暗，不突出 */
 .mode-delete .money-display {
   filter: grayscale(1);
   opacity: 0.5;
@@ -969,7 +995,7 @@ async function saveAllChanges() {
   flex-shrink: 0;
 }
 
-/* --- 展开面板 (包含详情和操作) --- */
+/* --- 展开面板 --- */
 .expanded-panel {
   border-top: 1px solid rgba(255,255,255,0.1);
   background: rgba(0,0,0,0.3);
@@ -985,7 +1011,6 @@ async function saveAllChanges() {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* 详情文本 */
 .item-details {
   font-size: 0.85rem;
   color: #aaa;
@@ -1008,7 +1033,6 @@ async function saveAllChanges() {
   margin-right: 4px;
 }
 
-/* 操作栏 */
 .transfer-action-bar {
   display: flex;
   align-items: center;
@@ -1087,7 +1111,6 @@ async function saveAllChanges() {
   box-shadow: 0 0 10px var(--c-danger);
 }
 
-/* 样式变体 */
 .style-weapon .item-icon { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
 .style-lore .item-icon { color: #a29bfe; border-color: rgba(162, 155, 254, 0.3); }
 .style-currency .item-icon { color: #ffeaa7; border-color: rgba(255, 234, 167, 0.3); }
@@ -1169,6 +1192,10 @@ async function saveAllChanges() {
   }
   .ac-input:focus {
     width: 100px;
+  }
+
+  .category-bar-wrapper {
+    padding: 10px 10px 0 10px;
   }
 }
 </style>
