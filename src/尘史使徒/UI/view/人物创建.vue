@@ -1,7 +1,7 @@
 <template>
   <div class="creation-layout theme-forgotten">
 
-    <!-- 页面一：主要表单内容 (当不显示地图时显示) -->
+    <!-- 页面一：主要表单内容 -->
     <div class="main-page-view" v-show="!showMapModal">
       <header class="creation-header">
         <h1 class="title">重塑自我</h1>
@@ -73,7 +73,6 @@
               </div>
             </div>
 
-            <!-- 新增：初始身份 -->
             <div class="input-row" style="margin-top: 15px;">
               <label>初始身份</label>
               <input type="text" v-model="formData.identity" placeholder="例如：落魄贵族、流浪骑士、学徒" class="text-input">
@@ -84,16 +83,23 @@
             <h3 class="section-title">特殊状态</h3>
             <textarea v-model="formData.specialStatus" rows="2" placeholder="例如：指尖总是冰冷..."></textarea>
           </section>
+
+          <!-- 新增：叙事节奏选择 -->
+          <section class="form-group">
+            <h3 class="section-title">叙事风格</h3>
+            <p class="desc">故事将以何种节奏展开？</p>
+            <!-- 使用 v-model 绑定到 formData，此时组件为“受控模式” -->
+            <NarrativePaceSelector v-model="formData.narrativePace" />
+          </section>
         </div>
 
-        <!-- 中间：性格倾向 (优化版) -->
+        <!-- 中间：性格倾向 -->
         <div class="column mid-col">
           <h3 class="section-title">心性倾向</h3>
           <div class="personality-sliders">
             <div class="slider-item" v-for="(val, key) in formData.personality" :key="key">
               <div class="slider-header">
                 <span class="trait-name">{{ key }}</span>
-                <!-- 动态显示当前区间的具体描述 -->
                 <span class="trait-status" :class="getTraitColorClass(val)">
                   {{ getTraitDetail(key, val).label }}
                 </span>
@@ -101,7 +107,6 @@
 
               <div class="slider-container">
                 <span class="limit-label left">{{ getTraitExtremes(key).min }}</span>
-                <!-- 范围调整为 -100 到 100 -->
                 <input type="range" v-model.number="formData.personality[key]" min="-100" max="100" step="1" class="styled-slider">
                 <span class="limit-label right">{{ getTraitExtremes(key).max }}</span>
               </div>
@@ -112,7 +117,6 @@
             </div>
           </div>
 
-          <!-- 修改：性格总结部分允许编辑 -->
           <div class="personality-summary-box">
             <div class="summary-header-row">
               <label>性格侧写</label>
@@ -127,12 +131,11 @@
           </div>
         </div>
 
-        <!-- 右侧：术之等级 (优化布局) -->
+        <!-- 右侧：术之等级 -->
         <div class="column right-col">
           <h3 class="section-title">秘史造诣</h3>
 
           <div class="points-header">
-            <!-- 修改：点数显示逻辑 -->
             <div class="points-info-group">
               <div class="points-label">{{ isInfiniteMode ? '总消耗点数' : '剩余点数' }}</div>
               <div class="points-display">
@@ -147,7 +150,6 @@
               </div>
             </div>
 
-            <!-- 新增：无限点数开关 -->
             <div class="infinite-toggle">
               <label class="toggle-label">
                 <input type="checkbox" v-model="isInfiniteMode">
@@ -171,7 +173,6 @@
                   </span>
                   <span v-else class="cost-val">MAX</span>
                 </div>
-                <!-- 修改：禁用逻辑，无限模式下不检查剩余点数，上限改为 maxArtLevel -->
                 <button class="ctrl-btn" @click="changeArtLevel(key, 1)"
                         :disabled="(!isInfiniteMode && remainingPoints < getUpgradeCost(key, data.当前等级)) || data.当前等级 >= maxArtLevel">
                   +
@@ -180,7 +181,6 @@
             </div>
           </div>
 
-          <!-- 引用术之详情组件 -->
           <div class="arts-preview-wrapper">
             <ArtsModule :artsData="formData.arts" mode="creation" />
           </div>
@@ -188,7 +188,6 @@
       </div>
 
       <footer class="action-footer">
-        <!-- 修改：提交禁用逻辑，无限模式下允许负分 -->
         <button class="confirm-btn" :disabled="submitting || (!isInfiniteMode && remainingPoints < 0)" @click="submitCreation">
           <span v-if="!submitting">铭刻真实</span>
           <span v-else>正在生成...</span>
@@ -196,7 +195,7 @@
       </footer>
     </div>
 
-    <!-- 页面二：地图选择页面 (不再是模态框，而是全屏页面) -->
+    <!-- 页面二：地图选择页面 -->
     <transition name="page-slide">
       <div v-if="showMapModal" class="map-page-view">
         <header class="map-page-header">
@@ -204,7 +203,7 @@
             <span class="arrow">←</span> 返回设定
           </button>
           <h2>选择出生地</h2>
-          <div class="header-spacer"></div> <!-- 占位，保持标题居中 -->
+          <div class="header-spacer"></div>
         </header>
         <div class="map-page-content">
           <Vision mode="selection" @select="onLocationSelected" />
@@ -224,11 +223,11 @@ import Vision from './世界信息.vue';
 import { router } from '@/尘史使徒/UI/router/router';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import ArtsModule from '@/尘史使徒/UI/components/role/ArtsModule.vue';
-
+import NarrativePaceSelector from '@/尘史使徒/UI/components/story/NarrativePaceSelector.vue';
 const submitting = ref(false);
 const showMapModal = ref(false);
 const statStore = useStatStore();
-const isInfiniteMode = ref(false); // 新增：无限点数模式状态
+const isInfiniteMode = ref(false);
 
 onMounted(() => {
   if (!statStore.stat_data) {
@@ -253,6 +252,8 @@ const formData = reactive({
   identity: '王家四艺学院学生',
   location: '艾斯特拉',
   specialStatus: '',
+  // 新增：叙事节奏，默认值
+  narrativePace: '诡异现实',
   personality: {
     "社交取向": 0,
     "决策模式": 0,
@@ -272,6 +273,7 @@ const formData = reactive({
   }
 });
 
+// ... (省略性格特质定义 traitDefinitions, getTraitDetail, getTraitExtremes, getTraitColorClass 等辅助函数，保持不变) ...
 const traitDefinitions = {
   "社交取向": [
     { min: -100, max: -80, label: "社交壁垒", desc: "主动回避接触，人群引发不适" },
@@ -344,7 +346,7 @@ const getTraitColorClass = (val) => {
   return 'text-gray';
 };
 
-// 自动生成的性格总结（计算属性）
+// 自动生成的性格总结
 const generatedPersonalitySummary = computed(() => {
   const p = formData.personality;
   const parts = [];
@@ -358,30 +360,22 @@ const generatedPersonalitySummary = computed(() => {
   return `一位${parts.join("、")}的旅人。`;
 });
 
-// 最终显示的性格总结（可编辑）
 const finalPersonalitySummary = ref("");
-// 标记是否手动编辑过
 const isManualSummary = ref(false);
 
-// 监听自动生成的内容，如果用户没有手动编辑过，则同步更新
 watch(generatedPersonalitySummary, (newVal) => {
   if (!isManualSummary.value) {
     finalPersonalitySummary.value = newVal;
   }
 }, { immediate: true });
 
-// 用户手动输入时触发
-const handleSummaryInput = () => {
-  isManualSummary.value = true;
-};
-
-// 重置为自动生成
+const handleSummaryInput = () => { isManualSummary.value = true; };
 const resetSummary = () => {
   isManualSummary.value = false;
   finalPersonalitySummary.value = generatedPersonalitySummary.value;
 };
 
-// 新增：动态计算最大等级
+// 术之等级逻辑
 const maxArtLevel = computed(() => isInfiniteMode.value ? 21 : 10);
 
 const getUpgradeCost = (artKey, currentLevel) => {
@@ -421,13 +415,10 @@ const remainingPoints = computed(() => {
 const changeArtLevel = (key, delta) => {
   const art = formData.arts[key];
   const newLevel = art.当前等级 + delta;
-
-  // 修改：使用动态的 maxArtLevel
   if (newLevel < 0 || newLevel > maxArtLevel.value) return;
 
   if (delta > 0) {
     art.当前等级 = newLevel;
-    // 修改：仅在非无限模式下检查点数是否不足
     if (!isInfiniteMode.value && remainingPoints.value < 0) {
       art.当前等级 -= delta;
       if (window.toastr) window.toastr.warning("点数不足");
@@ -482,12 +473,15 @@ const submitCreation = async () => {
           "当前身份": formData.identity,
           "性格": {
             ...formData.personality,
-            "性格总结": [finalPersonalitySummary.value] // 使用最终编辑的总结
+            "性格总结": [finalPersonalitySummary.value]
           },
           "外貌": [finalAppearance.value]
         }
       },
-      "system": { "插图模式": formData.gender }
+      "system": {
+        "插图模式": formData.gender,
+        "叙事节奏": formData.narrativePace // 新增：提交叙事节奏
+      }
     };
 
     await ERAUtil.UpdateByObject(updatePayload);
@@ -526,7 +520,7 @@ const submitCreation = async () => {
     injectionText += `出生地：${formData.location}\n`;
     if (formData.identity) injectionText += `身份：${formData.identity}\n`;
     injectionText += `外貌：${finalAppearance.value}\n`;
-    injectionText += `性格：${finalPersonalitySummary.value}\n`; // 使用最终编辑的总结
+    injectionText += `性格：${finalPersonalitySummary.value}\n`;
     if (formData.specialStatus) injectionText += `特殊状态：${formData.specialStatus}\n`;
     injectionText += `</mirror>\n`;
     injectionText += `随后伴随着一阵天旋地转，{{user}}的意识又陷入一片混沌，当{{user}}再次醒来之时——\n`;

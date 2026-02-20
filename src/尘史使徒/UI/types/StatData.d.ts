@@ -204,5 +204,5 @@ export interface SystemSettings {
   "当前剧本":string;
   "插图模式":"男性"|"女性";
   "玩家插图"?: number; // 新增
-  "叙事节奏"?: number; // 新增
+  "叙事节奏"?: "轻松奇幻" | "诡秘现实" | string;
 }

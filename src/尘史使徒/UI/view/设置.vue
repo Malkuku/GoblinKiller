@@ -12,22 +12,15 @@
         <span class="value">Ver. {{ systemSettings?.当前版本 || '1.0.0' }}</span>
       </div>
 
-      <!-- 当前剧本展示 (复用剧本样式) -->
+      <!-- 当前剧本展示 -->
       <div class="scenario-display-section" v-if="currentScenario">
         <div class="section-title">当前剧本</div>
-
-        <!-- 复用 Card 样式，但移除点击交互 -->
         <div class="scenario-card active" :class="currentScenario.theme">
-          <!-- 背景特效层 -->
           <div class="art-bg-effect"></div>
-
           <div class="card-content">
-            <!-- SVG 图标 -->
             <div class="scenario-icon-wrapper">
               <svg viewBox="0 0 64 64" class="scenario-svg" v-html="currentScenario.iconPath"></svg>
             </div>
-
-            <!-- 标题 -->
             <h2 class="scenario-title art-name">{{ currentScenario.name }}</h2>
           </div>
         </div>
@@ -39,6 +32,14 @@
           <span>暂无进行中的剧本</span>
         </div>
       </div>
+
+      <!-- 新增：叙事节奏配置 -->
+      <div class="pace-section">
+        <div class="section-title">叙事节奏</div>
+        <!-- 直接使用组件，不传 modelValue 即为“非受控模式”，组件内部会自动处理 API 调用 -->
+        <NarrativePaceSelector />
+      </div>
+
     </div>
   </div>
 </template>
@@ -48,6 +49,7 @@ import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { ScenariosMetadata } from '@/尘史使徒/UI/types/剧本数据';
+import NarrativePaceSelector from '@/尘史使徒/UI/components/story/NarrativePaceSelector.vue';
 
 const statStore = useStatStore();
 const { stat_data } = storeToRefs(statStore);
@@ -55,14 +57,12 @@ const { stat_data } = storeToRefs(statStore);
 // 获取系统设置数据
 const systemSettings = computed(() => stat_data.value?.system);
 
-
 // 计算当前匹配的剧本信息
 const currentScenario = computed(() => {
   const currentName = systemSettings.value?.当前剧本;
   if (!currentName) return null;
   return ScenariosMetadata.find(s => s.name === currentName);
 });
-
 </script>
 
 <style scoped>
@@ -115,6 +115,7 @@ const currentScenario = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 30px;
+  padding-bottom: 40px; /* 底部留白 */
 }
 
 /* 版本信息行样式 */
@@ -157,14 +158,14 @@ const currentScenario = computed(() => {
 }
 
 /* =========================================
-   剧本卡片样式 (复用自第三个文件)
+   剧本卡片样式
    ========================================= */
 .scenario-card {
   position: relative;
-  background: rgba(0, 0, 0, 0.8); /* 默认使用 active 背景 */
+  background: rgba(0, 0, 0, 0.8);
   border: 1px solid var(--theme-color, var(--c-gold));
   box-shadow: 0 0 20px var(--theme-glow, var(--c-gold-dim));
-  min-height: 250px; /* 稍微调小高度，因为没有描述文本 */
+  min-height: 250px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -185,7 +186,7 @@ const currentScenario = computed(() => {
 }
 
 .scenario-icon-wrapper {
-  width: 100px; /* 图标稍微放大一点作为展示 */
+  width: 100px;
   height: 100px;
   margin-bottom: 20px;
   color: var(--theme-color, var(--c-gold));
@@ -200,34 +201,24 @@ const currentScenario = computed(() => {
 }
 
 /* =========================================
-   特效样式 (完全复用)
+   特效样式 (保持不变)
    ========================================= */
 .art-bg-effect { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; overflow: hidden; }
-
-/* 灯 (Lamp) */
 .theme-lamp { --theme-color: #FFD700; --theme-glow: rgba(255, 215, 0, 0.3); }
 .theme-lamp .art-name { color: var(--theme-color); text-shadow: 0 0 10px var(--theme-color); }
 .theme-lamp .art-bg-effect { background: radial-gradient(circle, var(--theme-color) 0%, transparent 70%); opacity: 0.15; }
-
-/* 冬 (Winter) */
 .theme-winter { --theme-color: #A3D5D5; --theme-glow: rgba(163, 213, 213, 0.3); }
 .theme-winter .art-name { color: var(--theme-color); }
 .theme-winter .art-bg-effect { background: radial-gradient(circle, #fff 5%, transparent 6%), radial-gradient(circle, #fff 3%, transparent 4%); background-size: 30px 30px, 50px 50px; background-position: 0 0, 25px 25px; animation: snow 10s linear infinite; opacity: 0.3; }
 @keyframes snow { 0% {background-position: 0 0, 25px 25px;} 100% {background-position: 0 300px, 25px 325px;} }
-
-/* 杯 (Cup) */
 .theme-cup { --theme-color: #8B0000; --theme-glow: rgba(139, 0, 0, 0.4); }
 .theme-cup .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.5); }
 .theme-cup .art-bg-effect { background-image: linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%), linear-gradient(to bottom, var(--theme-color) 30%, transparent 100%); background-repeat: no-repeat; background-size: 2px 150%, 3px 200%, 1px 220%; background-position: 10% 0, 50% 0, 90% 0; animation: art-cup-drip-y 6s linear infinite; opacity: 0.4; }
 @keyframes art-cup-drip-y { from { background-position-y: -250%; } to { background-position-y: 100%; } }
-
-/* 蛾 (Moth) */
 .theme-moth { --theme-color: #a8a8a8; --theme-glow: rgba(168, 168, 168, 0.3); }
 .theme-moth .art-name { color: var(--theme-color); text-shadow: 1px 1px 1px rgba(0,0,0,0.5); animation: art-moth-glitch-strong 2s infinite steps(1); }
 .theme-moth .art-bg-effect { background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px); opacity: 0.2; }
 @keyframes art-moth-glitch-strong { 0% { transform: translate(0, 0) skew(0); } 5% { transform: translate(-2px, 1px) skew(-2deg); } 10% { transform: translate(2px, -1px) skew(2deg); } 15% { transform: translate(0, 0) skew(0); } 100% { transform: translate(0, 0) skew(0); } }
-
-/* 被遗忘者 (Forgotten) */
 .theme-forgotten { --theme-color: #C5A059; --theme-glow: rgba(197, 160, 89, 0.2); }
 .theme-forgotten .art-name { color: var(--theme-color); text-shadow: 0 0 5px rgba(0,0,0,0.8); opacity: 0.8; }
 .theme-forgotten .art-bg-effect {
