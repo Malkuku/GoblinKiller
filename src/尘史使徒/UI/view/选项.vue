@@ -33,10 +33,8 @@
       </div>
     </div>
 
-    <!-- 新增：跳转按钮组 (任务 & 商店) -->
-    <!-- 使用 transition-group 让按钮可以堆叠出现 -->
+    <!-- 跳转按钮组 (任务 & 商店) -->
     <transition-group name="slide-up" tag="div" class="link-btn-group">
-
       <!-- 任务跳转按钮 -->
       <button v-if="showQuestLink" key="quest" class="jump-btn quest-btn" @click="navigateToQuest">
         <span class="icon">📜</span>
@@ -50,11 +48,22 @@
         <span class="text">检测到交易契机</span>
         <span class="arrow">➔</span>
       </button>
-
     </transition-group>
 
     <!-- 底部交互区域 -->
     <div v-show="!isInitializing" class="interaction-panel">
+
+      <!-- 新增：附加工具栏 (变量重算 / 重roll) -->
+      <transition name="fade-toolbar">
+        <div v-show="!isTavernBusy" class="extra-toolbar">
+          <button class="toolbar-btn" @click="recalculateVariables" title="重新计算当前变量">
+            <span class="icon">⟳</span> 变量重算
+          </button>
+          <button class="toolbar-btn" @click="rerollCurrent" title="重新生成当前回复">
+            <span class="icon">🎲</span> 重塑命运
+          </button>
+        </div>
+      </transition>
 
       <div class="input-wrapper">
         <!-- 选项菜单按钮 -->
@@ -112,16 +121,16 @@
               v-model="userInput"
               class="story-input normal-state"
               placeholder="书写你的命运..."
-              @keydown.enter.exact.prevent="sendMessage"
+              @keydown.enter.exact.prevent="handleSendOrStop"
             ></textarea>
 
           </transition>
         </div>
 
-        <!-- 发送按钮 -->
-        <button class="send-btn" @click="sendMessage" :disabled="isTavernBusy">
+        <!-- 发送/停止按钮 -->
+        <button class="send-btn" :class="{'is-busy': isTavernBusy}" @click="handleSendOrStop">
           <span v-if="!isTavernBusy" class="send-icon">➤</span>
-          <div v-else class="mini-dot"></div>
+          <div v-else class="stop-icon">■</div>
         </button>
       </div>
     </div>
@@ -135,6 +144,7 @@ import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
+import * as toastr from 'toastr';
 
 const router = useRouter();
 const messageStore = useMessageStore();
@@ -164,7 +174,7 @@ let sendButtonObserver: MutationObserver | null = null;
 const OPTIONS_BLOCK_REGEX = /<options>([\s\S]*?)<\/options>/i;
 const OP_TAG_REGEX = /<op>([\s\S]*?)<\/op>/gi;
 
-// 新增：任务和商店的正则定义
+// 任务和商店的正则定义
 const QUEST_BLOCK_REGEX = /<questVariable>([\s\S]*?)<\/questVariable>/i;
 const SHOP_BLOCK_REGEX = /<shopVariable>([\s\S]*?)<\/shopVariable>/i;
 
@@ -257,8 +267,6 @@ const fetchLatestMessage = () => {
       if (currentHtml !== rawHtml.value) {
         rawHtml.value = currentHtml;
         isStreaming.value = true;
-        // 修改：检测到新消息时不再自动滚动到底部，保持当前阅读位置
-        // if (!isInitializing.value) scrollToBottom();
       } else {
         isStreaming.value = false;
       }
@@ -267,7 +275,6 @@ const fetchLatestMessage = () => {
     console.warn('轮询父窗口失败', e);
   }
 };
-
 
 const parseOptions = (content: string): string[] => {
   if (!content) return [];
@@ -292,6 +299,25 @@ const scrollToBottom = () => {
   });
 };
 
+// --- 核心修改：处理发送或停止 ---
+const handleSendOrStop = async () => {
+  const parentWin = window.parent as any;
+
+  if (isTavernBusy.value) {
+    // 模拟点击
+    const stopBtn = parentWin.document.querySelector('#form_sheld .mes_stop');
+    if (stopBtn) {
+      const eventOpts = { bubbles: true, cancelable: true, view: parentWin };
+      stopBtn.dispatchEvent(new MouseEvent('mousedown', eventOpts));
+      stopBtn.dispatchEvent(new MouseEvent('click', eventOpts));
+    }
+    return;
+  }
+
+  // ➤ 发送消息逻辑
+  await sendMessage();
+};
+
 const sendMessage = async () => {
   const textToSend = userInput.value;
 
@@ -305,7 +331,6 @@ const sendMessage = async () => {
     const parentDoc = window.parent.document;
     const stInput = parentDoc.querySelector('#send_textarea') as HTMLTextAreaElement;
     const stSendBtn = parentDoc.querySelector('#send_but') as HTMLElement;
-
     if (stInput && stSendBtn) {
       stInput.value = textToSend;
       stInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -320,6 +345,42 @@ const sendMessage = async () => {
     isTavernBusy.value = false;
   } finally {
     scrollToBottom();
+  }
+};
+
+// --- 新增：变量重算 ---
+const recalculateVariables = async () => {
+  try {
+    await eventEmit("kat:resend_era_update");
+    toastr.success("已发送变量重算");
+  } catch (e) {
+    console.error('变量重算错误:', e);
+    toastr.error("变量重算失败");
+  }
+};
+
+// --- 核心修改：重roll本楼 (Swipe) ---
+const rerollCurrent = () => {
+  const parentWin = window.parent as any;
+  const parentDoc = parentWin.document;
+
+  // 尝试 DOM 操作 (选中最后一个按钮)
+  const swipeButtons = parentDoc.querySelectorAll('.swipe_right');
+
+  if (swipeButtons.length > 0) {
+    // 选中最后一个 (最新消息的)
+    const lastSwipeBtn = swipeButtons[swipeButtons.length - 1] as HTMLElement;
+
+    // 使用 jQuery 触发 (最稳妥)
+    if (parentWin.jQuery) {
+      parentWin.jQuery(lastSwipeBtn).trigger('click');
+    } else {
+      // 原生触发
+      lastSwipeBtn.click();
+      lastSwipeBtn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, view: parentWin }));
+    }
+  } else {
+    console.error('未找到任何 .swipe_right 按钮');
   }
 };
 
@@ -349,26 +410,26 @@ const checkTavernBusy = (btn: HTMLElement) => {
   const style = window.getComputedStyle(btn);
   const isHidden = style.display === 'none' || style.visibility === 'hidden';
   const isDisabled = btn.hasAttribute('disabled');
+  const isStopIcon = btn.classList.contains('fa-circle-stop'); // 兼容 ST 的停止图标状态
 
-  const busy = isHidden || isDisabled;
+  const busy = isHidden || isDisabled || isStopIcon;
 
   if (isTavernBusy.value !== busy) {
     isTavernBusy.value = busy;
   }
 };
 
-
-// --- 核心修改：监听 messageStore.message (原始文本) 而非 rawHtml ---
+// --- 监听 messageStore.message ---
 watch(
   [
-    () => messageStore.message, // 监听原始文本
+    () => messageStore.message,
     () => questStore.hasBoardData,
     () => shopStore.shopData
   ],
   ([rawText, hasQuestData, shopData]) => {
     if (!rawText) return;
 
-    // 1. 解析选项 (从原始文本)
+    // 1. 解析选项
     const foundOptions = parseOptions(rawText);
     if (JSON.stringify(foundOptions) !== JSON.stringify(cachedOptions.value)) {
       cachedOptions.value = foundOptions;
@@ -377,7 +438,6 @@ watch(
 
     // 2. 检测任务
     const questMatch = rawText.match(QUEST_BLOCK_REGEX);
-    console.log('📜 任务标签匹配结果:', questMatch ? '✅ 匹配成功' : '❌ 未匹配');
     if (questMatch && hasQuestData) {
       showQuestLink.value = true;
     } else {
@@ -387,7 +447,6 @@ watch(
     // 3. 检测商店
     const shopMatch = rawText.match(SHOP_BLOCK_REGEX);
     const hasShopData = shopData && Object.keys(shopData).length > 0;
-    console.log('⚖ 商店标签匹配结果:', shopMatch ? '✅ 匹配成功' : '❌ 未匹配');
 
     if (shopMatch && hasShopData) {
       showShopLink.value = true;
@@ -398,14 +457,11 @@ watch(
   { immediate: true }
 );
 
-
-
 // --- 生命周期 ---
 onMounted(() => {
   const savedSize = localStorage.getItem('animus_font_size');
   if (savedSize) fontSize.value = parseInt(savedSize);
 
-  // 注册监听器并获取初始消息
   messageStore.getMessage();
 
   if (messageStore.message) {
@@ -420,19 +476,16 @@ onMounted(() => {
 
   setTimeout(() => {
     isInitializing.value = false;
-    // 修改：初始化完成后，默认显示在最上方
     if (scrollContainer.value) {
       scrollContainer.value.scrollTop = 0;
     }
   }, 800);
 
-  // 检查是否有从任务/商店页面带回来的确认信息
   const pendingText = uiStore.consumePendingInput();
   if (pendingText) {
     userInput.value = pendingText;
   }
 });
-
 
 onUnmounted(() => {
   if (pollingInterval.value) clearInterval(pollingInterval.value);
@@ -496,10 +549,7 @@ onUnmounted(() => {
   font-family: 'EB Garamond', serif; transition: font-size 0.2s ease;
 }
 
-/* ========================================= */
-/* === 核心修改：对话特效 (记忆碎片风格) === */
-/* ========================================= */
-
+/* === 对话特效 (记忆碎片风格) === */
 .text-body :deep(q) {
   quotes: none;
   display: inline;
@@ -543,8 +593,6 @@ onUnmounted(() => {
   text-shadow: none;
 }
 
-/* ========================================= */
-
 .text-body :deep(p) { margin-bottom: 1em; text-align: justify; }
 .text-body :deep(em) { color: var(--c-gold); font-style: italic; }
 .text-body :deep(strong) { color: #fff; font-weight: 600; }
@@ -563,6 +611,46 @@ onUnmounted(() => {
   backdrop-filter: blur(5px);
 }
 
+/* --- Extra Toolbar (新增) --- */
+.extra-toolbar {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-bottom: 10px;
+}
+
+.toolbar-btn {
+  background: rgba(20, 22, 28, 0.8);
+  border: 1px solid rgba(164, 139, 87, 0.3);
+  color: var(--c-gold);
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-family: 'Cinzel', serif;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.3s ease;
+}
+
+.toolbar-btn:hover {
+  background: rgba(164, 139, 87, 0.15);
+  border-color: var(--c-gold);
+  box-shadow: 0 0 8px rgba(164, 139, 87, 0.3);
+}
+
+.fade-toolbar-enter-active, .fade-toolbar-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.fade-toolbar-enter-from, .fade-toolbar-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+/* --- Input Wrapper --- */
 .input-wrapper {
   position: relative; width: 100%; max-width: 800px;
   display: flex; align-items: flex-end; gap: 12px;
@@ -690,23 +778,33 @@ onUnmounted(() => {
   border-radius: 50%; color: var(--c-gold); font-size: 1.4rem; cursor: pointer;
   display: flex; align-items: center; justify-content: center; transition: all 0.3s;
 }
-.send-btn:hover:not(:disabled) {
+.send-btn:hover {
   background: var(--c-gold); color: #1a1a1a; box-shadow: 0 0 15px var(--c-gold);
 }
-.send-btn:disabled { opacity: 0.7; cursor: not-allowed; border-color: rgba(164, 139, 87, 0.2); }
-.mini-dot {
-  width: 6px; height: 6px; background: var(--c-gold); border-radius: 50%;
-  animation: pulse 0.5s infinite;
+
+/* 发送按钮 - 停止状态 */
+.send-btn.is-busy {
+  border-color: #8b0000;
+  color: #8b0000;
+}
+.send-btn.is-busy:hover {
+  background: rgba(139, 0, 0, 0.2);
+  color: #ff4d4d;
+  box-shadow: 0 0 15px rgba(139, 0, 0, 0.5);
+}
+.stop-icon {
+  font-size: 1.2rem;
+  line-height: 1;
 }
 
 /* --- Jump Buttons (Quest & Shop) --- */
 .link-btn-group {
   position: absolute;
-  bottom: 100px; /* 位于输入框上方 */
+  bottom: 100px;
   left: 0;
   right: 0;
   display: flex;
-  flex-direction: column-reverse; /* 向上堆叠 */
+  flex-direction: column-reverse;
   align-items: center;
   gap: 10px;
   z-index: 20;
@@ -742,7 +840,6 @@ onUnmounted(() => {
   font-weight: bold;
 }
 
-/* 商店按钮特殊样式 (可选) */
 .shop-btn {
   border-color: #ffd700;
   color: #ffd700;
