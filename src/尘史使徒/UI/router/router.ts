@@ -53,6 +53,10 @@ export const router = createRouter({
           path: '人物创建',
           component: () => import('../view/人物创建.vue'),
         },
+        {
+          path: '日记',
+          component: () => import('../view/日记.vue'),
+        }
       ],
     },
   ],

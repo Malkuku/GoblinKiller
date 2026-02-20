@@ -3,6 +3,17 @@
     <!-- 背景遮罩 -->
     <div class="animus-background"></div>
 
+    <!-- ========================================== -->
+    <!-- 新增：全局弹窗容器 -->
+    <!-- ========================================== -->
+    <div class="ac-toast-container">
+      <transition-group name="toast">
+        <div v-for="toast in toasts" :key="toast.id" class="ac-toast">
+          {{ toast.message }}
+        </div>
+      </transition-group>
+    </div>
+
     <!-- 导航区域 -->
     <aside class="ac-sidebar">
       <div class="sidebar-controls">
@@ -48,9 +59,9 @@
 </template>
 
 <script setup>
-import { computed, watch, reactive, provide } from 'vue';
+import { computed, watch, reactive, provide, ref, onMounted } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { storeToRefs } from 'pinia'; // 引入 storeToRefs 以保证响应性
+import { storeToRefs } from 'pinia';
 import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
@@ -63,7 +74,6 @@ const statStore = useStatStore();
 const router = useRouter();
 const route = useRoute();
 
-// 使用 storeToRefs 解构，确保在 computed 和 watch 中能监听到深层变化
 const { stat_data } = storeToRefs(statStore);
 const { hasShopData } = storeToRefs(shopStore);
 const { hasBoardData } = storeToRefs(questStore);
@@ -71,33 +81,69 @@ const { hasBoardData } = storeToRefs(questStore);
 const visible = computed(() => uiStore.showUI);
 const close = () => { uiStore.showUI = false; };
 
-// --- 红点通知系统 ---
+// ==========================================
+// 新增：轻量级弹窗 (Toast) 系统
+// ==========================================
+const toasts = ref([]);
+let toastId = 0;
+const showToast = (message) => {
+  const id = toastId++;
+  toasts.value.push({ id, message });
+  // 3秒后自动消失
+  setTimeout(() => {
+    toasts.value = toasts.value.filter(t => t.id !== id);
+  }, 3000);
+};
+
+// ==========================================
+// 数据变化监听 (触发弹窗)
+// ==========================================
+// 1. 监听道寻(任务)数据变化
+// 注意：这里假设 hasBoardData 代表任务更新，如果你的 questStore 里有具体的任务列表(如 questList)，请替换为监听那个变量
+watch(hasBoardData, (newVal, oldVal) => {
+  // 确保不是初次加载，且数据确实发生了变化
+  if (oldVal !== undefined && newVal !== oldVal) {
+    showToast('任务进度已更新');
+  }
+});
+
+// ==========================================
+// 红点通知系统
+// ==========================================
 const notifications = reactive({});
 const setNotification = (path, active) => {
   notifications[path] = active;
 };
 provide('setNotification', setNotification);
 
+// 初始化残页红点（如果没看过，就亮起）
+onMounted(() => {
+  if (!uiStore.hasViewedDiary) {
+    setNotification('/日记', true);
+  }
+});
+
 watch(() => route.path, (newPath) => {
-  // 只要用户进入了某个页面，就强制关闭该页面的红点
   if (notifications[newPath]) {
     setNotification(newPath, false);
   }
+
+  // --- 新增：如果进入了残页(/日记)，且之前没看过，则标记为已读并持久化 ---
+  if (newPath === '/日记' && !uiStore.hasViewedDiary) {
+    uiStore.markDiaryViewed();
+  }
 }, { immediate: true });
 
-// 监听任务状态
+// 监听任务状态 (道寻红点)
 watch(hasBoardData, (hasNew) => {
-  // 只有当前不在任务页时，才显示红点
   if (route.path !== '/任务') {
     setNotification('/任务', hasNew);
   }
 });
 
-// 监听剧本数据 (动态路由的红点逻辑)
-// 必须加 deep: true，否则 stat_data 内部属性变化时 watch 不会触发
+// 监听剧本数据 (启程红点)
 watch(stat_data, (data) => {
   const isNewGame = !data?.system?.当前剧本;
-  // 只有当前不在设置页时，才显示红点
   if (route.path !== '/开场设置') {
     setNotification('/开场设置', isNewGame);
   }
@@ -115,6 +161,7 @@ const baseNavItems = [
   { name: '道寻', path: '/任务', icon: '⚖' },
   { name: '绯廊', path: '/图片', icon: '🖼' },
   { name: '卷索', path: '/世界情报', icon: '⨳' },
+  { name: '残页', path: '/日记', icon: '◪' },
   { name: '祈奉', path: '/设置', icon: '⚙' },
 ];
 
@@ -141,6 +188,7 @@ const toggleTheme = async () => {
   await uiStore.saveModeSetting();
 };
 </script>
+
 
 <style scoped>
 /* 保持原有样式，新增 .nav-badge */
@@ -202,6 +250,49 @@ const toggleTheme = async () => {
   top: 15px; right: 15px;
   animation: pulse-badge 2s infinite;
 }
+
+/* ========================================== */
+/* 新增：弹窗 (Toast) 样式 */
+/* ========================================== */
+.ac-toast-container {
+  position: absolute;
+  top: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  pointer-events: none; /* 防止弹窗阻挡鼠标点击 */
+}
+
+.ac-toast {
+  background: var(--c-bg-overlay);
+  border: 1px solid var(--c-gold);
+  color: var(--c-gold);
+  padding: 12px 24px;
+  border-radius: 4px;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5), 0 0 10px rgba(164, 139, 87, 0.2);
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+/* 弹窗动画 */
+.toast-enter-active,
+.toast-leave-active {
+  transition: all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.9);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translateY(-20px) scale(0.9);
+}
+
 
 @keyframes pulse-badge {
   0% { transform: scale(1); opacity: 1; }

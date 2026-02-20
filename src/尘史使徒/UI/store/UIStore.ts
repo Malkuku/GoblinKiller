@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia';
+import { ref } from 'vue';
 
 export const useUiStore = defineStore('KatDustUI', () => {
   //是否显示UI
@@ -7,19 +8,16 @@ export const useUiStore = defineStore('KatDustUI', () => {
   // 黑夜模式
   const darkMode = ref(false);
 
-  // --- 新增：待处理的输入框内容 ---
+  // --- 新增：残页是否已读 ---
+  const hasViewedDiary = ref(false);
+
+  // 待处理的输入框内容
   const pendingInput = ref('');
 
-  /**
-   * 设置待处理输入（用于跨页面传递输入框内容）
-   */
   const setPendingInput = (text: string) => {
     pendingInput.value = text;
   };
 
-  /**
-   * 消费待处理输入（读取并清空）
-   */
   const consumePendingInput = () => {
     const text = pendingInput.value;
     pendingInput.value = '';
@@ -32,30 +30,49 @@ export const useUiStore = defineStore('KatDustUI', () => {
   const getModeSetting = async () => {
     const variables = getVariables({ type: 'script', script_id: getScriptId() });
     darkMode.value = variables.darkMode || false;
+    // 读取残页已读状态，默认为 false
+    hasViewedDiary.value = variables.hasViewedDiary || false;
   };
 
   /**
    * 保存UI设置
    */
   const saveModeSetting = async () => {
-    const saveVariables = darkMode.value;
+    // 将需要保存的变量打包
+    const saveVariables = {
+      darkMode: darkMode.value,
+      hasViewedDiary: hasViewedDiary.value
+    };
     const cleaned = JSON.parse(JSON.stringify(saveVariables));
+
     updateVariablesWith(
       vars => ({
         ...vars,
-        darkMode: cleaned,
+        ...cleaned, // 展开合并到游戏变量中
       }),
       { type: 'script', script_id: getScriptId() },
     );
   };
 
+  /**
+   * 标记残页为已读并保存
+   */
+  const markDiaryViewed = async () => {
+    if (!hasViewedDiary.value) {
+      hasViewedDiary.value = true;
+      await saveModeSetting();
+    }
+  };
+
   return {
     showUI,
     darkMode,
-    pendingInput, // 导出
-    setPendingInput, // 导出
-    consumePendingInput, // 导出
+    hasViewedDiary, // 导出
+    pendingInput,
+    setPendingInput,
+    consumePendingInput,
     getModeSetting,
     saveModeSetting,
+    markDiaryViewed // 导出
   };
 });
