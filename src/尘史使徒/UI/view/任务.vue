@@ -313,7 +313,12 @@ const confirmQuests = async () => {
 
   try {
     const jsonStr = JSON.stringify(logs, null, 0);
-    const outputText = `<user>希望接取以下委托\n<list>\n${jsonStr}\n</list>\n如果顺利，则离开当前场景\n`;
+    const outputText = `<user>希望接取以下委托
+<list>
+${jsonStr}
+</list>
+如果顺利，则离开当前场景
+`;
 
     // 1. 将信息存储到 UI Store
     uiStore.setPendingInput(outputText);
@@ -344,7 +349,8 @@ const confirmQuests = async () => {
   --c-text-main: #e0e0e0;
   --c-text-dim: #888;
 
-  height: 100%;
+  height: 100vh; /* 兼容旧浏览器 */
+  height: 100dvh; /* 关键修复：使用动态视口高度，自动适应浏览器地址栏/工具栏 */
   display: flex;
   flex-direction: column;
   padding: 20px 40px;

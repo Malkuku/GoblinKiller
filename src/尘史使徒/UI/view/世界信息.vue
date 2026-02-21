@@ -765,7 +765,8 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 <style scoped>
 .vision-container {
   width: 100%;
-  height: 100%; /* 兼容非 Flex 环境 */
+  height: 100vh; /* 兼容旧浏览器 */
+  height: 100dvh; /* 关键修复：使用动态视口高度，自动适应浏览器地址栏/工具栏 */
   flex: 1;      /* 在 Flex 环境下自动撑开 */
   position: relative;
   overflow: hidden;

@@ -13,7 +13,7 @@
       {{ isMobileMenuOpen ? '✕' : '☰' }}
     </button>
 
-    <!-- 左侧：角色列表导航 (原右侧，现移至 DOM 前部) -->
+    <!-- 左侧：角色列表导航 -->
     <aside class="role-sidebar" :class="{ 'mobile-open': isMobileMenuOpen }">
       <div class="role-list-header">
         <span>倒影</span>
@@ -83,13 +83,13 @@
 
     <!-- 右侧：详细内容展示区 -->
     <main class="role-content">
-        <component
-          :is="currentComponent"
-          :key="selectedId"
-          :data="currentData"
-          :char-id="selectedId"
-          :category="currentCategoryKey"
-        />
+      <component
+        :is="currentComponent"
+        :key="selectedId"
+        :data="currentData"
+        :char-id="selectedId"
+        :category="currentCategoryKey"
+      />
     </main>
 
   </div>
@@ -234,10 +234,13 @@ watch(() => store.stat_data, (newVal) => {
 <style scoped>
 .role-view-container {
   display: flex;
+  /* 修复：使用 100% 而不是 100vh，参考 StoryView 的做法。
+     这样可以适应父容器的实际可视高度，避免被移动端浏览器栏遮挡 */
   height: 100%;
   width: 100%;
   background: rgba(0,0,0,0.2);
   position: relative;
+  overflow: hidden; /* 防止整体滚动 */
 }
 
 /* 左侧列表样式 */
@@ -373,7 +376,13 @@ watch(() => store.stat_data, (newVal) => {
 @media (max-width: 768px) {
   .role-view-container {
     flex-direction: column;
-    min-height: 100vh;
+    /* 修复：移除 min-height: 100vh，这会导致容器强制撑开到屏幕底部以下 */
+    min-height: 0;
+  }
+
+  /* 修复：给内容区域底部增加内边距，确保内容被“抬起”，避开浏览器栏 */
+  .role-content {
+    padding-bottom: calc(30px + env(safe-area-inset-bottom));
   }
 
   /* 移动端侧边栏变为左侧抽屉 */
@@ -382,7 +391,10 @@ watch(() => store.stat_data, (newVal) => {
     top: 0;
     left: 0;
     width: 260px;
-    height: 400px;
+    height: 100%; /* 抽屉占满高度 */
+
+    /* 修复：侧边栏底部也增加内边距，防止列表底部被遮挡 */
+    padding-bottom: calc(40px + env(safe-area-inset-bottom));
 
     /* 强制侧边栏整体背景不透明 */
     background: #1a1a1a !important;

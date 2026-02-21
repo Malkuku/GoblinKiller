@@ -543,7 +543,8 @@ const festivalArchive = computed(() => getArchiveList(t => t !== '季节' && t !
   --font-tech: 'Segoe UI', 'Roboto', Helvetica, Arial, sans-serif;
 
   width: 100%;
-  height: 100%;
+  height: 100vh; /* 兼容旧浏览器 */
+  height: 100dvh; /* 关键修复：使用动态视口高度，自动适应浏览器地址栏/工具栏 */
   display: flex;
   flex-direction: column;
   background: #050505;

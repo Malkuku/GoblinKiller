@@ -600,7 +600,8 @@ async function saveAllChanges() {
 
   display: flex;
   flex-direction: column;
-  height: 100%;
+  height: 100vh; /* 兼容旧浏览器 */
+  height: 100dvh; /* 关键修复：使用动态视口高度，自动适应浏览器地址栏/工具栏 */
   width: 100%;
   background: var(--c-bg);
   color: var(--c-text);
