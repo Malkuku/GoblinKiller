@@ -1,201 +1,252 @@
 <template>
   <div class="creation-layout theme-forgotten">
 
-    <!-- 页面一：主要表单内容 -->
+    <!-- 主视图容器 -->
     <div class="main-page-view" v-show="!showMapModal">
+
+      <!-- 顶部标题 (始终显示) -->
       <header class="creation-header">
         <h1 class="title">重塑自我</h1>
         <div class="subtitle">WHO ARE YOU IN THE MIRROR?</div>
+        <!-- 步骤指示器 -->
+        <div class="step-indicator">
+          <span :class="{ active: currentPage >= 1 }">倒影</span>
+          <span class="line"></span>
+          <span :class="{ active: currentPage >= 2 }">登阶</span>
+          <span class="line"></span>
+          <span :class="{ active: currentPage >= 3 }">铭刻</span>
+        </div>
       </header>
 
-      <div class="creation-container">
-        <!-- 左侧：基础设定与外貌 -->
-        <div class="column left-col">
-          <section class="form-group">
-            <h3 class="section-title">基础认知</h3>
-            <div class="input-row">
-              <label>性别</label>
-              <div class="radio-group">
-                <label :class="{ active: formData.gender === '男性' }">
-                  <input type="radio" v-model="formData.gender" value="男性"> 男性
-                </label>
-                <label :class="{ active: formData.gender === '女性' }">
-                  <input type="radio" v-model="formData.gender" value="女性"> 女性
-                </label>
-              </div>
-            </div>
-            <div class="input-row">
-              <label>年龄</label>
-              <input type="text" v-model="formData.age" placeholder="例如：25岁" class="text-input">
-            </div>
-            <div class="input-row">
-              <label>出生地</label>
-              <div class="location-selector" @click="openMapSelector">
-                <span v-if="formData.location" class="location-value">{{ formData.location }}</span>
-                <span v-else class="placeholder">点击选择地图位置...</span>
-                <span class="map-icon">🗺️</span>
-              </div>
-            </div>
-          </section>
+      <!-- 内容区域：使用 Transition 实现翻页效果 -->
+      <div class="content-viewport">
+        <transition name="fade-slide" mode="out-in">
 
-          <section class="form-group">
-            <h3 class="section-title">外貌特征</h3>
-            <p class="desc">镜中的你是什么模样？</p>
+          <!-- 第一页：基础认知与性格 -->
+          <div v-if="currentPage === 1" key="page1" class="page-container page-one">
+            <div class="split-layout">
+              <!-- 左半部分：基础设定与外貌 -->
+              <div class="split-col">
+                <section class="form-group">
+                  <h3 class="section-title">基础认知</h3>
+                  <div class="input-row">
+                    <label>性别</label>
+                    <div class="radio-group">
+                      <label :class="{ active: formData.gender === '男性' }">
+                        <input type="radio" v-model="formData.gender" value="男性"> 男性
+                      </label>
+                      <label :class="{ active: formData.gender === '女性' }">
+                        <input type="radio" v-model="formData.gender" value="女性"> 女性
+                      </label>
+                    </div>
+                  </div>
+                  <div class="input-row two-col">
+                    <div>
+                      <label>年龄</label>
+                      <input type="text" v-model="formData.age" placeholder="例如：25岁" class="text-input">
+                    </div>
+                    <div>
+                      <label>初始身份</label>
+                      <input type="text" v-model="formData.identity" placeholder="例如：流浪骑士" class="text-input">
+                    </div>
+                  </div>
+                  <div class="input-row">
+                    <label>出生地</label>
+                    <div class="location-selector" @click="openMapSelector">
+                      <span v-if="formData.location" class="location-value">{{ formData.location }}</span>
+                      <span v-else class="placeholder">点击选择地图位置...</span>
+                      <span class="map-icon">🗺️</span>
+                    </div>
+                  </div>
+                </section>
 
-            <div class="appearance-grid">
-              <div class="app-field">
-                <label>发色</label>
-                <input type="text" v-model="appearanceDetails.hairColor" class="text-input mini">
-              </div>
-              <div class="app-field">
-                <label>发型</label>
-                <input type="text" v-model="appearanceDetails.hairStyle" class="text-input mini">
-              </div>
-              <div class="app-field">
-                <label>脸型</label>
-                <input type="text" v-model="appearanceDetails.face" class="text-input mini">
-              </div>
-              <div class="app-field">
-                <label>眼睛</label>
-                <input type="text" v-model="appearanceDetails.eyes" class="text-input mini">
-              </div>
-              <div class="app-field">
-                <label>肤色</label>
-                <input type="text" v-model="appearanceDetails.skin" class="text-input mini">
-              </div>
-              <div class="app-field">
-                <label>身材</label>
-                <input type="text" v-model="appearanceDetails.body" class="text-input mini">
-              </div>
-              <div class="app-field full-width">
-                <label>特殊特征 (可选)</label>
-                <input type="text" v-model="appearanceDetails.feature" placeholder="如：眼角有泪痣、左手有伤疤" class="text-input">
-              </div>
-            </div>
+                <section class="form-group">
+                  <h3 class="section-title">外貌特征</h3>
+                  <div class="appearance-grid">
+                    <div class="app-field"><label>发色</label><input type="text" v-model="appearanceDetails.hairColor" class="text-input mini"></div>
+                    <div class="app-field"><label>发型</label><input type="text" v-model="appearanceDetails.hairStyle" class="text-input mini"></div>
+                    <div class="app-field"><label>脸型</label><input type="text" v-model="appearanceDetails.face" class="text-input mini"></div>
+                    <div class="app-field"><label>眼睛</label><input type="text" v-model="appearanceDetails.eyes" class="text-input mini"></div>
+                    <div class="app-field"><label>肤色</label><input type="text" v-model="appearanceDetails.skin" class="text-input mini"></div>
+                    <div class="app-field"><label>身材</label><input type="text" v-model="appearanceDetails.body" class="text-input mini"></div>
+                    <div class="app-field full-width">
+                      <label>特殊特征</label>
+                      <input type="text" v-model="appearanceDetails.feature" placeholder="如：眼角有泪痣" class="text-input mini">
+                    </div>
+                  </div>
+                </section>
 
-            <div class="input-row" style="margin-top: 15px;">
-              <label>初始身份</label>
-              <input type="text" v-model="formData.identity" placeholder="例如：落魄贵族、流浪骑士、学徒" class="text-input">
-            </div>
-          </section>
-
-          <section class="form-group">
-            <h3 class="section-title">特殊状态</h3>
-            <textarea v-model="formData.specialStatus" rows="2" placeholder="例如：指尖总是冰冷..."></textarea>
-          </section>
-
-          <!-- 新增：叙事节奏选择 -->
-          <section class="form-group">
-            <h3 class="section-title">叙事风格</h3>
-            <p class="desc">故事将以何种节奏展开？</p>
-            <!-- 使用 v-model 绑定到 formData，此时组件为“受控模式” -->
-            <NarrativePaceSelector v-model="formData.narrativePace" />
-          </section>
-        </div>
-
-        <!-- 中间：性格倾向 -->
-        <div class="column mid-col">
-          <h3 class="section-title">心性倾向</h3>
-          <div class="personality-sliders">
-            <div class="slider-item" v-for="(val, key) in formData.personality" :key="key">
-              <div class="slider-header">
-                <span class="trait-name">{{ key }}</span>
-                <span class="trait-status" :class="getTraitColorClass(val)">
-                  {{ getTraitDetail(key, val).label }}
-                </span>
+                <section class="form-group">
+                  <h3 class="section-title">特殊状态</h3>
+                  <textarea v-model="formData.specialStatus" rows="2" placeholder="例如：指尖总是冰冷..." class="text-input"></textarea>
+                </section>
               </div>
 
-              <div class="slider-container">
-                <span class="limit-label left">{{ getTraitExtremes(key).min }}</span>
-                <input type="range" v-model.number="formData.personality[key]" min="-100" max="100" step="1" class="styled-slider">
-                <span class="limit-label right">{{ getTraitExtremes(key).max }}</span>
-              </div>
-
-              <div class="trait-desc-text">
-                {{ getTraitDetail(key, val).desc }}
-              </div>
-            </div>
-          </div>
-
-          <div class="personality-summary-box">
-            <div class="summary-header-row">
-              <label>性格侧写</label>
-              <span v-if="isManualSummary" class="reset-btn" @click="resetSummary" title="恢复为根据滑块自动生成">↺ 重置自动</span>
-            </div>
-            <textarea
-              v-model="finalPersonalitySummary"
-              @input="handleSummaryInput"
-              class="summary-textarea"
-              rows="3"
-            ></textarea>
-          </div>
-        </div>
-
-        <!-- 右侧：术之等级 -->
-        <div class="column right-col">
-          <h3 class="section-title">秘史造诣</h3>
-
-          <div class="points-header">
-            <div class="points-info-group">
-              <div class="points-label">{{ isInfiniteMode ? '总消耗点数' : '剩余点数' }}</div>
-              <div class="points-display">
-                <template v-if="!isInfiniteMode">
-                  <span class="points-val" :class="{ 'error': remainingPoints < 0 }">{{ remainingPoints }}</span>
-                  <span class="points-total">/ 100</span>
-                </template>
-                <template v-else>
-                  <span class="points-val text-gold">{{ totalSpentPoints }}</span>
-                  <span class="points-total" style="font-size: 1.2rem;">∞</span>
-                </template>
-              </div>
-            </div>
-
-            <div class="infinite-toggle">
-              <label class="toggle-label">
-                <input type="checkbox" v-model="isInfiniteMode">
-                <span class="toggle-text">无限</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="arts-list-scroll">
-            <div class="art-point-item" v-for="(data, key) in formData.arts" :key="key" :class="{ 'active': data.当前等级 > 0 }">
-              <div class="art-icon-placeholder">{{ key }}</div>
-              <div class="art-point-info">
-                <span class="art-lv-label">等级</span>
-                <span class="art-lv-val">Lv.{{ data.当前等级 }}</span>
-              </div>
-              <div class="art-controls">
-                <button class="ctrl-btn" @click="changeArtLevel(key, -1)" :disabled="data.当前等级 <= 0">-</button>
-                <div class="cost-preview">
-                  <span v-if="data.当前等级 < maxArtLevel" class="cost-val">
-                    消耗 {{ getUpgradeCost(key, data.当前等级) }}
-                  </span>
-                  <span v-else class="cost-val">MAX</span>
+              <!-- 右半部分：性格倾向 -->
+              <div class="split-col">
+                <h3 class="section-title">心性倾向</h3>
+                <div class="personality-sliders">
+                  <div class="slider-item" v-for="(val, key) in formData.personality" :key="key">
+                    <div class="slider-header">
+                      <span class="trait-name">{{ key }}</span>
+                      <span class="trait-status" :class="getTraitColorClass(val)">
+                        {{ getTraitDetail(key, val).label }}
+                      </span>
+                    </div>
+                    <div class="slider-container">
+                      <span class="limit-label left">{{ getTraitExtremes(key).min }}</span>
+                      <input type="range" v-model.number="formData.personality[key]" min="-100" max="100" step="1" class="styled-slider">
+                      <span class="limit-label right">{{ getTraitExtremes(key).max }}</span>
+                    </div>
+                    <div class="trait-desc-text">{{ getTraitDetail(key, val).desc }}</div>
+                  </div>
                 </div>
-                <button class="ctrl-btn" @click="changeArtLevel(key, 1)"
-                        :disabled="(!isInfiniteMode && remainingPoints < getUpgradeCost(key, data.当前等级)) || data.当前等级 >= maxArtLevel">
-                  +
+
+                <div class="personality-summary-box">
+                  <div class="summary-header-row">
+                    <label>性格侧写</label>
+                    <span v-if="isManualSummary" class="reset-btn" @click="resetSummary">↺ 重置自动</span>
+                  </div>
+                  <textarea v-model="finalPersonalitySummary" @input="handleSummaryInput" class="summary-textarea" rows="3"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 第二页：术的能力 -->
+          <div v-else-if="currentPage === 2" key="page2" class="page-container page-two">
+            <div class="arts-layout">
+              <h3 class="section-title center">秘史造诣</h3>
+
+              <div class="points-header-large">
+                <div class="points-info-group">
+                  <div class="points-label">{{ isInfiniteMode ? '总消耗点数' : '剩余可用点数' }}</div>
+                  <div class="points-display">
+                    <template v-if="!isInfiniteMode">
+                      <span class="points-val" :class="{ 'error': remainingPoints < 0 }">{{ remainingPoints }}</span>
+                      <span class="points-total">/ 100</span>
+                    </template>
+                    <template v-else>
+                      <span class="points-val text-gold">{{ totalSpentPoints }}</span>
+                      <span class="points-total" style="font-size: 1.5rem;">∞</span>
+                    </template>
+                  </div>
+                </div>
+                <div class="infinite-toggle">
+                  <label class="toggle-label">
+                    <input type="checkbox" v-model="isInfiniteMode">
+                    <span class="toggle-text">无限制</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="arts-content-row">
+                <!-- 左侧列表 -->
+                <div class="arts-list-scroll large">
+                  <div class="art-point-item" v-for="(data, key) in formData.arts" :key="key" :class="{ 'active': data.当前等级 > 0 }">
+                    <div class="art-icon-placeholder">{{ key }}</div>
+                    <div class="art-point-info">
+                      <span class="art-lv-label">等级</span>
+                      <span class="art-lv-val">Lv.{{ data.当前等级 }}</span>
+                    </div>
+                    <div class="art-controls">
+                      <button class="ctrl-btn" @click="changeArtLevel(key, -1)" :disabled="data.当前等级 <= 0">-</button>
+                      <div class="cost-preview">
+                        <span v-if="data.当前等级 < maxArtLevel" class="cost-val">消耗 {{ getUpgradeCost(key, data.当前等级) }}</span>
+                        <span v-else class="cost-val">MAX</span>
+                      </div>
+                      <button class="ctrl-btn" @click="changeArtLevel(key, 1)"
+                              :disabled="(!isInfiniteMode && remainingPoints < getUpgradeCost(key, data.当前等级)) || data.当前等级 >= maxArtLevel">
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 右侧预览 -->
+                <div class="arts-preview-large">
+                  <div class="preview-title">能力预览</div>
+                  <ArtsModule :artsData="formData.arts" mode="creation" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 第三页：叙事风格与确认 -->
+          <div v-else-if="currentPage === 3" key="page3" class="page-container page-three">
+            <div class="confirmation-layout">
+
+              <section class="form-group narrative-section">
+                <h3 class="section-title center">叙事风格</h3>
+                <p class="desc center">故事将以何种节奏展开？</p>
+                <div class="narrative-wrapper">
+                  <NarrativePaceSelector v-model="formData.narrativePace" />
+                </div>
+              </section>
+
+              <section class="form-group summary-section">
+                <h3 class="section-title center">铭刻确认</h3>
+                <div class="final-card">
+                  <div class="card-row">
+                    <span class="label">身份：</span>
+                    <span class="value">{{ formData.location }} 的 {{ formData.identity }} ({{ formData.age }})</span>
+                  </div>
+                  <div class="card-row">
+                    <span class="label">外貌：</span>
+                    <span class="value">{{ finalAppearance }}</span>
+                  </div>
+                  <div class="card-row">
+                    <span class="label">性格：</span>
+                    <span class="value highlight">{{ finalPersonalitySummary }}</span>
+                  </div>
+                  <div class="card-row">
+                    <span class="label">掌握技艺：</span>
+                    <div class="arts-tags">
+                      <span v-for="(art, key) in activeArts" :key="key" class="art-tag">
+                        {{ key }} Lv.{{ art.当前等级 }}
+                      </span>
+                      <span v-if="Object.keys(activeArts).length === 0" class="value dim">无</span>
+                    </div>
+                  </div>
+                  <div class="card-row">
+                    <span class="label">叙事风格：</span>
+                    <span class="value text-gold">{{ formData.narrativePace }}</span>
+                  </div>
+                </div>
+              </section>
+
+              <div class="submit-area">
+                <button class="confirm-btn large" :disabled="submitting || (!isInfiniteMode && remainingPoints < 0)" @click="submitCreation">
+                  <span v-if="!submitting">铭刻真实 · 开始旅程</span>
+                  <span v-else>正在生成世界...</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <div class="arts-preview-wrapper">
-            <ArtsModule :artsData="formData.arts" mode="creation" />
-          </div>
-        </div>
+        </transition>
       </div>
 
-      <footer class="action-footer">
-        <button class="confirm-btn" :disabled="submitting || (!isInfiniteMode && remainingPoints < 0)" @click="submitCreation">
-          <span v-if="!submitting">铭刻真实</span>
-          <span v-else>正在生成...</span>
+      <!-- 底部导航栏 -->
+      <footer class="nav-footer">
+        <button class="nav-btn prev" @click="prevPage" :disabled="currentPage === 1">
+          ← 上一步
         </button>
+
+        <div class="page-dots">
+          <span :class="{ active: currentPage === 1 }"></span>
+          <span :class="{ active: currentPage === 2 }"></span>
+          <span :class="{ active: currentPage === 3 }"></span>
+        </div>
+
+        <button class="nav-btn next" @click="nextPage" v-if="currentPage < 3">
+          下一步 →
+        </button>
+        <div class="nav-placeholder" v-else></div> <!-- 占位符，保持布局平衡 -->
       </footer>
     </div>
 
-    <!-- 页面二：地图选择页面 -->
+    <!-- 地图选择页面 (保持不变) -->
     <transition name="page-slide">
       <div v-if="showMapModal" class="map-page-view">
         <header class="map-page-header">
@@ -224,16 +275,33 @@ import { router } from '@/尘史使徒/UI/router/router';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import ArtsModule from '@/尘史使徒/UI/components/role/ArtsModule.vue';
 import NarrativePaceSelector from '@/尘史使徒/UI/components/story/NarrativePaceSelector.vue';
+
 const submitting = ref(false);
 const showMapModal = ref(false);
 const statStore = useStatStore();
 const isInfiniteMode = ref(false);
+const currentPage = ref(1); // 当前页码控制
 
 onMounted(() => {
   if (!statStore.stat_data) {
     statStore.initData();
   }
 });
+
+// 翻页逻辑
+const nextPage = () => {
+  if (currentPage.value === 1) {
+    if (!formData.location) {
+      if (window.toastr) window.toastr.warning("请先选择出生地");
+      return;
+    }
+  }
+  if (currentPage.value < 3) currentPage.value++;
+};
+
+const prevPage = () => {
+  if (currentPage.value > 1) currentPage.value--;
+};
 
 // 外貌细节数据
 const appearanceDetails = reactive({
@@ -252,7 +320,6 @@ const formData = reactive({
   identity: '王家四艺学院学生',
   location: '艾斯特拉',
   specialStatus: '',
-  // 新增：叙事节奏，默认值
   narrativePace: '诡异现实',
   personality: {
     "社交取向": 0,
@@ -273,7 +340,18 @@ const formData = reactive({
   }
 });
 
-// ... (省略性格特质定义 traitDefinitions, getTraitDetail, getTraitExtremes, getTraitColorClass 等辅助函数，保持不变) ...
+// 计算属性：获取已激活的技艺（用于确认页展示）
+const activeArts = computed(() => {
+  const active = {};
+  for (const key in formData.arts) {
+    if (formData.arts[key].当前等级 > 0) {
+      active[key] = formData.arts[key];
+    }
+  }
+  return active;
+});
+
+// --- 性格相关逻辑 (保持原样) ---
 const traitDefinitions = {
   "社交取向": [
     { min: -100, max: -80, label: "社交壁垒", desc: "主动回避接触，人群引发不适" },
@@ -346,7 +424,6 @@ const getTraitColorClass = (val) => {
   return 'text-gray';
 };
 
-// 自动生成的性格总结
 const generatedPersonalitySummary = computed(() => {
   const p = formData.personality;
   const parts = [];
@@ -375,7 +452,7 @@ const resetSummary = () => {
   finalPersonalitySummary.value = generatedPersonalitySummary.value;
 };
 
-// 术之等级逻辑
+// --- 术之等级逻辑 (保持原样) ---
 const maxArtLevel = computed(() => isInfiniteMode.value ? 21 : 10);
 
 const getUpgradeCost = (artKey, currentLevel) => {
@@ -428,6 +505,7 @@ const changeArtLevel = (key, delta) => {
   }
 };
 
+// --- 外貌逻辑 ---
 watch(() => formData.gender, (newVal) => {
   if (newVal === '男性') {
     appearanceDetails.hairStyle = '利落短发';
@@ -457,6 +535,7 @@ const finalAppearance = computed(() => {
 const openMapSelector = () => { showMapModal.value = true; };
 const onLocationSelected = (loc) => { formData.location = loc; showMapModal.value = false; };
 
+// --- 提交逻辑 ---
 const submitCreation = async () => {
   if (!formData.location) {
     if (window.toastr) window.toastr.warning("请选择一个出生地点");
@@ -480,7 +559,7 @@ const submitCreation = async () => {
       },
       "system": {
         "插图模式": formData.gender,
-        "叙事节奏": formData.narrativePace // 新增：提交叙事节奏
+        "叙事节奏": formData.narrativePace
       }
     };
 
@@ -548,250 +627,297 @@ const submitCreation = async () => {
   --c-danger: #ff4d4d;
   --c-blue: #59a0c5;
 
-  /* 布局调整：作为容器，不直接处理滚动，让子页面处理 */
   padding: 0;
   background: radial-gradient(circle at 50% 20%, rgba(197, 160, 89, 0.1) 0%, #0a0a0a 80%);
   color: #e0e0e0;
   font-family: 'EB Garamond', serif;
   height: 100%;
-  overflow: hidden; /* 禁止容器本身滚动 */
+  overflow: hidden;
   position: relative;
 }
 
 /* 主页面视图 */
 .main-page-view {
   height: 100%;
-  overflow-y: auto; /* 内部滚动 */
-  padding: 40px;
   display: flex;
   flex-direction: column;
+  padding: 20px 40px;
 }
 
-/* 地图页面视图 (全屏覆盖) */
-.map-page-view {
+/* 顶部 Header */
+.creation-header {
+  text-align: center;
+  margin-bottom: 20px;
+  flex-shrink: 0;
+}
+.title { font-family: 'Cinzel', serif; font-size: 2.2rem; color: var(--c-gold); margin: 0; text-shadow: 0 0 10px rgba(197, 160, 89, 0.3); }
+.subtitle { font-size: 0.8rem; color: #888; letter-spacing: 3px; margin-bottom: 15px; }
+
+/* 步骤指示器 */
+.step-indicator {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Cinzel', serif;
+  font-size: 0.9rem;
+  color: #555;
+}
+.step-indicator span.active { color: var(--c-gold); text-shadow: 0 0 5px var(--c-gold); }
+.step-indicator .line { width: 40px; height: 1px; background: #333; }
+.step-indicator span.active + .line { background: linear-gradient(90deg, var(--c-gold), #333); }
+
+/* 内容视口 */
+.content-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden; /* 隐藏溢出，由内部容器滚动 */
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(197, 160, 89, 0.2);
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.page-container {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: #1a1d24; /* 纯色背景防止透视 */
-  z-index: 100;
+  padding: 20px;
+  overflow-y: auto; /* 页面内部滚动 */
+}
+
+/* 第一页布局 */
+.split-layout {
+  display: flex;
+  gap: 30px;
+  height: 100%;
+}
+.split-col {
+  flex: 1;
   display: flex;
   flex-direction: column;
 }
 
-.map-page-header {
-  padding: 15px 20px;
+/* 第二页布局 */
+.arts-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.points-header-large {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+  margin-bottom: 20px;
+  padding: 15px;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(197, 160, 89, 0.1);
+}
+.points-val { font-size: 2.5rem; }
+.arts-content-row {
+  display: flex;
+  flex: 1;
+  gap: 20px;
+  overflow: hidden;
+}
+.arts-list-scroll.large {
+  flex: 1;
+  overflow-y: auto;
+  border: 1px solid #333;
+  background: rgba(0,0,0,0.2);
+  padding: 10px;
+}
+.arts-preview-large {
+  flex: 1;
+  border: 1px solid #333;
+  background: rgba(0,0,0,0.2);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+}
+.preview-title {
+  text-align: center;
+  color: #666;
+  font-family: 'Cinzel', serif;
+  border-bottom: 1px solid #333;
+  padding-bottom: 5px;
+  margin-bottom: 10px;
+}
+
+/* 第三页布局 */
+.confirmation-layout {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  padding-top: 20px;
+}
+.narrative-wrapper {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+.final-card {
+  background: rgba(197, 160, 89, 0.05);
+  border: 1px solid var(--c-gold);
+  padding: 25px;
+  position: relative;
+}
+.final-card::before {
+  content: '';
+  position: absolute;
+  top: 5px; left: 5px; right: 5px; bottom: 5px;
+  border: 1px solid rgba(197, 160, 89, 0.3);
+  pointer-events: none;
+}
+.card-row {
+  display: flex;
+  margin-bottom: 12px;
+  border-bottom: 1px dashed rgba(255,255,255,0.1);
+  padding-bottom: 8px;
+}
+.card-row:last-child { border-bottom: none; }
+.card-row .label {
+  width: 100px;
+  color: #888;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+.card-row .value { color: #ddd; }
+.card-row .value.highlight { color: var(--c-gold); font-style: italic; }
+.card-row .value.dim { color: #555; font-style: italic; }
+.arts-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.art-tag {
   background: rgba(0,0,0,0.5);
-  border-bottom: 1px solid var(--c-gold);
+  border: 1px solid #444;
+  padding: 2px 8px;
+  font-size: 0.85rem;
+  color: var(--c-gold);
+}
+
+/* 底部导航 */
+.nav-footer {
+  height: 60px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-shrink: 0;
+  padding: 0 20px;
+  border-top: 1px solid rgba(197, 160, 89, 0.2);
+  background: rgba(0,0,0,0.3);
 }
-
-.map-page-header h2 {
-  margin: 0;
-  color: var(--c-gold);
-  font-family: 'Cinzel', serif;
-  font-size: 1.2rem;
-}
-
-.header-spacer {
-  width: 80px; /* 与返回按钮大致等宽，保持标题居中 */
-}
-
-.back-btn {
+.nav-btn {
   background: transparent;
   border: 1px solid #444;
-  color: #ccc;
-  padding: 4px 12px;
+  color: #aaa;
+  padding: 8px 20px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  border-radius: 3px;
+  font-family: 'Cinzel', serif;
   transition: all 0.3s;
-  width: 65px;
-  font-size: 10px;
-  justify-content: center;
 }
-
-.back-btn:hover {
+.nav-btn:hover:not(:disabled) {
   border-color: var(--c-gold);
   color: var(--c-gold);
+  background: rgba(197, 160, 89, 0.1);
 }
+.nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.nav-placeholder { width: 100px; } /* 与按钮同宽占位 */
 
-.map-page-content {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
+.page-dots { display: flex; gap: 8px; }
+.page-dots span {
+  width: 8px; height: 8px; background: #333; border-radius: 50%; transition: all 0.3s;
 }
+.page-dots span.active { background: var(--c-gold); transform: scale(1.2); }
 
-/* 动画效果 */
-.page-slide-enter-active,
-.page-slide-leave-active {
-  transition: all 0.3s ease;
-}
-
-.page-slide-enter-from,
-.page-slide-leave-to {
-  transform: translateX(100%); /* 从右侧滑入 */
-  opacity: 0;
-}
-
-/* 原有样式保持不变，仅调整层级关系 */
-.creation-header { text-align: center; margin-bottom: 30px; border-bottom: 1px solid rgba(197, 160, 89, 0.3); padding-bottom: 15px; }
-.title { font-family: 'Cinzel', serif; font-size: 2.5rem; color: var(--c-gold); margin: 0; }
-.subtitle { font-size: 0.9rem; color: #888; letter-spacing: 3px; }
-
-.creation-container { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; flex: 1; align-items: stretch; }
-.column { background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(197, 160, 89, 0.2); padding: 20px; border-radius: 4px; display: flex; flex-direction: column; }
-.left-col { flex: 1; min-width: 280px; max-width: 350px; }
-.mid-col { flex: 1.2; min-width: 320px; }
-.right-col { flex: 1; min-width: 300px; max-width: 350px; }
-
+/* 通用组件样式调整 */
 .section-title { font-family: 'Cinzel', serif; color: var(--c-gold); border-bottom: 1px solid rgba(197, 160, 89, 0.2); padding-bottom: 5px; margin-bottom: 15px; font-size: 1.2rem; }
+.section-title.center { text-align: center; border-bottom: none; position: relative; display: inline-block; width: 100%; }
+.section-title.center::after { content: ''; display: block; width: 60px; height: 2px; background: var(--c-gold); margin: 5px auto 0; }
+.desc.center { text-align: center; color: #666; font-size: 0.9rem; margin-bottom: 15px; }
 
-/* 输入框通用 */
-.input-row { margin-bottom: 15px; }
+.input-row.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
 .text-input, textarea { width: 100%; background: var(--c-input-bg); border: 1px solid #444; color: #fff; padding: 8px; font-family: inherit; margin-top: 5px; transition: border 0.3s; }
 .text-input:focus, textarea:focus { border-color: var(--c-gold); outline: none; }
 .radio-group { display: flex; gap: 15px; margin-top: 5px; }
 .radio-group label { cursor: pointer; padding: 5px 15px; border: 1px solid #444; transition: all 0.3s; font-size: 0.9rem; }
 .radio-group label.active { border-color: var(--c-gold); color: var(--c-gold); background: rgba(197, 160, 89, 0.1); }
 
-/* 外貌网格 */
 .appearance-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .app-field label { font-size: 0.75rem; color: #888; display: block; margin-bottom: 2px; }
 .app-field.full-width { grid-column: span 2; }
-.text-input.mini { padding: 4px 8px; font-size: 0.9rem; }
 
-/* 性格滑块 (优化) */
-.slider-item { margin-bottom: 25px; }
+/* 性格滑块 */
+.slider-item { margin-bottom: 20px; }
 .slider-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-.trait-name { font-weight: bold; color: #ccc; font-size: 0.95rem; }
-.trait-status { font-size: 0.85rem; font-family: 'Cinzel', serif; }
-.text-gold { color: var(--c-gold); }
-.text-blue { color: var(--c-blue); }
-.text-gray { color: #777; }
-
+.trait-name { font-weight: bold; color: #ccc; font-size: 0.9rem; }
+.trait-status { font-size: 0.8rem; font-family: 'Cinzel', serif; }
 .slider-container { display: flex; align-items: center; gap: 10px; }
 .styled-slider { flex: 1; accent-color: var(--c-gold); cursor: pointer; height: 4px; background: #333; border-radius: 2px; }
 .limit-label { font-size: 0.7rem; color: #555; width: 30px; }
-.limit-label.left { text-align: right; }
-.limit-label.right { text-align: left; }
-
-.trait-desc-text { font-size: 0.75rem; color: #888; margin-top: 4px; font-style: italic; min-height: 1.2em; }
-
+.trait-desc-text { font-size: 0.75rem; color: #888; margin-top: 2px; font-style: italic; min-height: 1.2em; }
 .personality-summary-box { margin-top: auto; padding: 15px; background: rgba(197, 160, 89, 0.05); border: 1px solid rgba(197, 160, 89, 0.3); text-align: center; }
-.summary-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
-.reset-btn { font-size: 0.7rem; color: #666; cursor: pointer; transition: color 0.3s; }
-.reset-btn:hover { color: var(--c-gold); }
-.summary-textarea {
-  color: var(--c-gold);
-  font-weight: bold;
-  font-family: 'Cinzel', serif;
-  font-size: 1.1rem;
-  background: transparent;
-  border: none;
-  resize: none;
-  text-align: center;
-  width: 100%;
-  padding: 0;
-  margin-top: 5px;
-}
-.summary-textarea:focus { outline: none; background: rgba(0,0,0,0.2); }
+.summary-textarea { color: var(--c-gold); font-weight: bold; font-family: 'Cinzel', serif; font-size: 1rem; background: transparent; border: none; resize: none; text-align: center; width: 100%; padding: 0; }
 
-/* 术之加点 UI (优化) */
-.points-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 4px; }
-.points-info-group { display: flex; flex-direction: column; }
-.points-label { font-family: 'Cinzel', serif; color: #aaa; font-size: 0.8rem; }
-.points-val { font-size: 1.5rem; color: var(--c-gold); font-weight: bold; margin-right: 5px; }
-.points-val.error { color: var(--c-danger); }
-.points-total { color: #666; font-size: 0.9rem; }
-
-/* 无限点数开关样式 */
-.infinite-toggle { display: flex; align-items: center; }
-.toggle-label { display: flex; align-items: center; cursor: pointer; gap: 5px; font-size: 0.8rem; color: #888; }
-.toggle-label input { accent-color: var(--c-gold); width: 16px; height: 16px; cursor: pointer; }
-.toggle-label:hover { color: var(--c-gold); }
-
-.arts-list-scroll { flex: 1; overflow-y: auto; margin-bottom: 10px; padding-right: 5px; border: 1px solid #222; background: rgba(0,0,0,0.2); }
-.art-point-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-bottom: 1px solid #333; transition: background 0.2s; }
+/* 术之加点 */
+.art-point-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 15px; border-bottom: 1px solid #333; transition: background 0.2s; }
 .art-point-item:hover { background: rgba(255,255,255,0.03); }
 .art-point-item.active { background: rgba(197, 160, 89, 0.05); }
-
-.art-icon-placeholder { width: 30px; height: 30px; background: #222; border: 1px solid #444; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; color: #888; border-radius: 50%; margin-right: 10px; }
+.art-icon-placeholder { width: 36px; height: 36px; background: #222; border: 1px solid #444; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; color: #888; border-radius: 50%; margin-right: 15px; }
 .art-point-item.active .art-icon-placeholder { border-color: var(--c-gold); color: var(--c-gold); }
-
 .art-point-info { display: flex; flex-direction: column; flex: 1; }
-.art-lv-label { font-size: 0.65rem; color: #666; text-transform: uppercase; }
-.art-lv-val { font-size: 1rem; color: #ddd; font-weight: bold; }
-.art-point-item.active .art-lv-val { color: var(--c-gold); }
+.art-lv-label { font-size: 0.7rem; color: #666; text-transform: uppercase; }
+.art-lv-val { font-size: 1.1rem; color: #ddd; font-weight: bold; }
+.art-controls { display: flex; align-items: center; gap: 8px; }
+.ctrl-btn { width: 28px; height: 28px; background: #222; border: 1px solid #555; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 2px; transition: all 0.2s; }
+.ctrl-btn:hover:not(:disabled) { border-color: var(--c-gold); color: var(--c-gold); }
+.cost-preview { width: 70px; text-align: center; }
+.cost-val { font-size: 0.75rem; color: #888; background: #111; padding: 2px 6px; border-radius: 2px; }
 
-.art-controls { display: flex; align-items: center; gap: 5px; }
-.ctrl-btn { width: 24px; height: 24px; background: #222; border: 1px solid #555; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 2px; transition: all 0.2s; }
-.ctrl-btn:hover:not(:disabled) { border-color: var(--c-gold); color: var(--c-gold); background: #333; }
-.ctrl-btn:disabled { opacity: 0.2; cursor: not-allowed; border-color: #333; }
-
-.cost-preview { width: 60px; text-align: center; display: flex; justify-content: center; }
-.cost-val { font-size: 0.7rem; color: #888; background: #111; padding: 2px 4px; border-radius: 2px; }
-
-.arts-preview-wrapper { margin-top: 10px; border-top: 1px solid #333; padding-top: 10px; min-height: 100px; }
-
-/* 底部按钮 */
-.action-footer { margin-top: 20px; text-align: center; padding-bottom: 20px; }
-.confirm-btn { background: rgba(0,0,0,0.5); border: 1px solid var(--c-gold); color: var(--c-gold); font-family: 'Cinzel', serif; font-size: 1.1rem; padding: 12px 50px; cursor: pointer; transition: all 0.3s; letter-spacing: 2px; }
-.confirm-btn:hover:not(:disabled) { background: var(--c-gold); color: #000; box-shadow: 0 0 20px rgba(197, 160, 89, 0.4); }
+/* 提交按钮 */
+.submit-area { text-align: center; margin-top: 20px; }
+.confirm-btn.large { background: rgba(0,0,0,0.5); border: 1px solid var(--c-gold); color: var(--c-gold); font-family: 'Cinzel', serif; font-size: 1.2rem; padding: 15px 60px; cursor: pointer; transition: all 0.3s; letter-spacing: 2px; width: 100%; max-width: 400px; }
+.confirm-btn.large:hover:not(:disabled) { background: var(--c-gold); color: #000; box-shadow: 0 0 25px rgba(197, 160, 89, 0.5); }
 .confirm-btn:disabled { border-color: #444; color: #444; cursor: not-allowed; }
 
 /* 地图选择器 */
 .location-selector { background: var(--c-input-bg); border: 1px solid #444; padding: 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s; }
 .location-selector:hover { border-color: var(--c-gold); background: rgba(197, 160, 89, 0.1); }
 .location-value { color: var(--c-gold); font-weight: bold; }
-.placeholder { color: #666; font-style: italic; font-size: 0.9rem; }
+
+/* 动画 */
+.fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.4s ease; }
+.fade-slide-enter-from { opacity: 0; transform: translateX(30px); }
+.fade-slide-leave-to { opacity: 0; transform: translateX(-30px); }
+
+.page-slide-enter-active, .page-slide-leave-active { transition: all 0.3s ease; }
+.page-slide-enter-from, .page-slide-leave-to { transform: translateX(100%); opacity: 0; }
+
+/* 颜色工具类 */
+.text-gold { color: var(--c-gold); }
+.text-blue { color: var(--c-blue); }
+.text-gray { color: #777; }
+
+/* 地图页面 */
+.map-page-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1a1d24; z-index: 100; display: flex; flex-direction: column; }
+.map-page-header { padding: 15px 20px; background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--c-gold); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.map-page-header h2 { margin: 0; color: var(--c-gold); font-family: 'Cinzel', serif; font-size: 1.2rem; }
+.back-btn { background: transparent; border: 1px solid #444; color: #ccc; padding: 4px 12px; cursor: pointer; display: flex; align-items: center; gap: 3px; border-radius: 3px; transition: all 0.3s; }
+.back-btn:hover { border-color: var(--c-gold); color: var(--c-gold); }
+.map-page-content { flex: 1; position: relative; overflow: hidden; }
 
 /* 移动端适配 */
 @media screen and (max-width: 768px) {
-  .main-page-view {
-    padding: 15px;
-    height: 100%;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .title {
-    font-size: 1.8rem;
-  }
-
-  .creation-container {
-    flex-direction: column;
-    gap: 15px;
-    flex: 0 0 auto;
-  }
-
-  .column {
-    max-width: 100%;
-    min-width: auto;
-  }
-
-  .left-col, .mid-col, .right-col {
-    flex: none;
-    width: 100%;
-  }
-
-  .arts-list-scroll {
-    max-height: 300px;
-  }
-
-  .confirm-btn {
-    width: 100%;
-    padding: 12px 0;
-  }
-
-  .action-footer {
-    padding-bottom: 40px;
-  }
+  .main-page-view { padding: 10px; }
+  .split-layout { flex-direction: column; gap: 20px; }
+  .arts-content-row { flex-direction: column; overflow-y: auto; }
+  .arts-list-scroll.large { max-height: 300px; flex: none; }
+  .arts-preview-large { min-height: 200px; flex: none; }
+  .points-header-large { flex-direction: column; gap: 10px; }
+  .title { font-size: 1.5rem; }
+  .step-indicator { font-size: 0.8rem; }
+  .step-indicator .line { width: 20px; }
 }
 </style>
