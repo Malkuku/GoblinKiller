@@ -61,9 +61,40 @@
             {{ crumb.name }}
           </span>
         </div>
-        <div class="coords-readout">
-          CURSOR [ {{ hoverCoords.x }} , {{ hoverCoords.y }} ]
-        </div>
+      </div>
+
+      <!-- 新增：搜索功能区 (右上角) -->
+      <div class="search-container">
+        <button class="search-toggle-btn" @click="toggleSearch" :class="{ active: isSearchOpen }">
+          <span v-if="!isSearchOpen">🔍 搜索节点</span>
+          <span v-else>✕ 关闭</span>
+        </button>
+
+        <transition name="fade">
+          <div v-if="isSearchOpen" class="search-panel">
+            <input
+              ref="searchInputRef"
+              v-model="searchQuery"
+              @input="handleSearchInput"
+              placeholder="输入地点名称..."
+              class="search-input"
+            />
+            <div v-if="searchResults.length > 0" class="search-results-list">
+              <div
+                v-for="(res, idx) in searchResults"
+                :key="idx"
+                class="search-result-item"
+                @click="handleJumpToResult(res)"
+              >
+                <div class="res-name">{{ res.name }}</div>
+                <div class="res-path">{{ formatPath(res.path) }}</div>
+              </div>
+            </div>
+            <div v-else-if="searchQuery && searchResults.length === 0" class="search-no-result">
+              未找到相关地点
+            </div>
+          </div>
+        </transition>
       </div>
 
       <!-- 底部右侧：世界状态 HUD (仅游戏模式显示) -->
@@ -273,6 +304,107 @@ const DRAG_THRESHOLD = 3;
 // 移动端双指缩放状态
 const isPinching = ref(false);
 const lastTouchDist = ref(0);
+
+// =====================
+// 搜索功能逻辑
+// =====================
+const isSearchOpen = ref(false);
+const searchQuery = ref('');
+const searchResults = ref([]);
+const searchInputRef = ref(null);
+
+const toggleSearch = () => {
+  isSearchOpen.value = !isSearchOpen.value;
+  if (isSearchOpen.value) {
+    nextTick(() => {
+      if (searchInputRef.value) searchInputRef.value.focus();
+    });
+  } else {
+    searchQuery.value = '';
+    searchResults.value = [];
+  }
+};
+
+// 递归搜索函数
+const globalSearch = (root, query, path = []) => {
+  let results = [];
+  if (!root) return results;
+
+  for (const [key, value] of Object.entries(root)) {
+    // 检查当前节点名称是否包含查询词 (忽略大小写)
+    if (key.toLowerCase().includes(query.toLowerCase())) {
+      results.push({
+        name: key,
+        node: value,
+        path: [...path, { name: key, node: value }]
+      });
+    }
+
+    // 递归搜索子地图
+    if (value['子地图']) {
+      const subResults = globalSearch(value['子地图'], query, [...path, { name: key, node: value }]);
+      results = results.concat(subResults);
+    }
+  }
+  return results;
+};
+
+const handleSearchInput = () => {
+  if (!searchQuery.value || searchQuery.value.trim() === '') {
+    searchResults.value = [];
+    return;
+  }
+
+  if (stat_data.value?.地图) {
+    // 从根节点开始搜索
+    searchResults.value = globalSearch(stat_data.value.地图, searchQuery.value.trim());
+  }
+};
+
+const formatPath = (pathArray) => {
+  return pathArray.map(p => p.name).join(' > ');
+};
+
+const handleJumpToResult = (result) => {
+  // 1. 确定要显示的层级
+  // 如果结果路径长度 > 1，说明它在某个父节点下，我们应该导航到它的父节点，这样能在地图上看到它
+  // 如果结果是根节点（路径长度1），直接显示它
+
+  let targetBreadcrumbs = [];
+  let targetRoot = null;
+
+  if (result.path.length > 1) {
+    // 取父路径作为面包屑
+    targetBreadcrumbs = result.path.slice(0, result.path.length - 1);
+    targetRoot = targetBreadcrumbs[targetBreadcrumbs.length - 1].node;
+  } else {
+    // 已经是顶层，直接显示
+    targetBreadcrumbs = result.path;
+    targetRoot = result.node;
+  }
+
+  // 2. 更新视图状态
+  breadcrumbs.value = targetBreadcrumbs;
+  currentRootNode.value = targetRoot;
+
+  // 4. 重置视图并尝试打开详情
+  resetView();
+
+  // 5. 尝试在当前显示的节点列表中找到该节点并打开 Tooltip
+  nextTick(() => {
+    const targetNodeInDisplay = currentDisplayNodes.value.find(n => n.name === result.name);
+    if (targetNodeInDisplay) {
+      handleNodeClick(targetNodeInDisplay);
+
+      // 自动居中到该节点
+      transform.x = -targetNodeInDisplay.displayY * baseScale.value;
+      transform.y = targetNodeInDisplay.displayX * baseScale.value;
+    }
+  });
+
+  // 6. 关闭搜索面板 (可选，或者保留方便继续搜索)
+  // isSearchOpen.value = false;
+};
 
 // =====================
 // 地图逻辑
@@ -817,6 +949,25 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 }
 .is-player-here .node-label { color: var(--c-gold); font-weight: bold; border: 1px solid var(--c-gold); }
 
+/* 搜索高亮样式 */
+.is-search-target .node-icon-wrapper {
+  color: #fff;
+  filter: drop-shadow(0 0 10px var(--c-gold));
+  animation: pulse-target 1.5s infinite;
+}
+.is-search-target .node-label {
+  color: #fff;
+  background: var(--c-gold);
+  color: #000;
+  font-weight: bold;
+}
+
+@keyframes pulse-target {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.4); }
+  100% { transform: scale(1); }
+}
+
 .player-indicator {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); pointer-events: none;
 }
@@ -852,6 +1003,84 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 .breadcrumb-track .crumb-item:last-child { color: var(--c-gold); cursor: default; }
 .breadcrumb-track .crumb-item:last-child::after { content: ''; }
 .coords-readout { font-family: monospace; color: #666; font-size: 0.8rem; }
+
+/* 搜索功能样式 */
+.search-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.search-toggle-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--c-gold);
+  color: var(--c-gold);
+  padding: 8px 15px;
+  font-family: var(--font-cinzel);
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(5px);
+}
+
+.search-toggle-btn:hover, .search-toggle-btn.active {
+  background: var(--c-gold);
+  color: #000;
+}
+
+.search-panel {
+  margin-top: 10px;
+  width: 280px;
+  background: var(--c-bg-panel);
+  border: 1px solid #444;
+  border-top: 2px solid var(--c-gold);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.search-input {
+  width: 100%;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid #444;
+  color: #eee;
+  padding: 8px;
+  font-family: inherit;
+  outline: none;
+}
+.search-input:focus { border-color: var(--c-gold); }
+
+.search-results-list {
+  max-height: 200px;
+  overflow-y: auto;
+  border-top: 1px solid #333;
+}
+
+.search-result-item {
+  padding: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #2a2a2a;
+  transition: background 0.2s;
+}
+
+.search-result-item:hover {
+  background: rgba(197, 160, 89, 0.1);
+}
+
+.res-name { color: var(--c-gold); font-weight: bold; font-size: 0.9rem; }
+.res-path { color: #666; font-size: 0.75rem; margin-top: 2px; }
+
+.search-no-result {
+  color: #666;
+  text-align: center;
+  padding: 10px;
+  font-size: 0.8rem;
+}
 
 /* 底部 HUD */
 .world-hud {
@@ -941,6 +1170,8 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 .map-fade-enter-from, .map-fade-leave-to { opacity: 0; }
 .scale-fade-enter-active, .scale-fade-leave-active { transition: all 0.3s ease; }
 .scale-fade-enter-from, .scale-fade-leave-to { opacity: 0; transform: translateX(20px); }
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 
 /* 新增样式：选择模式下的确认按钮 */
 .action-btn.confirm-selection {
@@ -992,6 +1223,15 @@ onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
   /* 移动端隐藏坐标显示，节省空间 */
   .coords-readout {
     display: none;
+  }
+
+  /* 搜索框移动端适配 */
+  .search-container {
+    top: 60px; /* 避开面包屑 */
+    right: 10px;
+  }
+  .search-panel {
+    width: 200px; /* 缩小宽度 */
   }
 
   /* 3. 底部 HUD (世界信息) 改为底部通栏 */

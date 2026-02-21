@@ -1,14 +1,14 @@
 <template>
   <div class="role-view-container">
 
-    <!-- 移动端：遮罩层 (当侧边栏打开时显示) -->
+    <!-- 移动端：遮罩层 -->
     <div
       class="mobile-overlay"
       v-if="isMobileMenuOpen"
       @click="isMobileMenuOpen = false"
     ></div>
 
-    <!-- 移动端：菜单切换按钮 (移到左上角) -->
+    <!-- 移动端：菜单切换按钮 -->
     <button class="mobile-menu-toggle" @click="isMobileMenuOpen = !isMobileMenuOpen">
       {{ isMobileMenuOpen ? '✕' : '☰' }}
     </button>
@@ -17,14 +17,32 @@
     <aside class="role-sidebar" :class="{ 'mobile-open': isMobileMenuOpen }">
       <div class="role-list-header">
         <span>倒影</span>
-        <!-- 移动端关闭按钮 -->
         <span class="mobile-close-btn" @click="isMobileMenuOpen = false">✕</span>
+      </div>
+
+      <!-- 新增：搜索与工具栏 -->
+      <div class="sidebar-tools">
+        <input
+          v-model="searchQuery"
+          type="text"
+          class="search-input"
+          placeholder="搜索..."
+        />
+        <button
+          class="tool-btn"
+          :class="{ active: isOmniscient }"
+          @click="isOmniscient = !isOmniscient"
+          title="显示全部"
+        >
+          {{ isOmniscient ? '👁️' : '🔒' }}
+        </button>
       </div>
 
       <div class="role-list scroll-wrapper">
 
-        <!-- 玩家 -->
+        <!-- 玩家 (始终显示，除非搜索过滤) -->
         <div
+          v-if="matchesSearch('我')"
           class="role-item user-item"
           :class="{ active: selectedId === 'user' }"
           @click="selectRole('user', 'user')"
@@ -36,7 +54,7 @@
         <div class="divider"></div>
 
         <!-- 主要角色 -->
-        <div class="category-title">主要角色</div>
+        <div class="category-title" v-if="Object.keys(visibleMainChars).length > 0">主要角色</div>
         <div
           v-for="(char, id) in visibleMainChars"
           :key="id"
@@ -45,11 +63,7 @@
           @click="selectRole(id, 'main')"
         >
           <span class="name">{{ id }}</span>
-
-          <!-- 如果不在场但被关注，显示一个小提示 -->
           <span v-if="!char.在场 && !isOmniscient" class="absent-tag">(离)</span>
-
-          <!-- 关注按钮 (移到右侧) -->
           <span
             class="star-icon"
             :class="{ active: isFollowed(id, '主要角色') }"
@@ -59,7 +73,7 @@
         </div>
 
         <!-- 次要角色 -->
-        <div class="category-title">次要角色</div>
+        <div class="category-title" v-if="Object.keys(visibleMinorChars).length > 0">次要角色</div>
         <div
           v-for="(char, id) in visibleMinorChars"
           :key="id"
@@ -68,13 +82,11 @@
           @click="selectRole(id, 'minor')"
         >
           <span class="name">{{ id }}</span>
-
-          <!-- 关注按钮 (移到右侧) -->
           <span
             class="star-icon"
             :class="{ active: isFollowed(id, '次要角色') }"
-            @click.stop="toggleFollow(id, '次要角色')"
             title="关注/取消关注"
+            @click.stop="toggleFollow(id, '次要角色')"
           >★</span>
         </div>
 
@@ -107,16 +119,16 @@ const store = useStatStore();
 
 // 状态
 const selectedId = ref('user');
-const selectedType = ref('user'); // 'user', 'main', 'minor'
-const isMobileMenuOpen = ref(false); // 移动端菜单开关
-const isOmniscient = ref(false);
+const selectedType = ref('user');
+const isMobileMenuOpen = ref(false);
+const isOmniscient = ref(false); // 控制是否显示全部角色
+const searchQuery = ref(''); // 新增：搜索关键词
 
 // 数据获取
 const userData = computed(() => store.stat_data?.角色?.user);
 
-// --- 关注功能逻辑 ---
+// --- 辅助功能 ---
 
-// 确保 system 数据结构存在
 const ensureSystemData = () => {
   if (!store.stat_data) return;
   if (!store.stat_data.system) store.stat_data.system = {};
@@ -134,50 +146,49 @@ const currentCategoryKey = computed(() => {
   return '';
 });
 
-
-// 判断是否已关注
 const isFollowed = (id, categoryKey) => {
   const list = store.stat_data?.system?.['关注角色列表']?.[categoryKey];
   return list && list.includes(id);
 };
 
-// 切换关注状态
 const toggleFollow = (id, categoryKey) => {
   ensureSystemData();
   const list = store.stat_data.system['关注角色列表'][categoryKey];
   const index = list.indexOf(id);
-
   if (index > -1) {
-    list.splice(index, 1); // 取消关注
+    list.splice(index, 1);
   } else {
-    list.push(id); // 添加关注
+    list.push(id);
   }
-
-  // 持久化数据
   const updatePayload = {
-    system: {
-      '关注角色列表': store.stat_data.system['关注角色列表']
-    }
+    system: { '关注角色列表': store.stat_data.system['关注角色列表'] }
   };
-
-  ERAUtil.UpdateByObject(updatePayload).catch(err => {
-    console.error('关注列表保存失败:', err);
-  });
+  ERAUtil.UpdateByObject(updatePayload).catch(err => console.error(err));
 };
 
-// 过滤逻辑：在场 OR 全视模式开启 OR 已关注
+// --- 核心过滤逻辑 (修改) ---
+
+// 简单的搜索匹配检查
+const matchesSearch = (name) => {
+  if (!searchQuery.value) return true;
+  return name.toLowerCase().includes(searchQuery.value.toLowerCase());
+};
+
 const filterChars = (chars, categoryKey) => {
   if (!chars) return {};
   const result = {};
-
-  // 获取关注列表
   const followList = store.stat_data?.system?.['关注角色列表']?.[categoryKey] || [];
 
   for (const [key, char] of Object.entries(chars)) {
+    // 1. 搜索过滤
+    if (!matchesSearch(key)) {
+      continue;
+    }
+
+    // 2. 显示规则：在场 OR 全视模式 OR 已关注
     const isPresent = char.在场;
     const isFollowedChar = followList.includes(key);
 
-    // 核心逻辑：在场 或 全知视角 或 被关注
     if (isPresent || isOmniscient.value || isFollowedChar) {
       result[key] = char;
     }
@@ -185,23 +196,19 @@ const filterChars = (chars, categoryKey) => {
   return result;
 };
 
-// 传入 categoryKey 以便区分主要/次要角色的关注列表
 const visibleMainChars = computed(() => filterChars(store.stat_data?.角色?.['主要角色'], '主要角色'));
 const visibleMinorChars = computed(() => filterChars(store.stat_data?.角色?.['次要角色'], '次要角色'));
 
 // --- 逻辑结束 ---
 
-// 选择逻辑
 const selectRole = (id, type) => {
   selectedId.value = id;
   selectedType.value = type;
-  // 移动端选择后自动关闭菜单
   if (window.innerWidth <= 768) {
     isMobileMenuOpen.value = false;
   }
 };
 
-// 动态组件判定
 const currentComponent = computed(() => {
   switch (selectedType.value) {
     case 'user': return UserPanel;
@@ -211,7 +218,6 @@ const currentComponent = computed(() => {
   }
 });
 
-// 当前选中角色的数据
 const currentData = computed(() => {
   if (selectedType.value === 'user') return userData.value;
   if (selectedType.value === 'main') return store.stat_data?.角色?.['主要角色']?.[selectedId.value];
@@ -219,37 +225,33 @@ const currentData = computed(() => {
   return {};
 });
 
-// 初始化
 watch(() => store.stat_data, (newVal) => {
   if (newVal) {
-    ensureSystemData(); // 确保数据结构完整
-    if (!selectedId.value) {
-      selectedId.value = 'user';
-    }
+    ensureSystemData();
+    if (!selectedId.value) selectedId.value = 'user';
   }
 }, { immediate: true });
 
 </script>
 
 <style scoped>
+/* 保持原有样式不变，新增以下样式 */
+
 .role-view-container {
   display: flex;
-  /* 修复：使用 100% 而不是 100vh，参考 StoryView 的做法。
-     这样可以适应父容器的实际可视高度，避免被移动端浏览器栏遮挡 */
   height: 100%;
   width: 100%;
   background: rgba(0,0,0,0.2);
   position: relative;
-  overflow: hidden; /* 防止整体滚动 */
+  overflow: hidden;
 }
 
-/* 左侧列表样式 */
 .role-sidebar {
-  width: 240px; /* 稍微加宽 */
-  border-right: 1px solid var(--c-border); /* 改为右边框 */
+  width: 240px;
+  border-right: 1px solid var(--c-border);
   display: flex;
   flex-direction: column;
-  background: rgba(20, 20, 20, 0.6); /* 稍微加深背景，增加层次感 */
+  background: rgba(20, 20, 20, 0.6);
   backdrop-filter: blur(5px);
   flex-shrink: 0;
   z-index: 10;
@@ -269,13 +271,65 @@ watch(() => store.stat_data, (newVal) => {
   background: rgba(0,0,0,0.8);
 }
 
+/* --- 新增：工具栏样式 --- */
+.sidebar-tools {
+  display: flex;
+  padding: 10px;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  background: rgba(0,0,0,0.3);
+}
+
+.search-input {
+  flex: 1;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--c-border);
+  color: #ddd;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.search-input:focus {
+  border-color: var(--c-gold);
+}
+
+.tool-btn {
+  background: transparent;
+  border: 1px solid var(--c-border);
+  color: #888;
+  width: 30px;
+  height: 30px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.tool-btn:hover {
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.tool-btn.active {
+  color: var(--c-gold);
+  border-color: var(--c-gold);
+  background: rgba(255, 215, 0, 0.1);
+  text-shadow: 0 0 5px var(--c-gold);
+}
+/* --- 工具栏样式结束 --- */
+
 .role-list {
   flex: 1;
   overflow-y: auto;
   padding: 10px 0;
 }
 
-/* 滚动条美化 */
 .role-list::-webkit-scrollbar {
   width: 4px;
 }
@@ -301,7 +355,7 @@ watch(() => store.stat_data, (newVal) => {
   align-items: center;
   gap: 8px;
   transition: all 0.2s ease;
-  border-left: 3px solid transparent; /* 选中条移到左边 */
+  border-left: 3px solid transparent;
   position: relative;
 }
 
@@ -310,7 +364,7 @@ watch(() => store.stat_data, (newVal) => {
 }
 
 .role-item.active {
-  background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent); /* 渐变从左向右 */
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.1), transparent);
   border-left-color: var(--c-gold);
   color: var(--c-gold);
 }
@@ -323,14 +377,13 @@ watch(() => store.stat_data, (newVal) => {
   font-size: 0.95rem;
 }
 
-/* 星星图标样式 - 移到右侧 */
 .star-icon {
   font-size: 1rem;
   color: #444;
   cursor: pointer;
   line-height: 1;
   transition: all 0.2s;
-  margin-left: auto; /* 推到最右边 */
+  margin-left: auto;
   padding: 4px;
   border-radius: 50%;
 }
@@ -356,19 +409,15 @@ watch(() => store.stat_data, (newVal) => {
   opacity: 0.3;
 }
 
-/* 右侧内容区 */
 .role-content {
   flex: 1;
   overflow: hidden;
   position: relative;
-  /* 可以在这里添加背景图或纹理 */
 }
 
-/* 动画 */
 .fade-enter-active, .fade-leave-active { transition: opacity 0.25s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
-/* --- 移动端适配样式 --- */
 .mobile-menu-toggle { display: none; }
 .mobile-close-btn { display: none; }
 .mobile-overlay { display: none; }
@@ -376,30 +425,24 @@ watch(() => store.stat_data, (newVal) => {
 @media (max-width: 768px) {
   .role-view-container {
     flex-direction: column;
-    /* 修复：移除 min-height: 100vh，这会导致容器强制撑开到屏幕底部以下 */
     min-height: 0;
   }
 
-  /* 修复：给内容区域底部增加内边距，确保内容被“抬起”，避开浏览器栏 */
   .role-content {
     padding-bottom: calc(30px + env(safe-area-inset-bottom));
   }
 
-  /* 移动端侧边栏变为左侧抽屉 */
   .role-sidebar {
     position: fixed;
     top: 0;
     left: 0;
     width: 260px;
-    height: 100%; /* 抽屉占满高度 */
+    height: 100%;
 
     /* 修复：侧边栏底部也增加内边距，防止列表底部被遮挡 */
     padding-bottom: calc(40px + env(safe-area-inset-bottom));
-
-    /* 强制侧边栏整体背景不透明 */
     background: #1a1a1a !important;
     backdrop-filter: none !important;
-
     box-shadow: 2px 0 15px rgba(0,0,0,0.9);
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -408,17 +451,25 @@ watch(() => store.stat_data, (newVal) => {
     border-left: none;
   }
 
-  /* 修复：强制头部背景不透明 */
   .role-list-header {
-    background: #1a1a1a !important; /* 覆盖原来的 rgba(0,0,0,0.1) */
+    background: #1a1a1a !important;
     border-bottom: 1px solid #333;
+  }
+
+  .role-list.scroll-wrapper{
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: #1a1a1a !important;
+  }
+
+  .sidebar-tools {
+    background: #1a1a1a !important;
   }
 
   .role-sidebar.mobile-open {
     transform: translateX(0);
   }
 
-  /* 移动端菜单按钮 - 左上角 */
   .mobile-menu-toggle {
     position: absolute;
     top: 12px;
@@ -437,7 +488,6 @@ watch(() => store.stat_data, (newVal) => {
     justify-content: center;
   }
 
-  /* 侧边栏内的关闭按钮 */
   .mobile-close-btn {
     display: block;
     position: absolute;
@@ -447,7 +497,6 @@ watch(() => store.stat_data, (newVal) => {
     color: #999;
   }
 
-  /* 遮罩层 */
   .mobile-overlay {
     display: block;
     position: fixed;

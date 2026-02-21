@@ -8,6 +8,17 @@
       </div>
 
       <div class="header-actions">
+        <!-- 批量删除确认按钮 (仅在删除模式且有选中项时显示) -->
+        <transition name="fade">
+          <button
+            v-if="isDeleteMode && selectedItems.size > 0"
+            class="ac-btn batch-delete-btn"
+            @click="confirmBatchDelete"
+          >
+            🗑 确认删除 ({{ selectedItems.size }})
+          </button>
+        </transition>
+
         <!-- 删除模式切换按钮 -->
         <button
           class="ac-btn delete-mode-btn"
@@ -15,12 +26,12 @@
           @click="toggleDeleteMode"
           :disabled="isSaving"
         >
-          <span v-if="isDeleteMode">⚠ 删除模式开启</span>
-          <span v-else>🗑 删除模式</span>
+          <span v-if="isDeleteMode">退出删除模式</span>
+          <span v-else>🗑 批量整理</span>
         </button>
 
         <div v-if="hasUnsavedChanges" class="unsaved-warning">
-          <span class="blink">⚠</span> 检测到未同步的现实扭曲
+          <span class="blink">⚠</span> 未同步
         </div>
         <button
           class="ac-btn save-btn"
@@ -29,12 +40,12 @@
           @click="saveAllChanges"
         >
           <span v-if="isSaving">同步中...</span>
-          <span v-else>确认变更 (COMMIT)</span>
+          <span v-else>确认变更</span>
         </button>
       </div>
     </header>
 
-    <!-- 新增：分类筛选栏 -->
+    <!-- 分类筛选栏 -->
     <div class="category-bar-wrapper">
       <div class="category-scroll">
         <button
@@ -76,15 +87,25 @@
         :class="{ 'mobile-hidden': activeMobileTab !== 'backpack' }"
       >
         <div class="pane-header">
-          <h3>行囊 <small>INVENTORY</small></h3>
+          <div class="title-group">
+            <h3>行囊 <small>INVENTORY</small></h3>
+            <!-- 全选按钮 -->
+            <button
+              v-if="isDeleteMode && backpackList.length > 0"
+              class="select-all-btn"
+              @click="toggleSelectAll('bag')"
+            >
+              {{ isAllSelected('bag') ? '取消全选' : '全选' }}
+            </button>
+          </div>
+
           <div class="header-controls">
-            <div class="money-display" title="持有金钱">
+            <div class="money-display" title="持有金钱" v-if="!isDeleteMode">
               <span class="currency-symbol">◈</span>
               <span class="currency-val">{{ localMoney }}</span>
-              <span class="currency-unit">g</span>
             </div>
             <div class="pane-tools">
-              <input v-model="searchQuery" placeholder="检索物品..." class="ac-input" />
+              <input v-model="searchQuery" placeholder="检索..." class="ac-input" />
             </div>
           </div>
         </div>
@@ -97,10 +118,17 @@
             :class="[
               getItemStyle(item),
               { 'is-modified': item.isModified },
-              { 'is-expanded': activeItemId === 'bag-' + item.name }
+              { 'is-expanded': activeItemId === 'bag-' + item.name },
+              { 'is-selected': isSelected('bag', item.name) },
+              { 'mode-select': isDeleteMode }
             ]"
-            @click="toggleItemExpand(item, 'toWarehouse', 'bag')"
+            @click="handleItemClick(item, 'toWarehouse', 'bag')"
           >
+            <!-- 选中遮罩/复选框 -->
+            <div v-if="isDeleteMode" class="selection-indicator">
+              <div class="checkbox-inner"></div>
+            </div>
+
             <!-- 卡片头部 -->
             <div class="card-inner">
               <div class="item-icon">{{ item.name[0] }}</div>
@@ -116,9 +144,9 @@
               <div class="item-qty">x{{ item.quantity }}</div>
             </div>
 
-            <!-- 展开区域 -->
+            <!-- 展开区域 (仅在非删除模式下显示) -->
             <div
-              v-if="activeItemId === 'bag-' + item.name"
+              v-if="activeItemId === 'bag-' + item.name && !isDeleteMode"
               class="expanded-panel"
               @click.stop
             >
@@ -131,7 +159,7 @@
 
               <!-- 操作栏 -->
               <div class="transfer-action-bar">
-                <div class="slider-wrapper" :class="{ 'danger-zone': isDeleteMode }">
+                <div class="slider-wrapper">
                   <template v-if="item.quantity > 1">
                     <span class="qty-label">{{ transferAmount }}</span>
                     <input
@@ -148,19 +176,8 @@
                   </template>
                 </div>
 
-                <button
-                  v-if="!isDeleteMode"
-                  class="mini-confirm-btn"
-                  @click="confirmTransfer"
-                >
+                <button class="mini-confirm-btn" @click="confirmTransfer">
                   存入 ➔
-                </button>
-                <button
-                  v-else
-                  class="mini-confirm-btn btn-danger"
-                  @click="confirmDelete"
-                >
-                  丢弃 🗑
                 </button>
               </div>
             </div>
@@ -174,7 +191,7 @@
       <!-- 中间：装饰性连接符 -->
       <div class="divider-column">
         <div class="arrow-icon" v-if="!isDeleteMode">⇄</div>
-        <div class="arrow-icon danger-icon" v-else>🗑</div>
+        <div class="arrow-icon danger-icon" v-else>✕</div>
       </div>
 
       <!-- 右侧：漫宿仓库 -->
@@ -183,7 +200,17 @@
         :class="{ 'mobile-hidden': activeMobileTab !== 'warehouse' }"
       >
         <div class="pane-header">
-          <h3>仓库 <small>WAREHOUSE</small></h3>
+          <div class="title-group">
+            <h3>仓库 <small>WAREHOUSE</small></h3>
+            <!-- 全选按钮 -->
+            <button
+              v-if="isDeleteMode && warehouseList.length > 0"
+              class="select-all-btn"
+              @click="toggleSelectAll('wh')"
+            >
+              {{ isAllSelected('wh') ? '取消全选' : '全选' }}
+            </button>
+          </div>
           <div class="pane-tools"></div>
         </div>
 
@@ -195,10 +222,17 @@
             :class="[
               getItemStyle(item),
               { 'is-modified': item.isModified },
-              { 'is-expanded': activeItemId === 'wh-' + item.name }
+              { 'is-expanded': activeItemId === 'wh-' + item.name },
+              { 'is-selected': isSelected('wh', item.name) },
+              { 'mode-select': isDeleteMode }
             ]"
-            @click="toggleItemExpand(item, 'toBackpack', 'wh')"
+            @click="handleItemClick(item, 'toBackpack', 'wh')"
           >
+            <!-- 选中遮罩/复选框 -->
+            <div v-if="isDeleteMode" class="selection-indicator">
+              <div class="checkbox-inner"></div>
+            </div>
+
             <!-- 卡片头部 -->
             <div class="card-inner">
               <div class="item-icon">{{ item.name[0] }}</div>
@@ -216,7 +250,7 @@
 
             <!-- 展开区域 -->
             <div
-              v-if="activeItemId === 'wh-' + item.name"
+              v-if="activeItemId === 'wh-' + item.name && !isDeleteMode"
               class="expanded-panel"
               @click.stop
             >
@@ -229,7 +263,7 @@
 
               <!-- 操作栏 -->
               <div class="transfer-action-bar">
-                <div class="slider-wrapper" :class="{ 'danger-zone': isDeleteMode }">
+                <div class="slider-wrapper">
                   <template v-if="item.quantity > 1">
                     <span class="qty-label">{{ transferAmount }}</span>
                     <input
@@ -246,19 +280,8 @@
                   </template>
                 </div>
 
-                <button
-                  v-if="!isDeleteMode"
-                  class="mini-confirm-btn"
-                  @click="confirmTransfer"
-                >
+                <button class="mini-confirm-btn" @click="confirmTransfer">
                   取出 ➔
-                </button>
-                <button
-                  v-else
-                  class="mini-confirm-btn btn-danger"
-                  @click="confirmDelete"
-                >
-                  销毁 🗑
                 </button>
               </div>
             </div>
@@ -288,11 +311,12 @@ const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
 const searchQuery = ref('');
 
-// 新增：分类状态
+// 分类状态
 const activeCategory = ref('全部');
 
-// 新增：删除模式状态
+// 删除模式与选中状态
 const isDeleteMode = ref(false);
+const selectedItems = ref(new Set()); // 存储格式: "prefix-itemName"
 
 // 移动端 Tab 状态
 const activeMobileTab = ref('backpack');
@@ -309,28 +333,24 @@ onMounted(() => {
 });
 
 function resetInventory() {
-  // 路径修正：角色.user.物品
   const rawBackpack = statStore.stat_data?.角色?.user?.物品 || {};
   const rawWarehouse = statStore.stat_data?.仓库 || {};
 
   localMoney.value = statStore.stat_data?.角色?.user?.金钱 ?? 0;
 
-  // 深拷贝断开引用，确保本地修改不影响 store
   localBackpack.value = JSON.parse(JSON.stringify(rawBackpack));
   localWarehouse.value = JSON.parse(JSON.stringify(rawWarehouse));
 
   hasUnsavedChanges.value = false;
   activeItemId.value = null;
   isDeleteMode.value = false;
-  activeCategory.value = '全部'; // 重置分类
+  selectedItems.value.clear();
+  activeCategory.value = '全部';
 }
 
 // --- 数据处理 ---
-
-// 新增：动态计算所有可用分类（合并行囊和仓库）
 const categories = computed(() => {
   const types = new Set();
-
   const collectTypes = (obj) => {
     Object.entries(obj).forEach(([key, val]) => {
       if (key !== '$template' && val.类型) {
@@ -338,10 +358,8 @@ const categories = computed(() => {
       }
     });
   };
-
   collectTypes(localBackpack.value);
   collectTypes(localWarehouse.value);
-
   return ['全部', ...Array.from(types).sort()];
 });
 
@@ -356,20 +374,16 @@ const processList = (sourceObj) => {
       raw: val
     }))
     .filter(item => {
-      // 1. 搜索过滤
       if (searchQuery.value) {
         const query = searchQuery.value;
         const matchesSearch = item.name.includes(query) ||
           (item.raw.类型 && item.raw.类型.includes(query));
         if (!matchesSearch) return false;
       }
-
-      // 2. 分类过滤 (新增逻辑)
       if (activeCategory.value !== '全部') {
-        const type = item.raw.类型 || '杂物'; // 处理无类型情况
+        const type = item.raw.类型 || '杂物';
         if (type !== activeCategory.value) return false;
       }
-
       return true;
     })
     .sort((a, b) => {
@@ -396,11 +410,83 @@ const getItemStyle = (item) => {
 function toggleDeleteMode() {
   isDeleteMode.value = !isDeleteMode.value;
   closeTransfer();
+  selectedItems.value.clear(); // 切换模式时清空选中
 }
+
+// 统一处理点击：区分模式
+function handleItemClick(item, direction, prefix) {
+  if (isDeleteMode.value) {
+    toggleSelection(prefix, item.name);
+  } else {
+    toggleItemExpand(item, direction, prefix);
+  }
+}
+
+// --- 批量选择逻辑 ---
+
+function getUniqueId(prefix, name) {
+  return `${prefix}-${name}`;
+}
+
+function isSelected(prefix, name) {
+  return selectedItems.value.has(getUniqueId(prefix, name));
+}
+
+function toggleSelection(prefix, name) {
+  const id = getUniqueId(prefix, name);
+  if (selectedItems.value.has(id)) {
+    selectedItems.value.delete(id);
+  } else {
+    selectedItems.value.add(id);
+  }
+}
+
+function isAllSelected(prefix) {
+  const list = prefix === 'bag' ? backpackList.value : warehouseList.value;
+  if (list.length === 0) return false;
+  return list.every(item => selectedItems.value.has(getUniqueId(prefix, item.name)));
+}
+
+function toggleSelectAll(prefix) {
+  const list = prefix === 'bag' ? backpackList.value : warehouseList.value;
+  const allSelected = isAllSelected(prefix);
+
+  list.forEach(item => {
+    const id = getUniqueId(prefix, item.name);
+    if (allSelected) {
+      selectedItems.value.delete(id);
+    } else {
+      selectedItems.value.add(id);
+    }
+  });
+}
+
+function confirmBatchDelete() {
+  if (selectedItems.value.size === 0) return;
+
+  // 遍历选中项进行删除
+  selectedItems.value.forEach(id => {
+    const [prefix, ...nameParts] = id.split('-');
+    const name = nameParts.join('-'); // 防止名字里有横杠
+
+    const sourceObj = prefix === 'bag' ? localBackpack.value : localWarehouse.value;
+
+    if (sourceObj[name]) {
+      delete sourceObj[name];
+      // 标记为修改（虽然delete了，但为了触发保存逻辑，我们需要确保diff能检测到）
+      // 注意：generateDiff 是对比 local 和 remote，只要 local 没了，remote 有，就会生成 delete payload
+    }
+  });
+
+  hasUnsavedChanges.value = true;
+  selectedItems.value.clear();
+  // 保持在删除模式，方便继续操作，或者可以 isDeleteMode.value = false;
+}
+
+// --- 原有逻辑 ---
 
 function toggleItemExpand(item, direction, prefix) {
   const id = `${prefix}-${item.name}`;
-
   if (activeItemId.value === id) {
     closeTransfer();
   } else {
@@ -427,7 +513,6 @@ function confirmTransfer() {
   const sourceObj = isStoring ? localBackpack.value : localWarehouse.value;
   const targetObj = isStoring ? localWarehouse.value : localBackpack.value;
 
-  // 1. 扣除源头
   if (sourceObj[item.name]) {
     sourceObj[item.name].数量 -= qty;
     sourceObj[item.name].isModified = true;
@@ -437,10 +522,8 @@ function confirmTransfer() {
     }
   }
 
-  // 2. 增加目标
   if (targetObj[item.name]) {
     const existing = targetObj[item.name];
-    // 简单的耐久合并逻辑
     const newDurability = Math.ceil((existing.耐久 + item.durability) / 2);
     existing.数量 += qty;
     existing.耐久 = newDurability;
@@ -460,31 +543,7 @@ function confirmTransfer() {
   }
 }
 
-function confirmDelete() {
-  if (!pendingTransferItem.value || transferAmount.value <= 0) return;
-
-  const item = pendingTransferItem.value;
-  const qty = transferAmount.value;
-  const direction = pendingTransferDirection.value;
-  const isFromBackpack = direction === 'toWarehouse';
-  const sourceObj = isFromBackpack ? localBackpack.value : localWarehouse.value;
-
-  if (sourceObj[item.name]) {
-    sourceObj[item.name].数量 -= qty;
-    sourceObj[item.name].isModified = true;
-    if (sourceObj[item.name].数量 <= 0) {
-      delete sourceObj[item.name];
-      closeTransfer();
-    }
-  }
-
-  hasUnsavedChanges.value = true;
-  if (sourceObj[item.name]) {
-    transferAmount.value = 1;
-  }
-}
-
-// --- 核心优化：严格差分保存逻辑 ---
+// --- 保存逻辑 (保持不变) ---
 
 function cleanData(item) {
   const { isModified, ...rest } = item;
@@ -576,6 +635,7 @@ async function saveAllChanges() {
     Object.values(localWarehouse.value).forEach(i => i.isModified = false);
     activeItemId.value = null;
     isDeleteMode.value = false;
+    selectedItems.value.clear();
 
   } catch (e) {
     console.error("Inventory Sync Failed:", e);
@@ -600,8 +660,8 @@ async function saveAllChanges() {
 
   display: flex;
   flex-direction: column;
-  height: 100vh; /* 兼容旧浏览器 */
-  height: 100dvh; /* 关键修复：使用动态视口高度，自动适应浏览器地址栏/工具栏 */
+  height: 100vh;
+  height: 100dvh;
   width: 100%;
   background: var(--c-bg);
   color: var(--c-text);
@@ -612,9 +672,9 @@ async function saveAllChanges() {
 
 /* 删除模式下的全局氛围 */
 .ac-inventory-manager.mode-delete {
-  --c-gold: #ff4d4d; /* 将主色调临时替换为红色 */
-  --c-gold-dim: rgba(255, 77, 77, 0.3);
-  background: #1a0f0f;
+  --c-gold: #ff6b6b; /* 红色主题 */
+  --c-gold-dim: rgba(255, 107, 107, 0.3);
+  background: #1a1010;
 }
 
 /* --- 头部 --- */
@@ -650,7 +710,7 @@ async function saveAllChanges() {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 15px;
 }
 
 .unsaved-warning {
@@ -670,13 +730,14 @@ async function saveAllChanges() {
   background: transparent;
   border: 1px solid var(--c-gold-dim);
   color: var(--c-gold);
-  padding: 8px 20px;
+  padding: 8px 16px;
   font-family: var(--font-title);
   cursor: pointer;
   transition: all 0.3s;
   text-transform: uppercase;
   letter-spacing: 1px;
   white-space: nowrap;
+  font-size: 0.85rem;
 }
 
 .ac-btn:hover:not(:disabled) {
@@ -704,17 +765,25 @@ async function saveAllChanges() {
 .delete-mode-btn:hover {
   border-color: var(--c-danger);
   color: var(--c-danger);
-  background: transparent;
-  box-shadow: none;
 }
 .delete-mode-btn.is-active {
   border-color: var(--c-danger);
   color: var(--c-danger);
   background: rgba(255, 77, 77, 0.1);
-  box-shadow: 0 0 10px var(--c-danger-dim);
 }
 
-/* --- 新增：分类栏样式 --- */
+.batch-delete-btn {
+  background: var(--c-danger);
+  color: #fff;
+  border-color: var(--c-danger);
+  font-weight: bold;
+}
+.batch-delete-btn:hover {
+  background: #ff4d4d;
+  box-shadow: 0 0 15px rgba(255, 77, 77, 0.5);
+}
+
+/* --- 分类栏 --- */
 .category-bar-wrapper {
   padding: 10px 20px 0 20px;
   flex-shrink: 0;
@@ -727,7 +796,7 @@ async function saveAllChanges() {
   overflow-x: auto;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
-  scrollbar-width: none; /* Firefox */
+  scrollbar-width: none;
 }
 .category-scroll::-webkit-scrollbar { display: none; }
 
@@ -754,7 +823,6 @@ async function saveAllChanges() {
   color: var(--c-gold);
   border-color: var(--c-gold-dim);
   background: rgba(212, 175, 55, 0.08);
-  box-shadow: inset 0 0 8px rgba(212, 175, 55, 0.05);
 }
 
 /* --- 主体区域 --- */
@@ -767,10 +835,7 @@ async function saveAllChanges() {
   flex-direction: row;
 }
 
-/* 移动端 Tab 默认隐藏 */
-.mobile-tabs {
-  display: none;
-}
+.mobile-tabs { display: none; }
 
 .pane {
   flex: 1;
@@ -784,12 +849,19 @@ async function saveAllChanges() {
 }
 
 .pane-header {
-  padding: 15px;
+  padding: 12px 15px;
   border-bottom: 1px solid rgba(255,255,255,0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  height: 50px;
+}
+
+.title-group {
+  display: flex;
+  align-items: center;
+  gap: 15px;
 }
 
 .pane-header h3 {
@@ -803,6 +875,20 @@ async function saveAllChanges() {
   color: #666;
   font-size: 0.7rem;
   margin-left: 8px;
+}
+
+.select-all-btn {
+  background: transparent;
+  border: 1px solid #444;
+  color: #888;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.select-all-btn:hover {
+  border-color: var(--c-gold);
+  color: var(--c-gold);
 }
 
 .header-controls {
@@ -822,31 +908,10 @@ async function saveAllChanges() {
   border: 1px solid rgba(212, 175, 55, 0.3);
   border-radius: 2px;
   user-select: none;
-  box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
 }
 
-.mode-delete .money-display {
-  filter: grayscale(1);
-  opacity: 0.5;
-}
-
-.currency-symbol {
-  font-size: 1.1rem;
-  text-shadow: 0 0 5px var(--c-gold);
-}
-
-.currency-val {
-  font-size: 1.1rem;
-  font-weight: bold;
-  letter-spacing: 1px;
-  color: #fff;
-}
-
-.currency-unit {
-  font-size: 0.8rem;
-  color: #888;
-  margin-left: 2px;
-}
+.currency-symbol { font-size: 1.1rem; text-shadow: 0 0 5px var(--c-gold); }
+.currency-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
 
 .ac-input {
   background: rgba(0,0,0,0.3);
@@ -926,6 +991,42 @@ async function saveAllChanges() {
   background: linear-gradient(90deg, rgba(212, 175, 55, 0.05), transparent);
 }
 
+/* 选中状态样式 */
+.item-card.mode-select {
+  padding-left: 30px; /* 为复选框留空间 */
+}
+.item-card.is-selected {
+  border-color: var(--c-danger);
+  background: rgba(255, 77, 77, 0.1);
+}
+
+.selection-indicator {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.2);
+  border-right: 1px solid rgba(255,255,255,0.05);
+}
+
+.checkbox-inner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #666;
+  border-radius: 2px;
+  transition: 0.2s;
+}
+
+.item-card.is-selected .checkbox-inner {
+  background: var(--c-danger);
+  border-color: var(--c-danger);
+  box-shadow: 0 0 5px var(--c-danger);
+}
+
 .card-inner {
   display: flex;
   align-items: center;
@@ -949,52 +1050,13 @@ async function saveAllChanges() {
   flex-shrink: 0;
 }
 
-.item-info {
-  flex: 1;
-  overflow: hidden;
-  min-width: 0;
-}
-
-.item-name {
-  font-weight: bold;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.95rem;
-}
-
-.item-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.item-type {
-  font-size: 0.7rem;
-  color: #888;
-  text-transform: uppercase;
-}
-
-.item-durability {
-  flex: 1;
-  height: 3px;
-  background: #333;
-  max-width: 50px;
-}
-
-.dur-bar {
-  height: 100%;
-  background: #888;
-}
-
-.item-qty {
-  font-family: var(--font-title);
-  color: var(--c-gold);
-  font-size: 1.1rem;
-  margin-left: 10px;
-  flex-shrink: 0;
-}
+.item-info { flex: 1; overflow: hidden; min-width: 0; }
+.item-name { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.95rem; }
+.item-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.item-type { font-size: 0.7rem; color: #888; text-transform: uppercase; }
+.item-durability { flex: 1; height: 3px; background: #333; max-width: 50px; }
+.dur-bar { height: 100%; background: #888; }
+.item-qty { font-family: var(--font-title); color: var(--c-gold); font-size: 1.1rem; margin-left: 10px; flex-shrink: 0; }
 
 /* --- 展开面板 --- */
 .expanded-panel {
@@ -1012,34 +1074,12 @@ async function saveAllChanges() {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.item-details {
-  font-size: 0.85rem;
-  color: #aaa;
-  line-height: 1.4;
-  padding: 0 5px;
-}
+.item-details { font-size: 0.85rem; color: #aaa; line-height: 1.4; padding: 0 5px; }
+.detail-desc { font-style: italic; margin: 0 0 6px 0; color: #888; }
+.detail-effect { margin: 0; color: #ccc; }
+.detail-effect .bullet { color: var(--c-gold); margin-right: 4px; }
 
-.detail-desc {
-  font-style: italic;
-  margin: 0 0 6px 0;
-  color: #888;
-}
-
-.detail-effect {
-  margin: 0;
-  color: #ccc;
-}
-.detail-effect .bullet {
-  color: var(--c-gold);
-  margin-right: 4px;
-}
-
-.transfer-action-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 5px;
-}
+.transfer-action-bar { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
 
 .slider-wrapper {
   flex: 1;
@@ -1052,37 +1092,10 @@ async function saveAllChanges() {
   height: 32px;
 }
 
-.slider-wrapper.danger-zone {
-  border: 1px solid rgba(255, 77, 77, 0.2);
-  background: rgba(255, 0, 0, 0.05);
-}
-
-.qty-label {
-  color: var(--c-gold);
-  font-family: var(--font-title);
-  font-weight: bold;
-  min-width: 20px;
-  text-align: center;
-}
-
-.qty-static {
-  color: #888;
-  font-size: 0.8rem;
-  flex: 1;
-  text-align: center;
-}
-
-.mini-slider {
-  flex: 1;
-  accent-color: var(--c-gold);
-  height: 4px;
-  cursor: pointer;
-}
-
-.qty-max {
-  font-size: 0.7rem;
-  color: #666;
-}
+.qty-label { color: var(--c-gold); font-family: var(--font-title); font-weight: bold; min-width: 20px; text-align: center; }
+.qty-static { color: #888; font-size: 0.8rem; flex: 1; text-align: center; }
+.mini-slider { flex: 1; accent-color: var(--c-gold); height: 4px; cursor: pointer; }
+.qty-max { font-size: 0.7rem; color: #666; }
 
 .mini-confirm-btn {
   background: var(--c-gold);
@@ -1097,106 +1110,42 @@ async function saveAllChanges() {
   transition: 0.2s;
   height: 32px;
 }
-
-.mini-confirm-btn:hover {
-  background: #fff;
-  box-shadow: 0 0 10px var(--c-gold);
-}
-
-.mini-confirm-btn.btn-danger {
-  background: var(--c-danger);
-  color: #fff;
-}
-.mini-confirm-btn.btn-danger:hover {
-  background: #ff8888;
-  box-shadow: 0 0 10px var(--c-danger);
-}
+.mini-confirm-btn:hover { background: #fff; box-shadow: 0 0 10px var(--c-gold); }
 
 .style-weapon .item-icon { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
 .style-lore .item-icon { color: #a29bfe; border-color: rgba(162, 155, 254, 0.3); }
 .style-currency .item-icon { color: #ffeaa7; border-color: rgba(255, 234, 167, 0.3); }
 
+/* Vue Transition */
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+
 /* --- 移动端适配 --- */
 @media (max-width: 768px) {
-  .manager-body {
-    flex-direction: column;
-    padding: 10px;
-  }
-
-  .mobile-tabs {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 5px;
-    flex-shrink: 0;
-  }
+  .manager-body { flex-direction: column; padding: 10px; }
+  .mobile-tabs { display: flex; gap: 10px; margin-bottom: 5px; flex-shrink: 0; }
 
   .mobile-tab-item {
-    flex: 1;
-    text-align: center;
-    padding: 10px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    color: #888;
-    font-family: var(--font-title);
-    cursor: pointer;
-    transition: 0.3s;
+    flex: 1; text-align: center; padding: 10px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: #888; font-family: var(--font-title); cursor: pointer; transition: 0.3s;
   }
-
   .mobile-tab-item.active {
-    background: rgba(212, 175, 55, 0.1);
-    border-color: var(--c-gold);
-    color: var(--c-gold);
-    box-shadow: inset 0 0 10px rgba(212, 175, 55, 0.05);
+    background: rgba(212, 175, 55, 0.1); border-color: var(--c-gold); color: var(--c-gold);
   }
 
-  .divider-column {
-    display: none;
-  }
+  .divider-column { display: none; }
+  .pane.mobile-hidden { display: none; }
+  .pane { width: 100%; flex: 1; height: 100%; }
+  .item-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 
-  .pane.mobile-hidden {
-    display: none;
-  }
-
-  .pane {
-    width: 100%;
-    flex: 1;
-    height: 100%;
-  }
-
-  .item-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  }
-
-  .header-title h2 {
-    font-size: 1.1rem;
-  }
-
-  .ac-btn {
-    padding: 8px 12px;
-    font-size: 0.8rem;
-  }
-
-  .header-controls {
-    gap: 8px;
-  }
-
-  .money-display {
-    padding: 2px 6px;
-  }
-
-  .currency-val {
-    font-size: 0.9rem;
-  }
-
-  .ac-input {
-    width: 80px;
-  }
-  .ac-input:focus {
-    width: 100px;
-  }
-
-  .category-bar-wrapper {
-    padding: 10px 10px 0 10px;
-  }
+  .header-title h2 { font-size: 1.1rem; }
+  .ac-btn { padding: 6px 10px; font-size: 0.75rem; }
+  .header-controls { gap: 8px; }
+  .money-display { padding: 2px 6px; }
+  .currency-val { font-size: 0.9rem; }
+  .ac-input { width: 80px; }
+  .ac-input:focus { width: 100px; }
+  .category-bar-wrapper { padding: 10px 10px 0 10px; }
 }
 </style>

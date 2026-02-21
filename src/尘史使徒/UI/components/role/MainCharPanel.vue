@@ -74,6 +74,15 @@
           <p class="text-content">{{ data.背景?.join('\n') }}</p>
         </section>
 
+        <section class="info-block">
+          <h3>活动范围</h3>
+          <div class="tag-container">
+            <span v-for="(tag, index) in data.区域检索词" :key="index" class="area-tag">
+              {{ tag }}
+            </span>
+          </div>
+        </section>
+
         <!-- 详情模式下显示的私密档案 -->
         <template v-if="showDetails">
           <section class="info-block detail-block">
@@ -224,4 +233,15 @@ const formatHobbies = (hobbies) => {
 .action-btn:hover { background: #FFD700; color: #000; }
 .simple-inventory .item-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .simple-inventory .item-count { color: #888; }
+
+.tag-container { display: flex; flex-wrap: wrap; gap: 8px; }
+.area-tag {
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.4);
+  color: var(--c-gold);
+  padding: 4px 8px;
+  border-radius: 2px;
+  font-size: 0.9rem;
+  font-family: var(--font-title);
+}
 </style>
