@@ -394,7 +394,7 @@ const JsonNode = defineComponent({
   width: 64px;
   height: 64px;
   cursor: pointer;
-  z-index: 10001;
+  z-index: 90001;
   transition: transform 0.2s;
   display: flex;
   align-items: center;
@@ -446,7 +446,7 @@ const JsonNode = defineComponent({
   background: rgba(15, 15, 15, 0.95);
   border: 1px solid var(--ac-gold-dim);
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(0, 0, 0, 0.5);
-  z-index: 10000;
+  z-index: 90000;
   display: flex;
   flex-direction: column;
   color: var(--ac-text);
