@@ -1,11 +1,9 @@
 <template>
-  <!--
-    模式 1: 收起状态 - 变量分析核心 (可拖拽)
-  -->
   <div
     v-if="!uiStore.showUI"
     ref="draggableBtn"
     class="ac-toggle-btn"
+    :class="{ 'has-update': hasNewData }"
     :style="btnPositionStyle"
     title="Initialize Variable Sequence"
     @click="handleBtnClick"
@@ -42,12 +40,16 @@
         <circle cx="0" cy="-48" r="3" fill="var(--ac-gold)" />
       </g>
     </svg>
-    <div class="animus-pulse"></div>
+
+    <!--
+      特效层：仅当 hasNewData 为 true 时显示
+      展开后 hasNewData 会被重置，特效消失
+    -->
+    <div v-if="hasNewData" class="animus-pulse"></div>
   </div>
 
   <!--
     模式 2: 展开状态 - 变量监控窗口 (可拖拽、可调整大小)
-    增加 :class="{'is-dragging': isDragging}" 用于优化性能
   -->
   <div
     v-if="uiStore.showUI"
@@ -82,32 +84,17 @@
 
       <!-- 循环渲染匹配到的正则结果 -->
       <div v-for="(log, index) in parsedLogs" :key="index" class="ac-log-entry" :class="{ 'is-think': log.type === 'variablethink' }">
-
-        <!-- 头部：显示类型 -->
         <div class="ac-log-header" :class="log.type">
           <span class="log-index">0x{{ String(index).padStart(4, '0') }}</span>
           <span class="log-action">{{ formatType(log.type) }}</span>
         </div>
-
-        <!-- 内容：根据类型区分渲染 -->
         <div class="ac-log-body">
-
-          <!-- 情况A: 思考过程 (纯文本) -->
           <div v-if="log.type === 'variablethink'" class="ac-think-text">
             {{ log.data }}
           </div>
-
-          <!-- 情况B: 变量操作 (JSON) -->
           <div v-else class="ac-json-wrapper">
-            <JsonNode
-              :value="log.data"
-              :name="''"
-              :is-last="true"
-              :depth="0"
-              :force-open="false"
-            />
+            <JsonNode :value="log.data" :name="''" :is-last="true" :depth="0" :force-open="false" />
           </div>
-
         </div>
       </div>
     </div>
@@ -115,7 +102,6 @@
     <!-- 底部装饰 -->
     <div class="ac-footer">
       <span>SYSTEM STABLE // MEMORY: {{ parsedLogs.length }} BLOCKS</span>
-      <!-- 增加一个右下角的调整大小手柄提示 -->
       <span class="resize-handle-icon">◢</span>
     </div>
   </div>
@@ -126,7 +112,6 @@ import { ref, h, defineComponent, computed, onMounted, watch, nextTick, reactive
 import { useUiStore } from '@/变量卷轴/UI/store/UIStore';
 import { useMessageStore } from '@/变量卷轴/UI/store/MessageStore';
 
-// 引入 Store
 const uiStore = useUiStore();
 const messageStore = useMessageStore();
 
@@ -135,19 +120,11 @@ const draggableWindow = ref<HTMLElement | null>(null);
 const parsedLogs = ref<Array<{ type: string, data: any }>>([]);
 const isDragging = ref(false);
 
-// 按钮位置状态
-const btnPosition = reactive({
-  top: 100,
-  left: 100
-});
+// 新增：是否有新数据（控制特效）
+const hasNewData = ref(false);
 
-// 窗口状态 (增加宽高)
-const windowState = reactive({
-  top: 100,
-  left: 100,
-  width: 600,
-  height: 500
-});
+const btnPosition = reactive({ top: 100, left: 100 });
+const windowState = reactive({ top: 100, left: 100, width: 600, height: 500 });
 
 const btnPositionStyle = computed(() => ({
   top: `${btnPosition.top}px`,
@@ -164,6 +141,11 @@ const windowStyle = computed(() => ({
 const toggleUI = () => {
   if (isDragging.value) return;
   uiStore.showUI = !uiStore.showUI;
+
+  // 逻辑：当打开 UI 时，视为已读，关闭特效
+  if (uiStore.showUI) {
+    hasNewData.value = false;
+  }
 };
 
 const handleBtnClick = () => {
@@ -209,7 +191,17 @@ const parseMessageContent = () => {
     }
     results.push({ type: type, data: parsedData });
   }
+
+  // 检查数据变化
+  const oldLength = parsedLogs.value.length;
   parsedLogs.value = results;
+
+  // 逻辑：如果解析出了数据，且当前 UI 是关闭的，则开启特效
+  if (results.length > 0 && !uiStore.showUI) {
+    // 这里可以加个判断，只有 results.length > oldLength 时才闪烁，
+    // 或者只要有数据且未读就一直闪烁。根据需求，这里设为只要有数据更新且未打开就闪烁。
+    hasNewData.value = true;
+  }
 };
 
 const refreshData = () => {
@@ -218,10 +210,9 @@ const refreshData = () => {
 };
 
 const initDraggable = () => {
-  // 1. 初始化按钮拖拽
   if (draggableBtn.value) {
     const $btn = $(draggableBtn.value);
-    if ($btn.data('ui-draggable')) $btn.draggable('destroy'); // 防止重复初始化
+    if ($btn.data('ui-draggable')) $btn.draggable('destroy');
 
     $btn.draggable({
       containment: 'window',
@@ -235,22 +226,16 @@ const initDraggable = () => {
     });
   }
 
-  // 2. 初始化窗口拖拽和缩放
   if (draggableWindow.value) {
     const $win = $(draggableWindow.value);
-
-    // 清理旧实例
     if ($win.data('ui-draggable')) $win.draggable('destroy');
     if ($win.data('ui-resizable')) $win.resizable('destroy');
 
-    // 拖拽配置
     $win.draggable({
       handle: '.ac-header',
       containment: 'window',
       scroll: false,
-      start: () => {
-        isDragging.value = true;
-      },
+      start: () => { isDragging.value = true; },
       stop: (event, ui) => {
         isDragging.value = false;
         windowState.top = ui.position.top;
@@ -258,20 +243,15 @@ const initDraggable = () => {
       }
     });
 
-    // 调整大小配置
     $win.resizable({
       minHeight: 300,
       minWidth: 400,
-      handles: 'all', // 允许所有方向调整，或者用 'n, e, s, w, ne, se, sw, nw'
-      start: () => {
-        isDragging.value = true; // 调整大小时也视为交互中，禁用特效
-      },
+      handles: 'all',
+      start: () => { isDragging.value = true; },
       stop: (event, ui) => {
         isDragging.value = false;
-        // 同步大小
         windowState.width = ui.size.width;
         windowState.height = ui.size.height;
-        // 同步位置 (因为向左/上调整大小时，top/left 也会变)
         windowState.top = ui.position.top;
         windowState.left = ui.position.left;
       }
@@ -279,12 +259,17 @@ const initDraggable = () => {
   }
 };
 
-watch(() => uiStore.showUI, () => {
+// 监听 UI 显隐，处理拖拽初始化和特效重置
+watch(() => uiStore.showUI, (newVal) => {
+  if (newVal) {
+    hasNewData.value = false; // 打开时关闭特效
+  }
   nextTick(() => {
     initDraggable();
   });
 });
 
+// 监听消息变化
 watch(() => messageStore.message, () => {
   parseMessageContent();
 });
@@ -419,10 +404,22 @@ const JsonNode = defineComponent({
 .ac-toggle-btn:hover { transform: scale(1.1); }
 .ac-toggle-btn:active { transform: scale(0.95); }
 
+/* 当有新数据时，图标本身也添加一点发光呼吸 */
+.ac-toggle-btn.has-update .ac-logo-svg {
+  filter: drop-shadow(0 0 8px rgba(212, 175, 55, 0.8));
+  animation: icon-breathe 2s infinite alternate;
+}
+
+@keyframes icon-breathe {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
 .ac-logo-svg {
   width: 100%;
   height: 100%;
   filter: drop-shadow(0 0 5px rgba(212, 175, 55, 0.5));
+  transition: filter 0.3s;
 }
 
 .animus-pulse {
@@ -433,22 +430,19 @@ const JsonNode = defineComponent({
   border-radius: 50%;
   border: 1px solid var(--ac-gold);
   opacity: 0;
-  animation: pulse-ring 3s infinite;
+  animation: pulse-ring 2s infinite; /* 加快一点频率 */
   pointer-events: none;
 }
 
 @keyframes pulse-ring {
-  0% { width: 60%; height: 60%; opacity: 0; border-width: 2px; }
-  50% { opacity: 0.5; }
-  100% { width: 140%; height: 140%; opacity: 0; border-width: 0px; }
+  0% { width: 60%; height: 60%; opacity: 0; border-width: 3px; }
+  50% { opacity: 0.8; }
+  100% { width: 160%; height: 160%; opacity: 0; border-width: 0px; }
 }
 
 /* 主窗口 */
 .ac-window {
   position: fixed;
-  /* 移除固定宽高，由 Vue style 控制 */
-  /* width: 600px; */
-  /* height: 500px; */
   background: rgba(15, 15, 15, 0.95);
   border: 1px solid var(--ac-gold-dim);
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(0, 0, 0, 0.5);
@@ -458,18 +452,14 @@ const JsonNode = defineComponent({
   color: var(--ac-text);
   font-family: var(--font-tech);
   backdrop-filter: blur(5px);
-  /* 优化：告诉浏览器这些属性会变化 */
   will-change: top, left, width, height;
 }
 
-/*
-  优化：拖拽时禁用高消耗特效
-  这能显著减少拖拽时的卡顿
-*/
+/* 拖拽优化：禁用特效 */
 .ac-window.is-dragging {
-  backdrop-filter: none; /* 禁用毛玻璃 */
-  box-shadow: 0 0 10px rgba(0,0,0,0.8); /* 简化阴影 */
-  transition: none !important; /* 禁用所有过渡 */
+  backdrop-filter: none;
+  box-shadow: 0 0 10px rgba(0,0,0,0.8);
+  transition: none !important;
   opacity: 0.9;
 }
 
@@ -553,7 +543,6 @@ const JsonNode = defineComponent({
 @keyframes blinker { 50% { opacity: 0.3; } }
 .sub-text { font-family: var(--font-tech); font-size: 0.9em; margin-top: 10px; opacity: 0.7; }
 
-/* 日志条目容器 */
 .ac-log-entry {
   position: relative;
   z-index: 1;
@@ -568,7 +557,6 @@ const JsonNode = defineComponent({
   background: rgba(255, 255, 255, 0.02);
 }
 
-/* 思考过程的特殊样式 */
 .ac-log-entry.is-think {
   border-left-color: var(--ac-grey);
   background: rgba(0, 0, 0, 0.2);
@@ -592,14 +580,12 @@ const JsonNode = defineComponent({
 .log-index { font-family: var(--font-tech); opacity: 0.7; }
 .log-action { font-family: var(--font-title); letter-spacing: 1px; }
 
-/* 内容区域 */
 .ac-log-body {
   padding: 10px;
   font-size: 13px;
   overflow-x: auto;
 }
 
-/* 思考文本样式 */
 .ac-think-text {
   font-family: 'Courier New', Courier, monospace;
   color: #aaa;
@@ -614,7 +600,7 @@ const JsonNode = defineComponent({
   color: #555;
   border-top: 1px solid #333;
   display: flex;
-  justify-content: space-between; /* 调整布局以容纳图标 */
+  justify-content: space-between;
   align-items: center;
   background: #0a0a0a;
   user-select: none;
