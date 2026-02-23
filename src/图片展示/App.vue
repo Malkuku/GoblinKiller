@@ -6,8 +6,8 @@
       <!-- 卡片头部 -->
       <div class="card-header" @click="toggleCard">
         <!--
-          ★ 正则匹配策略在这里 ★
-          对应原 JS: span.textContent = rawName.replace(/\//g, ' - ');
+           显示标题：为了美观，我们将路径中的 "/" 替换回 " - " 显示
+           例如：URL是 "人物A/开心1"，标题显示 "人物A - 开心1"
         -->
         <span class="header-title">{{ formattedTitle }}</span>
         <span class="arrow-icon">▼</span>
@@ -24,11 +24,6 @@
           <div v-if="isLoading && !hasError" class="img-loader"></div>
 
           <!-- 图片 -->
-          <!--
-             懒加载逻辑：
-             原 HTML 是 toggleCard 时给 img 赋 src。
-             这里用 v-if="shouldLoadImage" 控制，效果一样：点击展开后才渲染 img 标签并请求网络。
-          -->
           <img
             v-if="shouldLoadImage"
             :src="currentSrc"
@@ -44,7 +39,7 @@
       </div>
     </div>
 
-    <!-- 灯箱组件 (传送至 body) -->
+    <!-- 灯箱组件 -->
     <Teleport to="body">
       <div
         v-if="lightboxShow"
@@ -77,12 +72,25 @@
 <script setup>
 import { ref, computed, reactive, onUnmounted } from 'vue';
 
-// ============================================================
-// 1. 核心配置区 (对应原 HTML 的 $1)
-// ============================================================
-
-// ★★★ 请让你的构建工具替换这里的 "$1" ★★★
 const rawName = "$1";
+
+// ============================================================
+// ★ 格式修复逻辑 (根据你的最新要求) ★
+// ============================================================
+let fixedName = rawName || '';
+
+// 1. 去除所有空格 (防止 "人物A - 开心" 这种带空格的情况)
+fixedName = fixedName.replace(/\s+/g, '');
+
+// 2. 将 "-" 替换为 "/" (核心修改：把横杠变成斜杠)
+// 例如: "人物A-开心" -> "人物A/开心"
+fixedName = fixedName.replace(/-/g, '/');
+
+// 3. 补充数字 (如果末尾不是数字，补1)
+// 例如: "人物A/开心" -> "人物A/开心1"
+if (fixedName.length > 0 && !/\d$/.test(fixedName)) {
+  fixedName += '1';
+}
 
 const BASE_URL = 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/';
 const EXTENSION = '.webp';
@@ -92,42 +100,38 @@ const FALLBACK_IMG = 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/
 // 2. 逻辑复刻
 // ============================================================
 
-// --- 正则匹配策略 ---
-// 对应原代码: rawName.replace(/\//g, ' - ')
+// --- 标题显示 ---
+// URL 用的是 "/"，但显示给用户看时，用 " - " 比较好看
 const formattedTitle = computed(() => {
-  return rawName.replace(/\//g, ' - ');
+  return fixedName.replace(/\//g, ' - ');
 });
 
 // --- 图片地址拼接 ---
-const originalSrc = `${BASE_URL}${rawName}${EXTENSION}`;
+// 使用修复后的 fixedName (包含 / 和 1)
+const originalSrc = `${BASE_URL}${fixedName}${EXTENSION}`;
 
 // --- 状态管理 ---
-const isOpen = ref(false);          // 卡片是否展开
-const shouldLoadImage = ref(false); // 是否开始加载 (懒加载开关)
-const isLoading = ref(true);        // 加载中状态
-const isLoaded = ref(false);        // 加载完毕状态
-const hasError = ref(false);        // 错误状态
+const isOpen = ref(false);
+const shouldLoadImage = ref(false);
+const isLoading = ref(true);
+const isLoaded = ref(false);
+const hasError = ref(false);
 const currentSrc = ref(originalSrc);
 const lightboxShow = ref(false);
 
 // --- 交互函数 ---
-
-// 对应 window.toggleCard
 const toggleCard = () => {
   isOpen.value = !isOpen.value;
-  // 首次展开时，开启加载开关
   if (isOpen.value && !shouldLoadImage.value) {
     shouldLoadImage.value = true;
   }
 };
 
-// 对应 window.onImageLoad
 const onImageLoad = () => {
   isLoading.value = false;
   isLoaded.value = true;
 };
 
-// 对应 window.handleImgError
 const handleImgError = () => {
   isLoading.value = false;
   hasError.value = true;
@@ -135,7 +139,7 @@ const handleImgError = () => {
 };
 
 // ============================================================
-// 3. 灯箱逻辑 (完全复刻原 JS 的缩放/拖拽)
+// 3. 灯箱逻辑
 // ============================================================
 
 const zoomState = reactive({
@@ -151,24 +155,19 @@ const lightboxTransformStyle = computed(() => ({
   transition: zoomState.isDragging ? 'none' : 'transform 0.1s ease-out'
 }));
 
-// 对应 window.openLightbox
 const openLightbox = () => {
   if (hasError.value || !isLoaded.value) return;
-
-  // 重置状态
   Object.assign(zoomState, { scale: 1, pX: 0, pY: 0, isDragging: false, startX: 0, startY: 0, lastX: 0, lastY: 0 });
-
   lightboxShow.value = true;
   document.body.style.overflow = 'hidden';
 };
 
-// 对应 window.closeLightbox
 const closeLightbox = () => {
   lightboxShow.value = false;
   document.body.style.overflow = '';
 };
 
-// --- 鼠标/触摸事件处理 (保持原算法) ---
+// --- 鼠标/触摸事件 ---
 const handleWheel = (e) => {
   const delta = -Math.sign(e.deltaY);
   const step = 0.15;
@@ -232,10 +231,6 @@ onUnmounted(() => { document.body.style.overflow = ''; });
 </script>
 
 <style>
-/*
-  这里直接复用原 HTML 的 CSS
-  去掉了 :root 定义，直接写死颜色或保留 var 均可，这里保留 var 以防万一
-*/
 :root {
   --bg-primary: #1a1a1a;
   --bg-secondary: #2d2d2d;
