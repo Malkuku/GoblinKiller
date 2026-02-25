@@ -76,7 +76,6 @@ $(() => {
   useUiStore().getModeSetting();
   useStatStore().registerListener()
   useStatStore().initData()
-  useMessageStore().registerListener()
   useMessageStore().getMessage();
 });
 

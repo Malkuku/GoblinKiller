@@ -292,7 +292,7 @@ onMounted(() => {
 const nextPage = () => {
   if (currentPage.value === 1) {
     if (!formData.location) {
-      if (window.toastr) window.toastr.warning("请先选择出生地");
+      toastr.warning("请先选择出生地");
       return;
     }
   }

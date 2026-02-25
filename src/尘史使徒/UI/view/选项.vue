@@ -145,6 +145,7 @@ import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 import * as toastr from 'toastr';
+import { KatEvents } from '@/Constants/KatEvent';
 
 const router = useRouter();
 const messageStore = useMessageStore();
@@ -351,7 +352,7 @@ const sendMessage = async () => {
 // --- 新增：变量重算 ---
 const recalculateVariables = async () => {
   try {
-    await eventEmit("kat:resend_era_update");
+    await eventEmit(KatEvents.kat_resend_mvu_update);
     toastr.success("已发送变量重算");
   } catch (e) {
     console.error('变量重算错误:', e);

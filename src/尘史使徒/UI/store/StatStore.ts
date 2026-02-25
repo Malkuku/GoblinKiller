@@ -2,39 +2,42 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { StatData } from '../types/StatData';
-import { getOldStatData } from '@/尘史使徒/UI/util/messageUtil';
+import { KatEvents } from '@/Constants/KatEvent';
 
 export const useStatStore = defineStore('stat', () => {
   // 状态数据
   const stat_data = ref<StatData>();
 
-  const initData = ()=>{
-      getOldStatData(getLastMessageId());
-  }
+  // 核心逻辑：从当前消息变量中获取 stat_data
+  const updateFromVariables = () => {
+    try {
+      // 获取变量集合
+      const variables = getVariables({ type: 'message', message_id: -1});
 
-  // 处理统计数据的函数
-  const processStatData = (detail:{ result:{message_id:number,stat: StatData }}) => {
-      console.log(`Stat data updated at ${detail.result.message_id}`);
-      stat_data.value = detail.result.stat;
-      console.log(`Stat data loaded at :`, stat_data.value);
+      // 如果变量中包含 stat_data，则更新状态
+      if (variables && variables.stat_data) {
+        stat_data.value = variables.stat_data;
+        console.log('Stat data updated from variables:', stat_data.value);
+      }
+    } catch (error) {
+      console.error('Failed to update stat data:', error);
+    }
   };
 
-  const loadedStatData = (detail:{ stat: StatData })=>{
-      stat_data.value = detail.stat;
-      console.log(`Stat data loaded:`, stat_data.value);
-      toastr.success('已获取最新数据');
-  }
+  // 初始化数据 (手动调用一次以获取当前状态)
+  const initData = () => {
+    updateFromVariables();
+  };
 
   // 注册事件监听器
   const registerListener = () => {
-    eventOn('era:queryResult', processStatData);
-    eventOn('era:writeDone', loadedStatData);
+    eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, updateFromVariables);
+    eventOn(KatEvents.kat_mvu_update_finished, updateFromVariables);
   };
 
   return {
     stat_data,
     initData,
-    processStatData,
     registerListener,
   };
 });

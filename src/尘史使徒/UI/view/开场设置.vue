@@ -64,7 +64,6 @@
 import { ref, computed } from 'vue';
 import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
 import { router } from '@/尘史使徒/UI/router/router';
-import { ERAEvents } from '@/Constants/ERAEvent';
 import { ScenariosMetadata } from '@/尘史使徒/UI/types/剧本数据';
 
 const selectedScenario = ref('');
@@ -86,7 +85,7 @@ const selectScenario = (id) => {
 const confirmStart = async (item) => {
   // 安全检查
   if (!item.isReady) {
-    if (window.toastr) window.toastr.info(`剧本 [${item.name}] 正在锐意制作中...`);
+    toastr.info(`剧本 [${item.name}] 正在锐意制作中...`);
     return;
   }
 
@@ -96,11 +95,6 @@ const confirmStart = async (item) => {
   try {
     // 1. 加载世界书内容 (这一步必须先做，因为需要初始化环境)
     await loadScenarioContent(item.worldBookEntry);
-
-    // 2. 强制同步数据
-    await eventEmit(ERAEvents.FORCE_SYNC);
-
-
 
     // 3. 根据剧本 ID 决定跳转逻辑
     if (item.id === 'forgotten') {
@@ -128,12 +122,38 @@ const loadScenarioContent = async (entryName) => {
   if (!entryName) throw new Error('Entry name is missing');
 
   // 1. 读取世界书内容
-  const content = await WorldInfoUtil.getWorldBookContent([entryName]);
+  let content = await WorldInfoUtil.getWorldBookContent([entryName]);
 
   if (!content) {
-    if (window.toastr) window.toastr.error(`未找到世界书条目: ${entryName}`);
-    throw new Error(`Worldbook entry not found: ${entryName}`);
+    toastr.error(`未找到世界书条目: ${entryName}`);
   }
+
+  // --- 处理 <VariableInsert> 标签 ---
+  // 提取被包裹的 JSON 内容，通过 Mvu 更新，并从正文中移除
+  const variableRegex = /<VariableInsert>([\s\S]*?)<\/VariableInsert>/;
+  const match = content.match(variableRegex);
+
+  if (match) {
+    try {
+      const jsonStr = match[1];
+
+      updateVariablesWith(
+        vars => ({
+          ...vars,
+          stat_data: JSON.parse(jsonStr)
+        }),
+        {type: 'message', message_id: -1},
+      );
+      await eventEmit('kat_mvu_update_finished');
+
+      // 移除标签部分
+      content = content.replace(variableRegex, '');
+    } catch (e) {
+      console.error('Error parsing VariableInsert:', e);
+      toastr.error(`剧本变量解析失败: ${e.message}`);
+    }
+  }
+  // --------------------------------
 
   // 2. 获取当前消息ID
   const msgId = getLastMessageId();
