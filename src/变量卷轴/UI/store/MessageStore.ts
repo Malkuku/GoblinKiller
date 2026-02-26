@@ -15,7 +15,7 @@ export const useMessageStore = defineStore('message', () => {
   }
   // 注册事件监听器
   const registerListener = () => {
-    eventOn('era:writeDone', getMessage);
+    eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, getMessage);
   };
   return {
     message,
