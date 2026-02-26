@@ -27,7 +27,7 @@ import { computed } from 'vue';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { NarrativePaceConfig } from '@/尘史使徒/UI/types/叙事配置';
-import { ERAUtil } from '@/Utils/ERAUtil';
+import { MvuUtil } from '@/Utils/MvuUtil';
 
 const props = defineProps({
   modelValue: {
@@ -56,7 +56,15 @@ const handleSelect = (key) => {
   const targetConfig = NarrativePaceConfig.find(p => p.key === key);
   if (targetConfig && targetConfig.warning) {
     const confirmed = window.confirm(
-      `【⚠️警告】\n您正在选择“${targetConfig.title}”模式。\n\n这不是推荐的标准玩法，可能会导致：\n1. 剧情逻辑崩坏或极度不合理。\n2. 产生无法预期的结果。\n3. 角色性格严重OOC。\n\n确定要继续吗？`
+      `【⚠️警告】
+您正在选择“${targetConfig.title}”模式。
+
+这不是推荐的标准玩法，可能会导致：
+1. 剧情逻辑崩坏或极度不合理。
+2. 产生无法预期的结果。
+3. 角色性格严重OOC。
+
+确定要继续吗？`
     );
     if (!confirmed) return;
   }
@@ -70,12 +78,14 @@ const handleSelect = (key) => {
   }
 };
 
-const updateSystemSetting = (key) => {
-  ERAUtil.UpdateByObject({
+const updateSystemSetting = async (key) => {
+  // 使用 MvuUtil 的差分更新方法更新叙事节奏
+  const diffPayload = {
     system: {
       "叙事节奏": key
     }
-  });
+  };
+  await MvuUtil.updateMvuDataByDiff(diffPayload);
 };
 </script>
 

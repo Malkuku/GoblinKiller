@@ -113,7 +113,7 @@ import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import UserPanel from '@/尘史使徒/UI/components/role/UserPanel.vue';
 import MainCharPanel from '@/尘史使徒/UI/components/role/MainCharPanel.vue';
 import MinorCharPanel from '@/尘史使徒/UI/components/role/MinorCharPanel.vue';
-import { ERAUtil } from '@/Utils/ERAUtil';
+import { MvuUtil } from '@/Utils/MvuUtil';
 
 const store = useStatStore();
 
@@ -163,7 +163,8 @@ const toggleFollow = (id, categoryKey) => {
   const updatePayload = {
     system: { '关注角色列表': store.stat_data.system['关注角色列表'] }
   };
-  ERAUtil.UpdateByObject(updatePayload).catch(err => console.error(err));
+  // 使用 MvuUtil 的差分更新方法更新关注列表
+  MvuUtil.updateMvuDataByDiff(updatePayload).catch(err => console.error(err));
 };
 
 // --- 核心过滤逻辑 (修改) ---

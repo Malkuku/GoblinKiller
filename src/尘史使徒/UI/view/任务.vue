@@ -205,7 +205,7 @@ import { useRouter } from 'vue-router';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 import MainQuestCard from '@/尘史使徒/UI/components/task/MainQuestCard.vue';
-import { ERAUtil } from '@/Utils/ERAUtil';
+import { MvuUtil } from '@/Utils/MvuUtil';
 
 const router = useRouter();
 const questStore = useQuestStore();
@@ -280,7 +280,13 @@ const handleDelete = async (object: any) => {
 
   try {
     // 3. 调用 API
-    await ERAUtil.DeleteByObject(payload);
+    // 使用 MvuUtil 的差分更新方法删除任务
+    const diffPayload = {
+      [rootKey]: {
+        [object.title]: null  // null 表示删除该字段
+      }
+    };
+    await MvuUtil.updateMvuDataByDiff(diffPayload);
 
   } catch (e) {
     console.error('删除失败', e);

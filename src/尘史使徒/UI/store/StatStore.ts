@@ -18,6 +18,7 @@ export const useStatStore = defineStore('stat', () => {
       if (variables && variables.stat_data) {
         stat_data.value = variables.stat_data;
         console.log('Stat data updated from variables:', stat_data.value);
+        toastr.success('已获取变量更新');
       }
     } catch (error) {
       console.error('Failed to update stat data:', error);

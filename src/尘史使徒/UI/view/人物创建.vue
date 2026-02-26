@@ -267,7 +267,7 @@
 
 <script setup>
 import { reactive, ref, computed, watch, onMounted } from 'vue';
-import { ERAUtil } from '@/Utils/ERAUtil';
+import { MvuUtil } from '@/Utils/MvuUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 import Vision from './世界信息.vue';
 // eslint-disable-next-line import-x/no-cycle
@@ -563,7 +563,8 @@ const submitCreation = async () => {
       }
     };
 
-    await ERAUtil.UpdateByObject(updatePayload);
+    // 使用 MvuUtil 的差分更新方法更新基础信息
+    await MvuUtil.updateMvuDataByDiff(updatePayload);
 
     const artsToInsert = {};
     let hasArts = false;
@@ -588,7 +589,8 @@ const submitCreation = async () => {
           }
         }
       };
-      await ERAUtil.InsertByObject(insertPayload);
+      // 使用 MvuUtil 的差分更新方法插入术之等级
+      await MvuUtil.updateMvuDataByDiff(insertPayload);
     }
 
     const msgId = getLastMessageId();

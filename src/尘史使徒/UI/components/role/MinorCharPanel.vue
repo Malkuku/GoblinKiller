@@ -47,7 +47,7 @@ import SpecialStatusModule from './SpecialStatusModule.vue';
 import ArtsModule from './ArtsModule.vue';
 import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
 import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
-import { ERAUtil } from '@/Utils/ERAUtil';
+import { MvuUtil } from '@/Utils/MvuUtil';
 
 // 修改 1: 接收 charId 和 category
 const props = defineProps(['data', 'charId', 'category']);
@@ -71,17 +71,15 @@ const deleteChar = async () => {
   }
 
   try {
-    // 修改 2: 构建完整的路径结构
-    // 结构应当是: stat_data -> 角色 -> 主要角色/次要角色 -> ID -> {}
-    const payload = {
-      "角色": {
+    // 使用 MvuUtil 的差分更新方法删除角色
+    const diffPayload = {
+      角色: {
         [props.category]: {
-          [props.charId]: {} // 赋值为空对象 {} 表示删除该节点
+          [props.charId]: null  // null 表示删除该字段
         }
       }
     };
-
-    await ERAUtil.DeleteByObject(payload);
+    await MvuUtil.updateMvuDataByDiff(diffPayload);
     console.log(`已发送删除请求: [${props.category}] ${props.charId}`);
 
     // 可选：删除后可能需要通知父组件清空选中状态，或者依赖数据响应式自动处理

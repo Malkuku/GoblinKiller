@@ -192,7 +192,7 @@ import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
-import { ERAUtil } from '@/Utils/ERAUtil';
+import { MvuUtil } from '@/Utils/MvuUtil';
 
 // === 新增 Props 和 Emits ===
 const props = defineProps({
@@ -735,12 +735,25 @@ const handleDeleteMap = async (node) => {
   ptr[node.name] = {};
 
   try {
-    await ERAUtil.DeleteByObject(payload);
+    // 使用 MvuUtil 的差分更新方法删除地图
+    const diffPayload = { 地图: {} };
+    let diffPtr = diffPayload.地图;
+    
+    // 构建差分路径
+    for (const crumb of breadcrumbs.value) {
+      diffPtr[crumb.name] = { 子地图: {} };
+      diffPtr = diffPtr[crumb.name].子地图;
+    }
+    
+    // 设置目标节点为null表示删除
+    diffPtr[node.name] = null;
+    
+    await MvuUtil.updateMvuDataByDiff(diffPayload);
     closeTooltip();
 
     // 延迟1秒后刷新数据
     setTimeout(async () => {
-      await ERAUtil.EmitEraSnapshot();
+      // MvuUtil 自动处理数据同步，无需手动触发快照
       // 数据更新后，上面的 watch 会自动处理视图刷新
     }, 1000);
 

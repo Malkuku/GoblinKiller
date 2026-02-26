@@ -299,7 +299,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
-import { ERAUtil } from '@/Utils/ERAUtil';
+import { MvuUtil } from '@/Utils/MvuUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 
 // --- 状态定义 ---
@@ -571,7 +571,8 @@ function generateDiff(localObj, remoteObj, pathArr, payloads) {
     const remoteItem = remoteObj[key];
 
     if (remoteItem && !localItem) {
-      addToPayload(payloads.delete, pathArr, key, {});
+      // 使用null标记删除，而不是空对象
+      addToPayload(payloads.delete, pathArr, key, null);
     }
     else if (localItem && !remoteItem) {
       addToPayload(payloads.insert, pathArr, key, cleanData(localItem));
@@ -597,9 +598,35 @@ async function saveAllChanges() {
     generateDiff(localBackpack.value, remoteBackpack, ['角色', 'user', '物品'], payloads);
     generateDiff(localWarehouse.value, remoteWarehouse, ['仓库'], payloads);
 
-    if (Object.keys(payloads.delete).length > 0) await ERAUtil.DeleteByObject(payloads.delete);
-    if (Object.keys(payloads.update).length > 0) await ERAUtil.UpdateByObject(payloads.update);
-    if (Object.keys(payloads.insert).length > 0) await ERAUtil.InsertByObject(payloads.insert);
+    // 合并所有操作为一个差分更新
+    const mergedPayload = {};
+    
+    // 合并删除操作（将删除的字段设为null）
+    if (Object.keys(payloads.delete).length > 0) {
+      // 遍历删除payload，将值从{}改为null
+      Object.keys(payloads.delete).forEach(key => {
+        if (typeof payloads.delete[key] === 'object' && Object.keys(payloads.delete[key]).length === 0) {
+          // 如果是空对象，则转换为null表示删除
+          payloads.delete[key] = null;
+        }
+      });
+      Object.assign(mergedPayload, payloads.delete);
+    }
+    
+    // 合并更新操作
+    if (Object.keys(payloads.update).length > 0) {
+      Object.assign(mergedPayload, payloads.update);
+    }
+    
+    // 合并插入操作
+    if (Object.keys(payloads.insert).length > 0) {
+      Object.assign(mergedPayload, payloads.insert);
+    }
+    
+    // 使用 MvuUtil 的差分更新方法一次性处理所有变更
+    if (Object.keys(mergedPayload).length > 0) {
+      await MvuUtil.updateMvuDataByDiff(mergedPayload);
+    }
 
     const exchangeLogs = [];
     const allNames = new Set([
