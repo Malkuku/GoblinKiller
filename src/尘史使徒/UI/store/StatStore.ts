@@ -33,7 +33,6 @@ export const useStatStore = defineStore('stat', () => {
   // 注册事件监听器
   const registerListener = () => {
     eventOn(Mvu.events.VARIABLE_UPDATE_ENDED, updateFromVariables);
-    eventOn(KatEvents.kat_mvu_update_finished, updateFromVariables);
   };
 
   return {
