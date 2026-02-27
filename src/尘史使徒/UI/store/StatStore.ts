@@ -16,7 +16,6 @@ export const useStatStore = defineStore('stat', () => {
   const updateFromVariables = async (silent = false) => {
     try {
       // 获取变量集合
-      await waitGlobalInitialized('Mvu');
       const variables = getVariables({ type: 'message', message_id: -1 });
 
       // 如果变量中包含 stat_data，则更新状态
@@ -38,7 +37,6 @@ export const useStatStore = defineStore('stat', () => {
     try {
       // 获取变量集合
       stat_data.value = {} as any;
-      await waitGlobalInitialized('Mvu');
       const variables = getVariables({ type: 'message', message_id: -1 });
       // 如果变量中包含 stat_data，则更新状态
       if (variables && variables.stat_data) {
