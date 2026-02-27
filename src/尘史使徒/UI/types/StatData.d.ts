@@ -30,41 +30,80 @@ export interface WorldData {
  * 角色总览
  */
 export interface RolesData {
-  "user": CharacterData;
-  "主要角色": Record<string, CharacterData>;
-  "次要角色": Record<string, CharacterData>;
+  "user": UserCharacterData;
+  "主要角色": Record<string, MainCharacterData>;
+  "次要角色": Record<string, MinorCharacterData>;
 }
 
 /**
- * 角色详细数据
+ * =================================================
+ * 1. User (玩家) 专属数据结构
+ * =================================================
  */
-export interface CharacterData {
-  "姓名"?: string;
-  "名称检索词"?: string[];
-  "区域检索词"?: string[];
-  "在场"?: boolean;
+export interface UserCharacterData {
   "年龄": string;
   "当前身份": string;
   "当前行动"?: string;
   "当前想法"?: string;
   "外貌": string[];
-  "外貌概括"?: string; // 新增
   "背景": string[];
-  "性格"?: PersonalityData;
-  "性格标签"?: string[];
-  "语料"?: Record<string, string[]>;
-  "爱好"?: Record<string, string[]>;
-  "人际关系"?: Record<string, RelationshipData>;
-  "性经验"?: Record<string, number | string>;
+  "金钱": number;
   "生命状态": LifeStatus;
-  "特殊状态": Record<string, SpecialStatusData | string>;
-  "特殊能力"?: Record<string, string>;
-  "战斗风格"?: string[];
-  "术之等级": Record<string, ArtLevelData> | string;
-  "物品"?: Record<string, ItemData | string>;
-  "简介"?: string;
-  "金钱"?: number; // 新增
+  "特殊状态": Record<string, SpecialStatusData>;
+  "术之等级": Record<string, ArtLevelData>;
+  "性格": PersonalityData;
+  "语料": Record<string, string[]>;
+  "物品": Record<string, ItemData>;
+  "人际关系": Record<string, RelationshipData>;
+  "性经验": Record<string, number>;
 }
+
+/**
+ * =================================================
+ * 2. 主要角色 (Main Character) 数据结构
+ * =================================================
+ */
+export interface MainCharacterData {
+  "姓名": string;
+  "名称检索词": string[];
+  "区域检索词": string[];
+  "在场": boolean;
+  "年龄": string;
+  "当前身份": string;
+  "当前想法": string;
+  "外貌": string[];
+  "外貌概括"?: string;
+  "背景": string[];
+  "战斗风格"?: string[];
+
+  "生命状态": LifeStatus;
+  "特殊状态": Record<string, SpecialStatusData>;
+  "术之等级": Record<string, ArtLevelData>;
+
+  "性格": PersonalityData;
+  "语料": Record<string, string[]>;
+  "物品"?: Record<string, ItemData>;
+  "人际关系": Record<string, RelationshipData>;
+  "性经验": Record<string, number>;
+}
+
+/**
+ * =================================================
+ * 3. 次要角色 (Minor Character) 数据结构
+ * =================================================
+ */
+export interface MinorCharacterData {
+  "姓名": string;
+  "名称检索词": string[];
+  "区域检索词": string[];
+  "生命状态": LifeStatus;
+  "特殊状态": Record<string, SpecialStatusData>;
+  "在场": boolean;
+  "简介": string;
+  "性格标签": string[];
+  "术之等级": Record<string, ArtLevelData>;
+}
+
 
 export interface PersonalityData {
   "社交取向": number;
@@ -76,7 +115,6 @@ export interface PersonalityData {
 }
 
 export interface RelationshipData {
-  // 已删除: 信任度, 洞察度
   "好感度": number;
   "浪漫度": number;
   "情欲": number;
@@ -203,6 +241,6 @@ export interface SystemSettings {
   "当前版本":number;
   "当前剧本":string;
   "插图模式":"男性"|"女性";
-  "玩家插图"?: number; // 新增
+  "玩家插图"?: number;
   "叙事节奏"?: "轻松奇幻" | "诡秘现实" | string;
 }
