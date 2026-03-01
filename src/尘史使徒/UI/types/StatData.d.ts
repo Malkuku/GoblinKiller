@@ -47,15 +47,18 @@ export interface UserCharacterData {
   "当前想法"?: string;
   "外貌": string[];
   "背景": string[];
-  "金钱": number;
+  "性格": PersonalityData;
+  "语料": Record<string, string[]>;
+  "人际关系": Record<string, RelationshipData>;
+  "性经验": Record<string, number>;
+  "基础数值": BaseStats;
   "生命状态": LifeStatus;
   "特殊状态": Record<string, SpecialStatusData>;
   "术之等级": Record<string, ArtLevelData>;
-  "性格": PersonalityData;
-  "语料": Record<string, string[]>;
+  "技能": Record<string, SkillData>;
   "物品": Record<string, ItemData>;
-  "人际关系": Record<string, RelationshipData>;
-  "性经验": Record<string, number>;
+  "金钱": number;
+  "缥缈异质": number;
 }
 
 /**
@@ -75,16 +78,16 @@ export interface MainCharacterData {
   "外貌概括"?: string;
   "背景": string[];
   "战斗风格"?: string[];
-
-  "生命状态": LifeStatus;
-  "特殊状态": Record<string, SpecialStatusData>;
-  "术之等级": Record<string, ArtLevelData>;
-
   "性格": PersonalityData;
   "语料": Record<string, string[]>;
-  "物品"?: Record<string, ItemData>;
   "人际关系": Record<string, RelationshipData>;
-  "性经验": Record<string, number>;
+  "性经验": Record<string, number> | string; // 支持类似 "与露娜共享" 的字符串
+  "基础数值": BaseStats;
+  "生命状态": LifeStatus;
+  "特殊状态": Record<string, SpecialStatusData> | string; // 支持类似 "与露娜共享" 的字符串
+  "术之等级": Record<string, ArtLevelData>;
+  "技能": Record<string, SkillData>;
+  "物品"?: Record<string, ItemData> | string; // 支持类似 "与露娜共享" 的字符串
 }
 
 /**
@@ -96,52 +99,76 @@ export interface MinorCharacterData {
   "姓名": string;
   "名称检索词": string[];
   "区域检索词": string[];
-  "生命状态": LifeStatus;
-  "特殊状态": Record<string, SpecialStatusData>;
-  "在场": boolean;
   "简介": string;
+  "在场": boolean;
   "性格标签": string[];
+  "基础数值": BaseStats;
+  "生命状态": LifeStatus;
+  "技能": Record<string, SkillData>;
+  "特殊状态": Record<string, SpecialStatusData>;
   "术之等级": Record<string, ArtLevelData>;
 }
 
+/**
+ * =================================================
+ * 角色通用属性接口
+ * =================================================
+ */
+export interface BaseStats {
+  "力量": number;
+  "敏捷": number;
+  "智慧": number;
+  "魅力": number;
+}
+
+export interface SkillData {
+  "性相": string;
+  "技能等级": number;
+  "描述": string;
+  "消耗": string;
+  "作用": string;
+}
 
 export interface PersonalityData {
-  "社交取向": number;
-  "决策模式": number;
-  "思维倾向": number;
-  "人际姿态": number;
-  "人性温度": number;
-  "性格总结": string[];
+  "近期影响"?: Record<string, any>;
+  "社交表现": string;
+  "行动逻辑": string;
+  "思维习惯": string;
+  "人际距离": string;
+  "道德底色": string;
 }
 
 export interface RelationshipData {
-  "好感度": number;
-  "浪漫度": number;
-  "情欲": number;
-  "依赖度": number;
-  "熟悉度": number;
-  "影响力": number;
-  "责任义务": number;
-  "利用价值": number;
-  "关系总结": string;
+  "近期影响"?: Record<string, any>;
+  "认知了解": string;
+  "情感羁绊": string;
+  "利益纽带": string;
 }
 
 export interface LifeStatus {
-  "生命力": number;
-  "体力": number;
-  "精神力": number;
+  "生命": {
+    "最大值": number;
+    "当前": number;
+  };
+  "体力": {
+    "最大值": number;
+    "当前": number;
+  };
+  "精神": {
+    "最大值": number;
+    "当前": number;
+  };
 }
 
 export interface SpecialStatusData {
   "描述": string;
   "效果": string;
-  "不可移除"?: boolean;
+  "持续时间": string;
 }
 
 export interface ArtLevelData {
-  "当前等级": number | string;
-  "累计经验值": number;
-  "下一级需求经验": number;
+  "等级": number;
+  "经验": number;
 }
 
 export interface ItemData {
@@ -156,7 +183,7 @@ export interface ItemData {
  * 地图数据 (递归结构)
  */
 export interface MapNodeData {
-  "名称检索词"?: string[]; // 新增
+  "名称检索词"?: string[];
   "描述": string;
   "详情": string[];
   "图标": string;
@@ -174,9 +201,9 @@ export interface MapNodeData {
 export interface EconomyData {
   "名称检索词": string[];
   "区域检索词": string[];
-  "货币体系": Record<string, string>; // 结构变更: 值变为描述字符串
+  "货币体系": Record<string, string>;
   "物价": Record<string, string[]>;
-  "平均收入": Record<string, string>; // 新增: 替代原社会阶层
+  "平均收入": Record<string, string>;
 }
 
 /**
@@ -197,7 +224,7 @@ export interface TimeEventData {
 export interface FactionData {
   "名称检索词": string[];
   "区域检索词": string[];
-  "描述": string; // 变更: 统一为字符串
+  "描述": string;
 }
 
 /**

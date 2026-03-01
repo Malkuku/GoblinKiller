@@ -46,7 +46,7 @@
 
         <section class="info-block" v-if="data.特殊状态">
           <h3>特殊状态</h3>
-          <SpecialStatusModule :data="data.特殊状态" />
+          <SpecialStatusModule :data="data.特殊状态" :stats="data" />
         </section>
       </div>
 
@@ -59,6 +59,15 @@
 
         <section class="info-block">
           <ArtsModule :arts-data="data.术之等级" />
+        </section>
+      </div>
+
+      <!-- ================= 技能页 (新增) ================= -->
+      <div v-if="currentTab === '技能'" class="tab-content">
+        <section class="info-block">
+          <h3>掌握技能</h3>
+          <!-- 传入 data.技能 作为列表，传入 data 作为完整属性用于解析 ${} -->
+          <SkillModule :data="data.技能" :stats="data" />
         </section>
       </div>
 
@@ -117,24 +126,25 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'; // 1. 引入 computed 和 watch
+import { ref, computed, watch } from 'vue';
 import ArtsModule from './ArtsModule.vue';
 import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModule.vue';
 import SpecialStatusModule from '@/尘史使徒/UI/components/role/SpecialStatusModule.vue';
 import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
 import RelationshipModule from '@/尘史使徒/UI/components/role/RelationshipModule.vue';
 import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
+import SkillModule from '@/尘史使徒/UI/components/role/SkillModule.vue';
 
 const props = defineProps(['data']);
 
-// 2. 修改 tabs 为计算属性
+// 2. 修改 tabs 计算属性，加入“技能”选项
 const tabs = computed(() => {
-  // 当角色名为 '希尔' 时，仅显示 属性 和 档案
+  // 当角色名为 '希尔' 时，仅显示 属性、技能 和 档案
   if (props.data?.姓名 === '希尔') {
-    return ['属性', '档案'];
+    return ['属性', '技能', '档案'];
   }
   // 其他角色显示全部
-  return ['状态', '属性', '档案', '物品'];
+  return ['状态', '属性', '技能', '档案', '物品'];
 });
 
 // 3. 初始化 currentTab，确保初始值在当前 tabs 列表中

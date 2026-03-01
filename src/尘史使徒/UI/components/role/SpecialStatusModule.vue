@@ -10,9 +10,11 @@
             </strong>
           </div>
           <div class="status-body">
-            <p class="status-desc">{{ typeof status === 'string' ? status : status.描述 }}</p>
+            <!-- 使用 formatText 处理描述文本 -->
+            <p class="status-desc">{{ formatText(typeof status === 'string' ? status : status.描述) }}</p>
+            <!-- 使用 formatText 处理效果文本 -->
             <p v-if="typeof status !== 'string' && status.效果" class="status-effect">
-              效果：{{ status.效果 }}
+              效果：{{ formatText(status.效果) }}
             </p>
           </div>
         </li>
@@ -23,7 +25,43 @@
 </template>
 
 <script setup>
-const props = defineProps(['data']);
+// 接收 data (状态列表) 和 stats (角色属性数据，包含"基础数值"和"生命状态")
+const props = defineProps(['data', 'stats']);
+
+/**
+ * 格式化文本，将 ${属性名} 替换为 属性名[数值]
+ * 例如: "减少 (${智慧}/10) 点伤害" -> "减少 (智慧[50]/10) 点伤害"
+ */
+const formatText = (text) => {
+  if (!text || typeof text !== 'string') return text;
+
+  // 正则匹配 ${...}
+  return text.replace(/\$\{([^}]+)\}/g, (match, key) => {
+    // 如果没有传入 stats，直接返回原文本
+    if (!props.stats) return match;
+
+    // 1. 尝试从 [基础数值] 中查找 (力量, 敏捷, 智慧, 魅力)
+    if (props.stats['基础数值'] && props.stats['基础数值'][key] !== undefined) {
+      return `${key}[${props.stats['基础数值'][key]}]`;
+    }
+
+    // 2. 尝试从 [生命状态] 中查找 (生命, 体力, 精神)
+    if (props.stats['生命状态'] && props.stats['生命状态'][key]) {
+      const val = props.stats['生命状态'][key];
+      // 如果是对象且包含'当前'字段 (例如: {当前: 100, 最大值: 100})
+      if (typeof val === 'object' && val['当前'] !== undefined) {
+        return `${key}[${val['当前']}]`;
+      }
+      // 防守性处理：如果是直接数值
+      if (typeof val === 'number' || typeof val === 'string') {
+        return `${key}[${val}]`;
+      }
+    }
+
+    // 如果未找到对应属性，保留原样
+    return match;
+  });
+};
 
 const getStatusClass = (name) => {
   const n = name.toString();

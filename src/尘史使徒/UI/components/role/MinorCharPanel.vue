@@ -26,7 +26,7 @@
         <!-- 特殊状态模块 -->
         <div class="mt-4" v-if="data.特殊状态">
           <h4>特殊状态</h4>
-          <SpecialStatusModule :data="data.特殊状态" />
+          <SpecialStatusModule :data="data.特殊状态" :stats="data" />
         </div>
       </section>
 
@@ -37,6 +37,13 @@
           <ArtsModule v-if="typeof data.术之等级 === 'object'" :arts-data="data.术之等级" />
           <p v-else><strong>术之等级:</strong> {{ data.术之等级 || '未知' }}</p>
         </div>
+
+        <!-- 新增：技能模块 -->
+        <!-- 传入 stats=data 以便解析 ${力量} 等占位符 -->
+        <div class="mt-4" v-if="data.技能">
+          <h4>技能</h4>
+          <SkillModule :data="data.技能" :stats="data" />
+        </div>
       </section>
     </div>
   </div>
@@ -45,6 +52,7 @@
 <script setup>
 import SpecialStatusModule from './SpecialStatusModule.vue';
 import ArtsModule from './ArtsModule.vue';
+import SkillModule from './SkillModule.vue'; // 新增引入
 import LifeStatusModule from '@/尘史使徒/UI/components/role/LifeStatusModule.vue';
 import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
 import { MvuUtil } from '@/Utils/MvuUtil';

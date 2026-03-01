@@ -12,12 +12,12 @@
         v-for="(art, name) in artsData"
         :key="name"
         class="art-summary-card"
-        :class="[getArtThemeClass(name), { 'locked': art.当前等级 === 0 && mode === 'view' }]"
+        :class="[getArtThemeClass(name), { 'locked': (art.等级 || 0) === 0 && mode === 'view' }]"
         @click="openArtModal(name)"
       >
         <div class="art-card-top">
           <span class="art-card-name">{{ name }}</span>
-          <span class="art-card-lv">Lv.{{ art.当前等级 }}</span>
+          <span class="art-card-lv">Lv.{{ art.等级 || 0 }}</span>
         </div>
         <div class="xp-bar-mini">
           <div class="xp-fill" :style="{ width: calculateXpPercent(art) + '%' }"></div>
@@ -43,7 +43,7 @@
                     @click="switchArt(name)"
                   >
                     {{ name }}
-                    <span class="nav-lv" v-if="mode === 'creation'">Lv.{{ art.当前等级 }}</span>
+                    <span class="nav-lv" v-if="mode === 'creation'">Lv.{{ art.等级 || 0 }}</span>
                   </button>
                 </li>
               </ul>
@@ -56,19 +56,23 @@
               <div class="art-content-scroll">
                 <header class="art-detail-header">
                   <h2 class="art-big-name art-name">{{ selectedArtName }}</h2>
-                  <div class="art-stage-badge">{{ getArtStageText(selectedArtData.当前等级) }}</div>
+                  <div class="art-stage-badge">{{ getArtStageText(selectedArtData.等级) }}</div>
                 </header>
 
                 <!-- 核心数据 -->
-                <div class="art-core-stats" v-if="mode === 'view' || selectedArtData.当前等级 > 0">
+                <div class="art-core-stats" v-if="mode === 'view' || (selectedArtData.等级 || 0) > 0">
                   <div class="level-circle">
                     <span class="lvl-label">LEVEL</span>
-                    <span class="lvl-val">{{ selectedArtData.当前等级 }}</span>
+                    <span class="lvl-val">{{ selectedArtData.等级 || 0 }}</span>
                   </div>
                   <div class="xp-section" v-if="mode === 'view'">
                     <div class="xp-text-row">
                       <span>经验积累</span>
-                      <span>{{ selectedArtData.累计经验值 }} / {{ selectedArtData.下一级需求经验 }}</span>
+                      <!-- 动态计算经验需求显示 -->
+                      <span v-if="calculateNextLevelXp(selectedArtData.等级) !== -1">
+                        {{ selectedArtData.经验 || selectedArtData.经验值 || 0 }} / {{ calculateNextLevelXp(selectedArtData.等级) }}
+                      </span>
+                      <span v-else>MAX (秘而不宣)</span>
                     </div>
                     <div class="xp-bar-large">
                       <div class="xp-fill-anim" :style="{ width: calculateXpPercent(selectedArtData) + '%' }"></div>
@@ -95,11 +99,11 @@
                       <div
                         class="ability-item"
                         :class="{
-                          'active': Number(levelStr) <= selectedArtData.当前等级,
-                          'future': Number(levelStr) > selectedArtData.当前等级,
-                          'hidden': mode === 'view' && Number(levelStr) > selectedArtData.当前等级
+                          'active': Number(levelStr) <= (selectedArtData.等级 || 0),
+                          'future': Number(levelStr) > (selectedArtData.等级 || 0),
+                          'hidden': mode === 'view' && Number(levelStr) > (selectedArtData.等级 || 0)
                         }"
-                        v-if="mode === 'creation' || Number(levelStr) <= selectedArtData.当前等级"
+                        v-if="mode === 'creation' || Number(levelStr) <= (selectedArtData.等级 || 0)"
                       >
                         <div class="ability-lv-badge">Lv.{{ levelStr }}</div>
                         <div class="ability-text">{{ desc }}</div>
@@ -180,17 +184,37 @@ const getArtDetails = (name) => {
   return key ? artsDb[key] : null;
 };
 
+// --- 新增：根据规则计算下一级所需经验 ---
+const calculateNextLevelXp = (level) => {
+  const lvl = level || 0;
+  if (lvl === 0) return -1;
+
+  // 初阶 (1-13级): 当前等级 * 200
+  if (lvl >= 1 && lvl <= 13) return lvl * 200;
+
+  // 高阶 (14-18级): 当前等级^2 * 500
+  if (lvl >= 14 && lvl <= 18) return Math.pow(lvl, 2) * 500;
+
+  // 秘而不宣 (19级+): 无法获取经验
+  return -1;
+};
+
 const calculateXpPercent = (art) => {
   if (!art) return 0;
-  if (art.下一级需求经验 === -1) return 0;
-  return Math.min((art.累计经验值 / art.下一级需求经验) * 100, 100);
+  const level = art.等级 || 0;
+  const currentXp = art.经验 || art.经验值 || 0; // 兼容字段
+  const reqXp = calculateNextLevelXp(level);
+
+  if (reqXp === -1) return 0; // 满级或无法获取经验时不显示进度条（或显示满）
+  return Math.min((currentXp / reqXp) * 100, 100);
 };
 
 const getArtStageText = (level) => {
-  if (level === 0) return '未入门';
-  if (level >= 1 && level <= 13) return '初阶 · 模仿';
-  if (level >= 14 && level <= 18) return '高阶 · 献祭';
-  if (level >= 19) return '秘而不宣';
+  const lvl = level || 0;
+  if (lvl === 0) return '未入门';
+  if (lvl >= 1 && lvl <= 13) return '初阶 · 模仿';
+  if (lvl >= 14 && lvl <= 18) return '高阶 · 献祭';
+  if (lvl >= 19) return '秘而不宣';
   return '未知';
 };
 

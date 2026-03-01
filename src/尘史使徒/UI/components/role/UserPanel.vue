@@ -28,7 +28,8 @@
 
         <section v-if="data.特殊状态" class="info-block">
           <h3>特殊状态</h3>
-          <SpecialStatusModule :data="data.特殊状态" />
+          <!-- 注意：这里传入 :stats="data" 以支持解析 ${属性} -->
+          <SpecialStatusModule :data="data.特殊状态" :stats="data" />
         </section>
       </div>
 
@@ -41,6 +42,15 @@
 
         <section class="info-block">
           <ArtsModule :arts-data="data.术之等级" />
+        </section>
+      </div>
+
+      <!-- ================= 技能页 (新增) ================= -->
+      <div v-if="currentTab === '技能'" class="tab-content">
+        <section class="info-block">
+          <h3>战斗技能</h3>
+          <!-- 传入 data.技能 以及 完整的 data (用于解析公式) -->
+          <SkillModule :data="data.技能" :stats="data" />
         </section>
       </div>
 
@@ -62,7 +72,7 @@
 
       <!-- ================= 物品页 ================= -->
       <div v-if="currentTab === '物品'" class="tab-content">
-        <!-- 新增：金钱显示区域 -->
+        <!-- 金钱显示区域 (不显示缥缈异质) -->
         <section class="info-block" v-if="data.金钱 !== undefined">
           <h3>持有金</h3>
           <div class="currency-row">
@@ -86,10 +96,13 @@ import PersonalityModule from '@/尘史使徒/UI/components/role/PersonalityModu
 import SpecialStatusModule from '@/尘史使徒/UI/components/role/SpecialStatusModule.vue';
 import RelationshipModule from '@/尘史使徒/UI/components/role/RelationshipModule.vue';
 import InventoryModule from '@/尘史使徒/UI/components/role/InventoryModule.vue';
+// 新增技能模块引入 (假设文件名叫 SkillModule.vue，请根据实际情况调整路径)
+import SkillModule from '@/尘史使徒/UI/components/role/SkillModule.vue';
 
 const props = defineProps(['data']);
 const username = substitudeMacros('{{user}}');
-const tabs = ['状态', '属性', '档案', '物品'];
+// 更新 Tabs 列表，加入 '技能'
+const tabs = ['状态', '属性', '技能', '档案', '物品'];
 const currentTab = ref('状态');
 </script>
 
@@ -124,7 +137,7 @@ const currentTab = ref('状态');
 .info-block { margin-bottom: 25px; background: var(--c-bg-dark); padding: 20px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
 .info-block h3 { color: var(--c-gold); border-left: 3px solid var(--c-gold); padding-left: 10px; margin-top: 0; font-family: var(--font-title); margin-bottom: 15px; }
 
-/* --- 金钱样式 (新增) --- */
+/* --- 金钱样式 --- */
 .currency-row { display: flex; align-items: baseline; gap: 5px; }
 .currency-value { font-family: var(--font-title); font-size: 1.8rem; color: var(--c-gold); font-weight: bold; text-shadow: 0 0 10px rgba(212, 175, 55, 0.3); }
 .currency-unit { font-family: var(--font-title); font-size: 1.2rem; color: var(--c-text-dim); }
