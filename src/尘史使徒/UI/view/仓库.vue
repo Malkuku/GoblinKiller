@@ -600,7 +600,7 @@ async function saveAllChanges() {
 
     // 合并所有操作为一个差分更新
     const mergedPayload = {};
-    
+
     // 合并删除操作（将删除的字段设为null）
     if (Object.keys(payloads.delete).length > 0) {
       // 遍历删除payload，将值从{}改为null
@@ -612,17 +612,17 @@ async function saveAllChanges() {
       });
       Object.assign(mergedPayload, payloads.delete);
     }
-    
+
     // 合并更新操作
     if (Object.keys(payloads.update).length > 0) {
       Object.assign(mergedPayload, payloads.update);
     }
-    
+
     // 合并插入操作
     if (Object.keys(payloads.insert).length > 0) {
       Object.assign(mergedPayload, payloads.insert);
     }
-    
+
     // 使用 MvuUtil 的差分更新方法一次性处理所有变更
     if (Object.keys(mergedPayload).length > 0) {
       await MvuUtil.updateMvuDataByDiff(mergedPayload);
@@ -1101,7 +1101,7 @@ async function saveAllChanges() {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.item-details { font-size: 0.85rem; color: #aaa; line-height: 1.4; padding: 0 5px; }
+.item-details { font-size: 0.85rem; color: #aaa; line-height: 1.4; padding: 0 5px; word-break: break-word; }
 .detail-desc { font-style: italic; margin: 0 0 6px 0; color: #888; }
 .detail-effect { margin: 0; color: #ccc; }
 .detail-effect .bullet { color: var(--c-gold); margin-right: 4px; }
@@ -1117,11 +1117,12 @@ async function saveAllChanges() {
   padding: 4px 8px;
   border-radius: 4px;
   height: 32px;
+  min-width: 0;
 }
 
 .qty-label { color: var(--c-gold); font-family: var(--font-title); font-weight: bold; min-width: 20px; text-align: center; }
 .qty-static { color: #888; font-size: 0.8rem; flex: 1; text-align: center; }
-.mini-slider { flex: 1; accent-color: var(--c-gold); height: 4px; cursor: pointer; }
+.mini-slider { flex: 1; accent-color: var(--c-gold); height: 4px; cursor: pointer; min-width: 0; }
 .qty-max { font-size: 0.7rem; color: #666; }
 
 .mini-confirm-btn {
@@ -1136,6 +1137,7 @@ async function saveAllChanges() {
   white-space: nowrap;
   transition: 0.2s;
   height: 32px;
+  flex-shrink: 0;
 }
 .mini-confirm-btn:hover { background: #fff; box-shadow: 0 0 10px var(--c-gold); }
 
