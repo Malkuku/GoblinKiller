@@ -23,7 +23,7 @@
         <section class="info-block">
           <h3>生命状态</h3>
           <!-- 引入独立的生命状态模块 -->
-          <LifeStatusModule :data="data.生命状态" />
+          <LifeStatusModule :data="data" />
         </section>
 
         <section v-if="data.特殊状态" class="info-block">

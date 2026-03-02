@@ -21,7 +21,7 @@
       <section class="info-block">
         <h3>状态</h3>
         <!-- 生命状态：图形化进度条 -->
-        <LifeStatusModule :data="data.生命状态" />
+        <LifeStatusModule :data="data" />
 
         <!-- 特殊状态模块 -->
         <div class="mt-4" v-if="data.特殊状态">

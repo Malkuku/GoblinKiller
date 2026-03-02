@@ -36,7 +36,7 @@
       <div v-if="currentTab === '状态'" class="tab-content">
         <section class="info-block">
           <h3>生命状态</h3>
-          <LifeStatusModule :data="data.生命状态" />
+          <LifeStatusModule :data="data" />
         </section>
 
         <!-- 详情模式下显示的实时监控信息 -->
