@@ -1,20 +1,31 @@
 <template>
   <div class="library-container">
-    <!-- 顶部模式选择 -->
+    <!-- 顶部 Header -->
     <header class="library-header">
       <div class="header-content">
-        <h2 class="title">漫宿书库</h2>
-        <div class="mode-selector">
-          <button
+        <h2 class="title">
+          <span class="icon">🏛️</span> 漫宿书库
+        </h2>
+
+        <!-- 玩家资产显示 (仅在交易模式显示) -->
+        <div v-if="currentMode !== '对话'" class="asset-display">
+          <span class="asset-label">持有异质:</span>
+          <span class="asset-value">{{ userHeterogeneity }}</span>
+        </div>
+
+        <!-- 导航栏 -->
+        <div class="nav-tabs">
+          <div
             v-for="mode in modes"
             :key="mode"
-            :class="['mode-btn', { active: currentMode === mode }]"
+            :class="['nav-item', { active: currentMode === mode }]"
             @click="switchMode(mode)"
           >
             {{ mode }}
-            <!-- 红点提示 -->
-            <span v-if="redDots[mode]" class="red-dot"></span>
-          </button>
+            <span v-if="redDots[mode]" class="notification-dot"></span>
+          </div>
+          <!-- 滑动指示条 -->
+          <div class="nav-indicator" :style="indicatorStyle"></div>
         </div>
       </div>
     </header>
@@ -25,32 +36,43 @@
       <!-- 1. 聊天展示区 -->
       <div v-show="currentMode === '对话'" class="scroll-area chat-area" ref="chatAreaRef">
         <transition-group name="list" tag="div" class="message-list">
-          <!-- 历史对话内容 -->
-          <div v-for="(msg, index) in chatContents" :key="'content-'+index" class="message-item">
-            <div class="avatar-area">
-              <img class="npc-avatar" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
+
+          <!-- 欢迎语 -->
+          <div v-if="welcomeContent" key="welcome" class="message-row npc-row">
+            <div class="avatar-wrapper">
+              <img class="avatar" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
             </div>
-            <div class="message-content-area">
-              <div class="chat-bubble">{{ msg }}</div>
-            </div>
+            <div class="bubble npc-bubble welcome-bubble">{{ welcomeContent }}</div>
           </div>
 
-          <!-- 欢迎语 (独立于 content 之外) -->
-          <div v-if="welcomeContent" key="welcome" class="message-item">
-            <div class="avatar-area">
-              <img class="npc-avatar" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
+          <!-- 历史对话内容 (混合了 User 和 NPC) -->
+          <div
+            v-for="(msg, index) in chatContents"
+            :key="'msg-'+index"
+            :class="['message-row', msg.type === 'user' ? 'user-row' : 'npc-row']"
+          >
+            <!-- NPC 头像 -->
+            <div v-if="msg.type === 'npc'" class="avatar-wrapper">
+              <img class="avatar" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
             </div>
-            <div class="message-content-area">
-              <div class="chat-bubble welcome-bubble">{{ welcomeContent }}</div>
+
+            <!-- 气泡 -->
+            <div :class="['bubble', msg.type === 'user' ? 'user-bubble' : 'npc-bubble']">
+              {{ msg.text }}
+            </div>
+
+            <!-- 玩家头像 (可选，这里用占位符或不显示) -->
+            <div v-if="msg.type === 'user'" class="avatar-wrapper user-avatar-wrapper">
+              <span class="user-avatar-placeholder">👤</span>
             </div>
           </div>
 
           <!-- 思考中动画 -->
-          <div v-if="isThinking" key="thinking" class="message-item thinking-item">
-            <div class="avatar-area">
-              <img class="npc-avatar pulse" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
+          <div v-if="isThinking" key="thinking" class="message-row npc-row thinking-row">
+            <div class="avatar-wrapper">
+              <img class="avatar pulse" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
             </div>
-            <div class="thinking-bubble">
+            <div class="thinking-text">
               爱丽丝正在翻阅卷宗<span class="dots"></span>
             </div>
           </div>
@@ -59,15 +81,27 @@
 
       <!-- 2. 物品出售区 -->
       <div v-show="currentMode === '物品出售'" class="scroll-area transaction-area">
-        <div v-if="Object.keys(itemSells).length === 0" class="empty-state">暂无物品出售记录...</div>
-        <div v-else class="card-container">
-          <div v-for="(details, name) in itemSells" :key="name" class="info-card item-card">
-            <div class="card-header">
-              <span class="name">{{ name }}</span>
-              <span class="price-tag">💰 {{ details.单价 }}</span>
+        <div v-if="Object.keys(itemSells).length === 0" class="empty-state">暂无物品收购需求...</div>
+        <div v-else class="card-grid">
+          <div v-for="(details, name) in itemSells" :key="name" class="trade-card item-card">
+            <div class="card-top">
+              <span class="card-title">{{ name }}</span>
+              <span class="price-badge">💰 {{ details.单价 }}</span>
             </div>
-            <div class="card-body">
-              <p class="meta-row"><span class="label">类型</span> <span class="value">{{ details.类型 }}</span></p>
+            <div class="card-mid">
+              <p class="meta">类型: {{ details.类型 }}</p>
+              <p class="inventory-check" :class="{ 'has-item': getUserItemCount(name) > 0 }">
+                背包持有: {{ getUserItemCount(name) }}
+              </p>
+            </div>
+            <div class="card-action">
+              <button
+                class="action-btn sell-btn"
+                :disabled="getUserItemCount(name) <= 0"
+                @click="sellItem(name, details)"
+              >
+                {{ getUserItemCount(name) > 0 ? '出售' : '未持有' }}
+              </button>
             </div>
           </div>
         </div>
@@ -75,21 +109,30 @@
 
       <!-- 3. 技能购买区 -->
       <div v-show="currentMode === '技能购买'" class="scroll-area transaction-area">
-        <div v-if="Object.keys(skillBuys).length === 0" class="empty-state">暂无技能购买记录...</div>
-        <div v-else class="card-container">
-          <div v-for="(details, name) in skillBuys" :key="name" class="info-card skill-card">
-            <div class="card-header">
-              <span class="name">{{ name }}</span>
+        <div v-if="Object.keys(skillBuys).length === 0" class="empty-state">暂无技能典籍...</div>
+        <div v-else class="card-grid">
+          <div v-for="(details, name) in skillBuys" :key="name" class="trade-card skill-card">
+            <div class="card-top">
+              <span class="card-title">{{ name }}</span>
               <span class="level-badge">Lv.{{ details.技能等级 }}</span>
             </div>
-            <div class="card-body">
-              <div class="tags-row">
-                <span :class="['aspect-tag', details.性相]">{{ details.性相 }}</span>
-                <span class="cost-tag">消耗: {{ details.消耗 }}</span>
+            <div class="card-mid">
+              <div class="tags">
+                <span class="tag aspect">{{ details.性相 }}</span>
+                <span class="tag cost">消耗: {{ details.消耗 }}</span>
               </div>
-              <div class="divider"></div>
               <p class="desc">"{{ details.描述 }}"</p>
-              <p class="effect"><span class="label">效果</span> {{ details.作用 }}</p>
+              <p class="effect">效果: {{ details.作用 }}</p>
+            </div>
+            <div class="card-action">
+              <div class="price-display">需 {{ details.价格 || 100 }} 异质</div> <!-- 假设JSON里有价格，如果没有需补充默认值 -->
+              <button
+                class="action-btn buy-btn"
+                :disabled="hasSkill(name) || !canAfford(details.价格 || 100)"
+                @click="buySkill(name, details)"
+              >
+                {{ hasSkill(name) ? '已习得' : '购买' }}
+              </button>
             </div>
           </div>
         </div>
@@ -97,17 +140,26 @@
 
       <!-- 4. 密传购买区 -->
       <div v-show="currentMode === '密传购买'" class="scroll-area transaction-area">
-        <div v-if="Object.keys(secretBuys).length === 0" class="empty-state">暂无密传购买记录...</div>
-        <div v-else class="card-container">
-          <div v-for="(details, name) in secretBuys" :key="name" class="info-card secret-card">
-            <div class="card-header">
-              <span class="name">{{ name }}</span>
-              <span class="secret-icon">📜</span>
+        <div v-if="Object.keys(secretBuys).length === 0" class="empty-state">暂无密传线索...</div>
+        <div v-else class="card-grid">
+          <div v-for="(details, name) in secretBuys" :key="name" class="trade-card secret-card">
+            <div class="card-top">
+              <span class="card-title">{{ name }}</span>
+              <span class="icon-badge">📜</span>
             </div>
-            <div class="card-body">
-              <p class="desc"><span class="label">线索</span> {{ details.描述 }}</p>
-              <div class="divider"></div>
-              <p class="effect"><span class="label">可能收获</span> {{ details.作用 }}</p>
+            <div class="card-mid">
+              <p class="desc">线索: {{ details.描述 }}</p>
+              <p class="effect">可能收获: {{ details.作用 }}</p>
+            </div>
+            <div class="card-action">
+              <div class="price-display">需 {{ details.价格 || 50 }} 异质</div>
+              <button
+                class="action-btn buy-btn"
+                :disabled="!canAfford(details.价格 || 50)"
+                @click="buySecret(name, details)"
+              >
+                购买
+              </button>
             </div>
           </div>
         </div>
@@ -115,14 +167,28 @@
 
     </div>
 
-    <!-- 底部输入区 (统一为对话) -->
+    <!-- 底部输入区 -->
     <div class="input-area">
+      <!-- 快捷回复栏 -->
+      <div class="quick-replies">
+        <button
+          v-for="(reply, index) in quickReplies"
+          :key="index"
+          class="quick-reply-btn"
+          @click="sendQuickReply(reply)"
+          :disabled="isSending"
+        >
+          {{ reply }}
+        </button>
+      </div>
+
       <div class="input-wrapper">
         <textarea
           v-model="inputText"
           class="chat-input"
-          placeholder="输入对话内容..."
+          placeholder="与爱丽丝交谈..."
           @keydown.enter.prevent="sendMessage"
+          rows="1"
         ></textarea>
         <button class="send-btn" @click="sendMessage" :disabled="isSending || !inputText.trim()">
           <span class="btn-text">发送</span>
@@ -134,20 +200,41 @@
 </template>
 
 <script setup>
-import { ref, reactive, inject, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, reactive, inject, onMounted, onUnmounted, nextTick, computed } from 'vue';
+import { storeToRefs } from 'pinia';
 import { MvuUtil } from '@/Utils/MvuUtil';
 import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import { welcomeMessage } from '@/尘史使徒/UI/components/start/开场白';
 
-const showToast = inject('showToast', () => {});
+const showToast = inject('showToast', (msg) => console.log(msg));
 
+// Store 集成
+const statStore = useStatStore();
+const { stat_data } = storeToRefs(statStore);
+
+// 状态管理
 const modes = ['对话', '物品出售', '技能购买', '密传购买'];
 const currentMode = ref('对话');
 const inputText = ref('');
 const isSending = ref(false);
 const isThinking = ref(false);
 
+// 快捷回复
+const quickReplies = [
+  "请爱丽丝锐评最近发生的事情",
+  "希望出售有价值的物品/技能",
+  "希望购买适合的技能",
+  "希望购买适合的密传"
+];
+
+const sendQuickReply = (text) => {
+  inputText.value = text;
+  sendMessage();
+};
+
 // 聊天数据
-const chatContents = ref([]);
+const chatContents = ref([]); // 结构: { type: 'user'|'npc', text: string }
 const welcomeContent = ref('');
 const chatAreaRef = ref(null);
 
@@ -156,119 +243,136 @@ const itemSells = ref({});
 const skillBuys = ref({});
 const secretBuys = ref({});
 
-// 红点与文本变化追踪
-const redDots = reactive({
-  '物品出售': false,
-  '技能购买': false,
-  '密传购买': false
-});
-const lastRawRecords = {
-  ItemSell: null,
-  SkillBuy: null,
-  SecretBuy: null
-};
+// 红点与缓存
+const redDots = reactive({ '物品出售': false, '技能购买': false, '密传购买': false });
+const lastRawRecords = { ItemSell: null, SkillBuy: null, SecretBuy: null };
 
 let pollingTimer = null;
 
-const welcome1 = `你推开那扇沉重的橡木门，踏入这座巨大图书馆的寂静之中。阳光透过高窗落下，在数以万计的书脊上投下斑驳的光影。
+// ================= 计算属性与辅助函数 =================
 
-角落里，特殊藏书区的柜台后，一抹蓝色的身影正安静地翻着书页。
+// 计算导航条指示器的位置
+const indicatorStyle = computed(() => {
+  const index = modes.indexOf(currentMode.value);
+  return {
+    transform: `translateX(${index * 100}%)`,
+    width: `${100 / modes.length}%`
+  };
+});
 
-她似乎感知到了你的目光，缓缓抬起头。浅色的瞳孔平静地望向你，绿色的长发随着动作微微晃动，发尾自然的卷曲垂落在蓝色连衣裙的裙摆上。她合上书，站起身，白色蕾丝围裙在柜台边缘轻轻擦过，动作轻缓得几乎没有发出任何声响。
+// 获取玩家当前的缥缈异质
+const userHeterogeneity = computed(() => {
+  return statStore.stat_data?.角色?.user?.缥缈异质 || 0;
+});
 
-“父亲大人。”她开口了，声音轻柔而平淡，仿佛只是在陈述一个既定的事实，“欢迎来到图书馆。我的名字是爱丽丝·利德尔，被设定为这个特殊藏书区的管理员。”
+// 获取玩家背包中某物品的数量
+const getUserItemCount = (itemName) => {
+  const items = statStore.stat_data?.角色?.user?.物品 || {};
+  return items[itemName]?.数量 || 0;
+};
 
-她将双手轻轻交叠在身前的白色围裙上，微微歪了歪头，额前的刘海随之轻颤。
+// 检查玩家是否拥有某技能
+const hasSkill = (skillName) => {
+  const skills = statStore.stat_data?.角色?.user?.技能 || {};
+  return !!skills[skillName];
+};
 
-“你可以用有价值的物品换取‘缥缈异质’，或者用‘缥缈异质’购买这里的技能书，密传。嗯，设定上是这样。”`;
+// 检查是否买得起
+const canAfford = (price) => {
+  return userHeterogeneity.value >= (price || 0);
+};
 
-const welcome2 = `图书馆的门再次被推开。
-
-柜台后，那个穿着蓝色连衣裙的绿色长发少女又一次抬起头。她合上手中不知翻阅了多少遍的书，静静地注视着你走进，直到你在柜台前停下脚步。
-
-“父亲大人，我们又见面了。”爱丽丝轻声说道，语气平淡得如同在朗读一本早已熟记于心的书，“或者说，对于‘我’而言，这是初次见面。”
-
-她将一本书轻轻推回手边的书架，重新看向你，浅色的瞳孔里映出你的倒影。
-
-“欢迎回来。今天想要交易什么？”`;
-
+// 滚动到底部
 const scrollToBottom = async () => {
   await nextTick();
   if (chatAreaRef.value) {
-    chatAreaRef.value.scrollTo({
-      top: chatAreaRef.value.scrollHeight,
-      behavior: 'smooth'
-    });
+    chatAreaRef.value.scrollTo({ top: chatAreaRef.value.scrollHeight, behavior: 'smooth' });
   }
 };
 
+// 切换模式
 const switchMode = (mode) => {
   currentMode.value = mode;
-  if (redDots[mode]) {
-    redDots[mode] = false; // 点击后消除红点
-  }
-  if (mode === '对话') {
-    scrollToBottom();
-  }
+  if (redDots[mode]) redDots[mode] = false;
+  if (mode === '对话') scrollToBottom();
 };
 
-// ================= 核心：同步聊天记录 =================
+// ================= 核心逻辑：聊天同步 =================
+
+const welcome1 = welcomeMessage.welcome1;
+const welcome2 = welcomeMessage.welcome2;
+
 const syncChatRecord = async () => {
   try {
     const entryName = '<图书馆>聊天记录';
     const rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
 
-    let contents = [];
-    const contentRegex = /<content>([\s\S]*?)<\/content>/g;
+    // 解析逻辑：按顺序提取 <content> 和 <user_say>
+    // 使用正则 exec 循环匹配，保留顺序
+    const regex = /<(content|user_say)>([\s\S]*?)<\/\1>/g;
     let match;
-    while ((match = contentRegex.exec(rawText)) !== null) {
-      const text = match[1].trim();
-      if (text) contents.push(text);
+    const parsedMessages = [];
+
+    while ((match = regex.exec(rawText)) !== null) {
+      const tag = match[1];
+      const text = match[2].trim();
+      if (text) {
+        parsedMessages.push({
+          type: tag === 'user_say' ? 'user' : 'npc',
+          text: text
+        });
+      }
     }
 
+    // 欢迎语逻辑
     let currentWelcome = '';
-    const welcomeRegex = /<welcome>([\s\S]*?)<\/welcome>/;
-    const welcomeMatch = rawText.match(welcomeRegex);
-    if (welcomeMatch) {
-      currentWelcome = welcomeMatch[1].trim();
-    }
+    const welcomeMatch = rawText.match(/<welcome>([\s\S]*?)<\/welcome>/);
+    if (welcomeMatch) currentWelcome = welcomeMatch[1].trim();
 
+    // 自动维护逻辑 (如果太长则截断，如果没有欢迎语则添加)
     let needsUpdate = false;
+    let newMessages = [...parsedMessages];
 
-    // 规则1：保留最多20条 content
-    if (contents.length > 20) {
-      contents = contents.slice(contents.length - 20);
+    // 限制历史记录长度 (例如保留最近20条交互)
+    if (newMessages.length > 20) {
+      newMessages = newMessages.slice(newMessages.length - 20);
       needsUpdate = true;
     }
 
-    // 规则2：没有 content 时，使用 welcome1
-    if (contents.length === 0 && currentWelcome !== welcome1) {
+    // 欢迎语初始化
+    if (newMessages.length === 0 && currentWelcome !== welcome1) {
       currentWelcome = welcome1;
       needsUpdate = true;
-    }
-    // 规则3：有 content 时，确保 welcome 是 welcome2
-    else if (contents.length > 0 && currentWelcome !== welcome2) {
+    } else if (newMessages.length > 0 && currentWelcome !== welcome2) {
       currentWelcome = welcome2;
       needsUpdate = true;
     }
 
-    // 如果需要更新，重组文本并写回世界书
+    // 如果需要修剪或初始化，写回世界书
     if (needsUpdate) {
-      let newRaw = contents.map(c => `<content>\n${c}\n</content>`).join('\n');
+      let newRaw = newMessages.map(m => {
+        const tag = m.type === 'user' ? 'user_say' : 'content';
+        return `<${tag}>\n${m.text}\n</${tag}>`;
+      }).join('\n');
+
       if (currentWelcome) {
         newRaw += `\n<welcome>\n${currentWelcome}\n</welcome>`;
       }
       await WorldInfoUtil.updateEntryContent(entryName, newRaw);
     }
 
-    // 更新前端响应式数据
-    const isNewMessage = chatContents.value.length !== contents.length;
-    chatContents.value = contents;
+    // 更新前端
+    const isNewMessage = chatContents.value.length !== parsedMessages.length;
+    chatContents.value = parsedMessages;
     welcomeContent.value = currentWelcome;
 
-    if (isNewMessage || isThinking.value) {
-      isThinking.value = false;
-      if (currentMode.value === '对话') scrollToBottom();
+    // 如果有新消息，停止思考动画并滚动
+    if (isNewMessage) {
+      // 简单的判断：如果最后一条是 NPC 消息，则停止思考
+      const lastMsg = parsedMessages[parsedMessages.length - 1];
+      if (lastMsg && lastMsg.type === 'npc') {
+        isThinking.value = false;
+      }
     }
 
   } catch (error) {
@@ -276,492 +380,612 @@ const syncChatRecord = async () => {
   }
 };
 
-// ================= 核心：同步交易记录 =================
-const syncTransactionRecord = async () => {
-  try {
-    const rawText = await WorldInfoUtil.getWorldBookContent(['<图书馆>交易记录']);
-
-    const extractTag = (tag) => {
-      const regex = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`);
-      const match = rawText.match(regex);
-      return match ? match[1].trim() : '';
-    };
-
-    const parseJsonSafe = (str) => {
-      if (!str) return {};
-      try { return JSON.parse(str); } catch (e) { return {}; }
-    };
-
-    const checkAndUpdate = (tag, modeName, dataRef) => {
-      const rawStr = extractTag(tag);
-      // 如果是首次加载，只赋值不触发红点
-      if (lastRawRecords[tag] === null) {
-        lastRawRecords[tag] = rawStr;
-        dataRef.value = parseJsonSafe(rawStr);
-      }
-      // 如果文本发生变化
-      else if (lastRawRecords[tag] !== rawStr) {
-        lastRawRecords[tag] = rawStr;
-        dataRef.value = parseJsonSafe(rawStr);
-        // 如果当前不在该页面，亮起红点
-        if (currentMode.value !== modeName) {
-          redDots[modeName] = true;
-        }
-      }
-    };
-
-    checkAndUpdate('ItemSell', '物品出售', itemSells);
-    checkAndUpdate('SkillBuy', '技能购买', skillBuys);
-    checkAndUpdate('SecretBuy', '密传购买', secretBuys);
-
-  } catch (error) {
-    console.error("同步交易记录失败:", error);
-  }
-};
-
-const fetchAllRecords = async () => {
-  await syncChatRecord();
-  await syncTransactionRecord();
-};
+// ================= 核心逻辑：发送消息 =================
 
 const sendMessage = async () => {
-  if (!inputText.value.trim() || isSending.value) return;
+  const text = inputText.value.trim();
+  if (!text || isSending.value) return;
+
   isSending.value = true;
+  // 立即在前端显示（提升体验）
+  chatContents.value.push({ type: 'user', text: text });
+  scrollToBottom();
+  inputText.value = '';
+  isThinking.value = true;
 
   try {
-    // 统一为对话输入，移除其他变量
+    const entryName = '<图书馆>聊天记录';
+    let rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
+
+    // 构造新的 user_say 标签
+    const newUserTag = `<user_say>\n${text}\n</user_say>`;
+
+    // 检查最后是否已经是 user_say
+    // 正则匹配末尾的 user_say (允许后面有空白字符)
+    const lastUserSayRegex = /<user_say>[\s\S]*?<\/user_say>\s*$/;
+
+    if (lastUserSayRegex.test(rawText)) {
+      // 替换最后的 user_say
+      rawText = rawText.replace(lastUserSayRegex, newUserTag);
+    } else {
+      // 追加
+      rawText += `\n${newUserTag}`;
+    }
+
+    // 1. 更新世界书
+    await WorldInfoUtil.updateEntryContent(entryName, rawText);
+
+    // 2. 更新 MVU 变量 (触发 AI 响应)
     const diffObj = {
       "图书馆": {
-        "玩家输入": inputText.value.trim()
+        "玩家输入": text // 保持这个以便兼容旧逻辑，或者作为触发器
       }
     };
-
     await MvuUtil.updateMvuDataByDiff(diffObj);
+
+    // 3. 发送事件
     eventEmit("图书馆对话");
 
-    isThinking.value = true;
-    inputText.value = '';
-
-    // 发送消息后自动切回对话模式并滚动
-    if (currentMode.value !== '对话') {
-      switchMode('对话');
-    }
+    if (currentMode.value !== '对话') switchMode('对话');
 
   } catch (error) {
     console.error("发送失败:", error);
-    showToast("发送失败，请查看控制台");
+    showToast("发送失败");
+    isThinking.value = false;
   } finally {
     isSending.value = false;
   }
 };
 
+// ================= 核心逻辑：交易系统 =================
+
+const syncTransactionRecord = async () => {
+  try {
+    const rawText = await WorldInfoUtil.getWorldBookContent(['<图书馆>交易记录']);
+    const extractTag = (tag) => {
+      const m = rawText.match(new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`));
+      return m ? m[1].trim() : '';
+    };
+    const parse = (str) => { try { return JSON.parse(str); } catch { return {}; } };
+
+    const update = (tag, mode, refVal) => {
+      const str = extractTag(tag);
+      if (lastRawRecords[tag] !== str) {
+        lastRawRecords[tag] = str;
+        refVal.value = parse(str);
+        if (lastRawRecords[tag] !== null && currentMode.value !== mode) redDots[mode] = true;
+      }
+    };
+
+    update('ItemSell', '物品出售', itemSells);
+    update('SkillBuy', '技能购买', skillBuys);
+    update('SecretBuy', '密传购买', secretBuys);
+  } catch (e) { console.error(e); }
+};
+
+// 1. 卖出物品
+const sellItem = async (itemName, details) => {
+  if (!statStore.stat_data) { showToast("数据未加载"); return; }
+
+  const user = statStore.stat_data.角色.user;
+  const userItems = user.物品 || {};
+
+  if (!userItems[itemName] || userItems[itemName].数量 < 1) {
+    showToast("你没有该物品");
+    return;
+  }
+
+  const price = details.单价 || 0;
+
+  // 构造 Diff
+  const diff = {};
+  const itemPath = `角色.user.物品.${itemName}`;
+
+  if (userItems[itemName].数量 > 1) {
+    // 数量减 1
+    diff[itemPath] = { ...userItems[itemName], 数量: userItems[itemName].数量 - 1 };
+  } else {
+    diff[itemPath] = null;
+  }
+
+  // 增加异质
+  const currentHetero = user.缥缈异质 || 0;
+  diff["角色.user.缥缈异质"] = currentHetero + price;
+
+  try {
+    await MvuUtil.updateMvuDataByDiff(diff);
+    showToast(`出售成功！获得 ${price} 异质`);
+    // 手动触发一次更新以快速刷新UI
+    setTimeout(() => statStore.initData(), 200);
+  } catch (e) {
+    showToast("交易失败");
+    console.error(e);
+  }
+};
+
+// 2. 购买技能
+const buySkill = async (skillName, details) => {
+  if (!statStore.stat_data) return;
+  const user = statStore.stat_data.角色.user;
+  const price = details.价格 || 100; // 默认价格
+
+  if ((user.缥缈异质 || 0) < price) {
+    showToast("异质不足");
+    return;
+  }
+
+  const diff = {};
+  // 扣钱
+  diff["角色.user.缥缈异质"] = user.缥缈异质 - price;
+
+  // 添加技能
+  diff[`角色.user.技能.${skillName}`] = {
+    性相: details.性相 || "无",
+    技能等级: 1, // 默认为 1
+    描述: details.描述 || "",
+    消耗: details.消耗 || "",
+    作用: details.作用 || ""
+  };
+
+  try {
+    await MvuUtil.updateMvuDataByDiff(diff);
+    showToast(`习得技能：${skillName}`);
+    setTimeout(() => statStore.initData(), 200);
+  } catch (e) {
+    showToast("购买失败");
+  }
+};
+
+// 3. 购买密传 (物品)
+const buySecret = async (secretName, details) => {
+  if (!statStore.stat_data) return;
+  const user = statStore.stat_data.角色.user;
+  const price = details.价格 || 50;
+
+  if ((user.缥缈异质 || 0) < price) {
+    showToast("异质不足");
+    return;
+  }
+
+  // 处理重名
+  let finalName = secretName;
+  let counter = 1;
+  const userItems = user.物品 || {};
+
+  while (userItems[finalName]) {
+    finalName = `${secretName}${counter}`;
+    counter++;
+  }
+
+  const diff = {};
+  diff["角色.user.缥缈异质"] = user.缥缈异质 - price;
+
+  // 插入物品
+  diff[`角色.user.物品.${finalName}`] = {
+    类型: "密传",
+    数量: 1,
+    耐久: 100,
+    描述: details.描述 || "一份神秘的记录",
+    作用: details.作用 || "阅读以获取知识"
+  };
+
+  try {
+    await MvuUtil.updateMvuDataByDiff(diff);
+    showToast(`获得密传：${finalName}`);
+    setTimeout(() => statStore.initData(), 200);
+  } catch (e) {
+    showToast("购买失败");
+  }
+};
+
+// ================= 生命周期 =================
+
+const fetchAll = async () => {
+  await syncChatRecord();
+  await syncTransactionRecord();
+};
+
 onMounted(async () => {
-  await fetchAllRecords();
-  pollingTimer = setInterval(fetchAllRecords, 5000); // 每5秒轮询一次
+  await fetchAll();
+  pollingTimer = setInterval(fetchAll, 3000); // 轮询聊天记录
 });
 
 onUnmounted(() => {
-  if (pollingTimer) {
-    clearInterval(pollingTimer);
-  }
+  if (pollingTimer) clearInterval(pollingTimer);
 });
 </script>
 
 <style scoped>
-/* ================= 基础变量与容器 ================= */
+/* 引入 Google Fonts (可选) */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@400;700&display=swap');
+
 .library-container {
-  --c-gold: var(--c-gold, #d4af37);
-  --c-gold-dim: var(--c-gold-dim, rgba(212, 175, 55, 0.3));
-  --c-border: var(--c-border, #4a4a4a);
-  --c-bg-dark: var(--c-bg-dark, #121212);
-  --c-bg-panel: var(--c-bg-panel, rgba(30, 30, 30, 0.8));
-  --c-text-main: var(--c-text-main, #e0e0e0);
-  --c-text-dim: var(--c-text-dim, #9e9e9e);
+  --c-gold: #d4af37;
+  --c-gold-light: #f9e79f;
+  --c-gold-dim: rgba(212, 175, 55, 0.2);
+  --c-bg-dark: #1a1a1a;
+  --c-bg-card: #252525;
+  --c-text: #e0e0e0;
+  --c-accent: #81d4fa;
+  --c-danger: #e57373;
 
   display: flex;
   flex-direction: column;
   height: 100%;
   background: var(--c-bg-dark);
-  color: var(--c-text-main);
-  font-family: 'Georgia', serif;
-  box-sizing: border-box;
-  position: relative;
+  color: var(--c-text);
+  font-family: 'Lato', sans-serif;
   overflow: hidden;
 }
 
-/* ================= 顶部 Header ================= */
+/* Header Styles */
 .library-header {
-  padding: 20px;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.2));
-  border-bottom: 1px solid var(--c-gold-dim);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  background: linear-gradient(180deg, #111 0%, #1a1a1a 100%);
+  border-bottom: 1px solid var(--c-gold);
+  padding: 15px 20px 0;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
   z-index: 10;
 }
 
 .header-content {
-  max-width: 800px;
+  max-width: 900px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 15px;
 }
 
 .title {
   color: var(--c-gold);
+  font-family: 'Cinzel', serif;
+  font-size: 1.5rem;
   margin: 0;
-  font-size: 1.6rem;
-  letter-spacing: 4px;
-  text-shadow: 0 0 10px var(--c-gold-dim);
   display: flex;
   align-items: center;
   gap: 10px;
+  text-shadow: 0 0 10px var(--c-gold-dim);
 }
 
-.mode-selector {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  justify-content: center;
-  background: rgba(0,0,0,0.4);
-  padding: 6px;
-  border-radius: 8px;
-  border: 1px solid rgba(255,255,255,0.05);
-}
-
-.mode-btn {
-  background: transparent;
-  border: none;
-  color: var(--c-text-dim);
-  padding: 8px 18px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 0.95rem;
-  letter-spacing: 1px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-}
-
-.mode-btn:hover {
-  color: var(--c-text-main);
-  background: rgba(255,255,255,0.05);
-}
-
-.mode-btn.active {
-  color: #000;
-  background: var(--c-gold);
-  font-weight: bold;
-  box-shadow: 0 0 15px var(--c-gold-dim);
-}
-
-.red-dot {
+.asset-display {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 8px;
-  height: 8px;
-  background-color: #ff4757;
-  border-radius: 50%;
-  box-shadow: 0 0 5px #ff4757;
-  animation: pulseDot 1.5s infinite;
+  top: 20px;
+  right: 20px;
+  background: rgba(0,0,0,0.4);
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--c-gold-dim);
+  font-size: 0.9rem;
 }
 
-/* ================= 主内容区域 ================= */
+.asset-value {
+  color: var(--c-gold-light);
+  font-weight: bold;
+  margin-left: 5px;
+}
+
+/* Navigation Tabs */
+.nav-tabs {
+  display: flex;
+  position: relative;
+  border-bottom: 2px solid rgba(255,255,255,0.05);
+}
+
+.nav-item {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  cursor: pointer;
+  color: #888;
+  transition: color 0.3s;
+  position: relative;
+  font-weight: bold;
+  font-size: 0.95rem;
+}
+
+.nav-item:hover {
+  color: var(--c-text);
+  background: rgba(255,255,255,0.02);
+}
+
+.nav-item.active {
+  color: var(--c-gold);
+}
+
+.nav-indicator {
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  height: 2px;
+  background: var(--c-gold);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 -2px 10px var(--c-gold);
+}
+
+.notification-dot {
+  position: absolute;
+  top: 8px;
+  right: 20%;
+  width: 6px;
+  height: 6px;
+  background: var(--c-danger);
+  border-radius: 50%;
+  box-shadow: 0 0 5px var(--c-danger);
+}
+
+/* Main Content */
 .main-content-area {
   flex: 1;
-  overflow: hidden;
   position: relative;
-  display: flex;
-  flex-direction: column;
+  overflow: hidden;
+  background: url('https://www.transparenttextures.com/patterns/dark-matter.png'); /* 可选纹理 */
 }
 
 .scroll-area {
-  flex: 1;
+  height: 100%;
   overflow-y: auto;
-  padding: 30px 20px;
+  padding: 20px;
   scroll-behavior: smooth;
 }
 
-.scroll-area::-webkit-scrollbar {
-  width: 6px;
-}
-.scroll-area::-webkit-scrollbar-track {
-  background: rgba(0,0,0,0.2);
-}
-.scroll-area::-webkit-scrollbar-thumb {
-  background: var(--c-border);
-  border-radius: 3px;
-}
-.scroll-area::-webkit-scrollbar-thumb:hover {
-  background: var(--c-gold-dim);
-}
-
-.empty-state {
-  text-align: center;
-  color: var(--c-text-dim);
-  font-style: italic;
-  margin-top: 50px;
-}
-
-/* ================= 聊天列表 ================= */
+/* Chat Styles */
 .message-list {
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  max-width: 900px;
+  gap: 20px;
+  max-width: 800px;
   margin: 0 auto;
-  width: 100%;
+  padding-bottom: 20px;
 }
 
-.message-item {
+.message-row {
   display: flex;
-  gap: 15px;
+  gap: 12px;
   align-items: flex-start;
 }
 
-.avatar-area {
-  flex-shrink: 0;
+.npc-row {
+  justify-content: flex-start;
 }
 
-.npc-avatar {
-  width: 42px;
-  height: 42px;
-  border: 1px solid var(--c-gold);
+.user-row {
+  justify-content: flex-end;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
+  border: 1px solid var(--c-gold);
   object-fit: cover;
-  background-color: #1a1a1a;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-  display: block;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.5);
 }
 
-.message-content-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-width: 0;
+.bubble {
+  max-width: 70%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  line-height: 1.5;
+  font-size: 0.95rem;
+  position: relative;
+  word-wrap: break-word;
 }
 
-.chat-bubble {
-  background: var(--c-bg-panel);
-  backdrop-filter: blur(10px);
-  padding: 16px 20px;
-  border-radius: 2px 16px 16px 16px;
-  border: 1px solid rgba(255,255,255,0.05);
-  border-left: 3px solid var(--c-gold);
-  color: var(--c-text-main);
-  line-height: 1.6;
-  white-space: pre-wrap;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-  display: inline-block;
-  max-width: fit-content;
+.npc-bubble {
+  background: rgba(40, 40, 40, 0.9);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-bottom-left-radius: 2px;
+  color: var(--c-text);
+}
+
+.user-bubble {
+  background: rgba(60, 50, 30, 0.9);
+  border: 1px solid var(--c-gold-dim);
+  border-bottom-right-radius: 2px;
+  color: var(--c-gold-light);
 }
 
 .welcome-bubble {
-  border-left: 3px solid #81d4fa;
-  background: rgba(20, 30, 40, 0.8);
+  border-left: 3px solid var(--c-gold);
+  background: rgba(30, 30, 35, 0.95);
 }
 
-.thinking-item {
-  opacity: 0.7;
-}
-
-.thinking-bubble {
-  background: transparent;
-  padding: 12px 0;
-  color: var(--c-text-dim);
+.thinking-text {
+  color: #888;
   font-style: italic;
-  display: flex;
-  align-items: center;
+  font-size: 0.9rem;
+  padding: 10px;
 }
 
-/* ================= 交易卡片 ================= */
-.card-container {
+/* Transaction Cards */
+.card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
   max-width: 1000px;
   margin: 0 auto;
 }
 
-.info-card {
-  background: linear-gradient(145deg, rgba(40,40,40,0.9), rgba(20,20,20,0.9));
-  border: 1px solid var(--c-border);
+.trade-card {
+  background: var(--c-bg-card);
+  border: 1px solid #333;
   border-radius: 8px;
-  padding: 18px;
-  box-shadow: 0 6px 12px rgba(0,0,0,0.4);
-  transition: all 0.3s ease;
-  position: relative;
-  overflow: hidden;
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
-.info-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0; height: 2px;
-  background: linear-gradient(90deg, transparent, var(--c-gold), transparent);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-
-.info-card:hover {
-  transform: translateY(-4px);
+.trade-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
   border-color: var(--c-gold-dim);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.6);
 }
 
-.info-card:hover::before {
-  opacity: 1;
-}
-
-.card-header {
+.card-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  padding-bottom: 8px;
 }
 
-.card-header .name {
-  font-size: 1.15rem;
+.card-title {
+  font-weight: bold;
   color: var(--c-gold);
-  font-weight: bold;
-  letter-spacing: 1px;
+  font-size: 1.1rem;
 }
 
-.divider {
-  height: 1px;
-  background: linear-gradient(90deg, var(--c-border), transparent);
-  margin: 12px 0;
-}
-
-.label {
-  color: var(--c-text-dim);
-  font-size: 0.85rem;
-  margin-right: 6px;
-}
-
-.price-tag {
-  color: #ffd700;
-  font-weight: bold;
-  background: rgba(255, 215, 0, 0.1);
-  padding: 2px 8px;
-  border-radius: 12px;
+.card-mid {
+  flex: 1;
   font-size: 0.9rem;
+  color: #aaa;
+  margin-bottom: 15px;
 }
 
-.level-badge {
-  background: var(--c-gold);
-  color: #000;
-  padding: 2px 8px;
+.card-mid p { margin: 5px 0; }
+
+.tags { display: flex; gap: 5px; margin-bottom: 8px; }
+.tag { padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; border: 1px solid rgba(255,255,255,0.1); }
+.tag.aspect { color: #a5d6a7; border-color: #a5d6a7; }
+.tag.cost { color: #ef9a9a; border-color: #ef9a9a; }
+
+.inventory-check { font-size: 0.8rem; color: #666; }
+.inventory-check.has-item { color: #81c784; }
+
+.card-action {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.price-display {
+  font-size: 0.85rem;
+  color: var(--c-gold-light);
+}
+
+.action-btn {
+  padding: 6px 16px;
+  border: none;
   border-radius: 4px;
-  font-size: 0.8rem;
+  cursor: pointer;
   font-weight: bold;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  transition: all 0.2s;
 }
 
-.tags-row {
+.sell-btn {
+  background: #388e3c;
+  color: white;
+  width: 100%;
+}
+.sell-btn:disabled { background: #2e352f; color: #555; cursor: not-allowed; }
+
+.buy-btn {
+  background: var(--c-gold);
+  color: #1a1a1a;
+}
+.buy-btn:disabled { background: #444; color: #777; cursor: not-allowed; }
+
+/* Input Area & Quick Replies */
+.input-area {
+  padding: 15px 20px;
+  background: linear-gradient(0deg, #111 0%, #1a1a1a 100%);
+  border-top: 1px solid rgba(212, 175, 55, 0.3);
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+  z-index: 10;
+}
+
+.quick-replies {
+  max-width: 800px;
+  margin: 0 auto 12px auto;
   display: flex;
   gap: 10px;
-  margin-bottom: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px; /* 为滚动条留空间 */
+  scrollbar-width: thin;
 }
 
-.aspect-tag {
-  background: rgba(255,255,255,0.1);
-  border: 1px solid rgba(255,255,255,0.2);
-  padding: 2px 8px;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  color: #fff;
+.quick-replies::-webkit-scrollbar {
+  height: 4px;
 }
 
-.cost-tag {
-  color: #e57373;
+.quick-reply-btn {
+  white-space: nowrap;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid var(--c-gold-dim);
+  color: var(--c-gold-light);
+  padding: 6px 12px;
+  border-radius: 16px;
   font-size: 0.85rem;
-  display: flex;
-  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.skill-card .desc, .secret-card .desc {
-  font-style: italic;
-  color: #b0bec5;
-  font-size: 0.95rem;
-  line-height: 1.5;
+.quick-reply-btn:hover:not(:disabled) {
+  background: rgba(212, 175, 55, 0.25);
+  border-color: var(--c-gold);
+  transform: translateY(-1px);
 }
 
-.skill-card .effect, .secret-card .effect {
-  color: #81d4fa;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  margin-top: 8px;
-}
-
-/* ================= 底部输入区 ================= */
-.input-area {
-  padding: 20px;
-  background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.4));
-  border-top: 1px solid var(--c-border);
-  z-index: 10;
+.quick-reply-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .input-wrapper {
   max-width: 800px;
   margin: 0 auto;
   display: flex;
-  gap: 15px;
+  gap: 12px;
   align-items: flex-end;
 }
 
 .chat-input {
   flex: 1;
-  background: rgba(20, 20, 20, 0.8);
-  border: 1px solid var(--c-border);
-  color: var(--c-text-main);
-  padding: 14px 16px;
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid #444;
+  color: var(--c-text);
+  padding: 12px 16px;
+  border-radius: 12px;
   resize: none;
-  height: 24px;
-  min-height: 50px;
+  height: 46px;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1.5;
-  transition: all 0.3s ease;
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+  transition: border-color 0.3s, box-shadow 0.3s;
 }
 
 .chat-input:focus {
   outline: none;
   border-color: var(--c-gold);
-  background: rgba(30, 30, 30, 0.9);
-  box-shadow: inset 0 2px 4px rgba(0,0,0,0.5), 0 0 10px var(--c-gold-dim);
+  box-shadow: 0 0 8px var(--c-gold-dim);
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .chat-input::placeholder {
   color: #666;
-  font-style: italic;
 }
 
 .send-btn {
-  background: linear-gradient(135deg, var(--c-gold), #b8860b);
+  background: linear-gradient(135deg, var(--c-gold) 0%, #b8860b 100%);
   border: none;
-  color: #000;
+  border-radius: 12px;
   padding: 0 24px;
-  height: 50px;
-  border-radius: 8px;
+  height: 46px;
   cursor: pointer;
   font-weight: bold;
-  font-size: 1rem;
+  color: #111;
   display: flex;
   align-items: center;
   gap: 8px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3);
 }
 
 .send-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 15px var(--c-gold-dim);
-  filter: brightness(1.1);
+  box-shadow: 0 4px 12px rgba(212, 175, 55, 0.5);
 }
 
 .send-btn:active:not(:disabled) {
@@ -771,56 +995,31 @@ onUnmounted(() => {
 .send-btn:disabled {
   background: #333;
   color: #666;
-  cursor: not-allowed;
   box-shadow: none;
+  cursor: not-allowed;
+  transform: none;
 }
 
-/* ================= 动画 Keyframes ================= */
-@keyframes dots {
-  0%, 20% { content: ''; }
-  40% { content: '.'; }
-  60% { content: '..'; }
-  80%, 100% { content: '...'; }
+.btn-icon {
+  font-size: 1.1rem;
 }
 
-@keyframes pulseBorder {
-  from { box-shadow: 0 0 0 0 var(--c-gold-dim); }
-  to { box-shadow: 0 0 0 10px rgba(212, 175, 55, 0); }
+/* Animations */
+@keyframes pulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.7); }
+  70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(212, 175, 55, 0); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
 }
 
-@keyframes pulseDot {
-  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.7); }
-  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(255, 71, 87, 0); }
-  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 71, 87, 0); }
-}
+.pulse { animation: pulse 2s infinite; }
 
-.list-enter-active,
-.list-leave-active {
-  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.list-enter-from {
-  opacity: 0;
-  transform: translateY(20px) scale(0.98);
-}
-.list-leave-to {
-  opacity: 0;
-  transform: translateY(-20px);
-}
+.list-enter-active, .list-leave-active { transition: all 0.4s ease; }
+.list-enter-from { opacity: 0; transform: translateY(10px); }
+.list-leave-to { opacity: 0; transform: translateY(-10px); }
 
-/* ================= 移动端适配 ================= */
-@media (max-width: 768px) {
-  .input-wrapper {
-    flex-direction: column;
-    align-items: stretch;
-  }
-  .send-btn {
-    justify-content: center;
-  }
-  .chat-bubble {
-    max-width: 100%;
-  }
-  .card-container {
-    grid-template-columns: 1fr;
-  }
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1a1a1a; }
+::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-gold); }
 </style>
