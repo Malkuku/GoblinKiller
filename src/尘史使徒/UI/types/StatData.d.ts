@@ -2,6 +2,7 @@ export interface StatData {
   "世界": WorldData;
   "角色": RolesData;
   "仓库": Record<string, ItemData>;
+  "技能库": Record<string, SkillData>;
   "地图": Record<string, MapNodeData>;
   "世界经济": Record<string, EconomyData>;
   "季节与节日": Record<string, TimeEventData>;
@@ -11,6 +12,7 @@ export interface StatData {
   "任务": Record<string, TaskData>;
   "事件": Record<string, EventData>;
   "术": Record<string, Record<string, string>>;
+  "图书馆": LibraryData;
   "system": SystemSettings;
 }
 

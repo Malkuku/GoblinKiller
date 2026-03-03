@@ -60,6 +60,10 @@ export const router = createRouter({
         {
           path: '图书馆',
           component: () => import('../view/图书馆.vue'),
+        },
+        {
+          path: '技能库',
+          component: () => import('../view/技能库.vue'),
         }
       ],
     },
