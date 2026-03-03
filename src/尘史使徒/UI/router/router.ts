@@ -56,6 +56,10 @@ export const router = createRouter({
         {
           path: '日记',
           component: () => import('../view/日记.vue'),
+        },
+        {
+          path: '图书馆',
+          component: () => import('../view/图书馆.vue'),
         }
       ],
     },

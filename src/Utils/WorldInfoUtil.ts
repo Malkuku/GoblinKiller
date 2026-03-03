@@ -78,6 +78,25 @@ const removeLoresByRegex = async (lores:any,regex:RegExp,isReversed:boolean)=>{
   console.log('removeLoresByRegex过滤完成: ',lores);
 }
 
+/**
+ * 更新世界书条目内容
+ */
+const updateEntryContent = async (name: string, content: string) => {
+  const primary  = await getCurrentCharWorldBookPrimary();
+  const bookInfo = await getWorldbook(primary);
+
+  // 检查条目是否存在
+  if (!bookInfo.some(e => e.name === name)) return false;
+
+  await updateWorldbookWith(primary, wb =>
+    wb.map(entry => {
+      return entry.name === name ? { ...entry, content } : entry;
+    })
+  );
+  return true;
+};
+
+
 
 export const WorldInfoUtil = {
   getCurrentCharWorldBookPrimary,
@@ -86,5 +105,6 @@ export const WorldInfoUtil = {
   filterWorldBookNamesRegex,
   enabledEntry,
   removeLoresByRegex,
+  updateEntryContent,
 };
 

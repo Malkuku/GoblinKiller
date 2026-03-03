@@ -15,6 +15,13 @@ export interface StatData {
 }
 
 /**
+ * 图书馆数据
+ */
+export interface LibraryData {
+  "玩家输入": string;
+}
+
+/**
  * 世界环境数据
  */
 export interface WorldData {
