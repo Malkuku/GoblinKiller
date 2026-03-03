@@ -143,18 +143,17 @@ export function calculateCharacterAttributes(levels: CharacterLevels): Attribute
     // 衰减累加逻辑
     let totalBonus = 0;
     bonusSources.forEach((source, index) => {
-      let weight = 0.2; // 默认权重 (第3名及以后)
+      let weight = 0.3; // 默认权重 (第3名及以后)
 
       if (index === 0) weight = 1.0;      // 第1名：100%
-      else if (index === 1) weight = 0.5; // 第2名：50%
+      else if (index === 1) weight = 0.6; // 第2名：60%
 
       totalBonus += source.value * weight;
     });
 
     result[attribute] += totalBonus;
 
-    // 保留两位小数
-    result[attribute] = Math.round(result[attribute] * 100) / 100;
+    result[attribute] = Math.round(result[attribute]);
   }
 
   return result;
