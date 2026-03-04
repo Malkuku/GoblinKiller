@@ -255,9 +255,9 @@
               @click.stop
             >
               <div class="item-details">
-                <p v-if="item.raw.描述" class="detail-desc">"{{ item.raw.描述 }}"</p>
+                <p v-if="item.raw.描述" class="detail-desc">"{{ formatItemText(item.raw.描述, item) }}"</p>
                 <p v-if="item.raw.作用" class="detail-effect">
-                  <span class="bullet">✦</span> {{ item.raw.作用 }}
+                  <span class="bullet">✦</span> {{ formatItemText(item.raw.作用, item) }}
                 </p>
               </div>
 
@@ -347,6 +347,48 @@ function resetInventory() {
   selectedItems.value.clear();
   activeCategory.value = '全部';
 }
+
+// --- 文本正则格式化 ---
+const formatItemText = (text, currentItem) => {
+  if (!text || typeof text !== 'string') return text;
+
+  return text.replace(/\$\{([^}]+)\}/g, (match, key) => {
+    // 1. 物品自身属性替换 (例如 ${数量}, ${耐久})
+    if (key === '数量' && currentItem) return `数量[${currentItem.quantity}]`;
+    if (key === '耐久' && currentItem) return `耐久[${currentItem.durability}]`;
+
+    // 2. 全局属性替换 (从 statStore 获取)
+    const stats = statStore.stat_data;
+    if (!stats) return match;
+
+    // 检查 基础数值
+    if (stats['基础数值'] && stats['基础数值'][key] !== undefined) {
+      return `${key}[${stats['基础数值'][key]}]`;
+    }
+
+    // 检查 术之等级
+    if (stats['术之等级'] && stats['术之等级'][key]) {
+      const artData = stats['术之等级'][key];
+      if (typeof artData === 'object' && artData['等级'] !== undefined) {
+        return `${key}[${artData['等级']}]`;
+      }
+      if (typeof artData === 'number') {
+        return `${key}[${artData}]`;
+      }
+    }
+
+    // 检查 生命状态
+    if (stats['生命状态'] && stats['生命状态'][key]) {
+      const status = stats['生命状态'][key];
+      if (typeof status === 'object' && status['当前'] !== undefined) {
+        return `${key}[${status['当前']}]`;
+      }
+    }
+
+    return match; // 如果都没找到，保持原样
+  });
+};
+
 
 // --- 数据处理 ---
 const categories = computed(() => {
