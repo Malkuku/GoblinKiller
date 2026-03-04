@@ -35,45 +35,74 @@
 
       <!-- 1. 聊天展示区 -->
       <div v-show="currentMode === '对话'" class="scroll-area chat-area" ref="chatAreaRef">
+
+        <!-- 聊天工具栏 (批量删除) -->
+        <div class="chat-toolbar" v-if="chatContents.length > 0">
+          <button class="toolbar-btn" @click="toggleDeleteMode">
+            {{ isDeleteMode ? '取消选择' : '批量删除' }}
+          </button>
+          <button
+            v-if="isDeleteMode"
+            class="toolbar-btn danger-btn"
+            @click="deleteSelected"
+            :disabled="selectedMessages.length === 0"
+          >
+            删除选中 ({{ selectedMessages.length }})
+          </button>
+        </div>
+
         <transition-group name="list" tag="div" class="message-list">
 
           <!-- 欢迎语 -->
-          <div v-if="welcomeContent" key="welcome" class="message-row npc-row">
-            <div class="avatar-wrapper">
-              <img class="avatar" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
+          <div v-if="welcomeContent" key="welcome" class="message-wrapper">
+            <div class="message-row npc-row">
+              <div class="avatar-wrapper">
+                <img class="avatar" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
+              </div>
+              <div class="bubble npc-bubble welcome-bubble">{{ welcomeContent }}</div>
             </div>
-            <div class="bubble npc-bubble welcome-bubble">{{ welcomeContent }}</div>
           </div>
 
           <!-- 历史对话内容 (混合了 User 和 NPC) -->
           <div
-            v-for="(msg, index) in chatContents"
-            :key="'msg-'+index"
-            :class="['message-row', msg.type === 'user' ? 'user-row' : 'npc-row']"
+            v-for="msg in chatContents"
+            :key="msg.id"
+            class="message-wrapper"
+            :class="{ 'is-selectable': isDeleteMode }"
+            @click="isDeleteMode && toggleSelect(msg.id)"
           >
-            <!-- NPC 头像 -->
-            <div v-if="msg.type === 'npc'" class="avatar-wrapper">
-              <img class="avatar" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
+            <!-- 选择框 -->
+            <div v-if="isDeleteMode" class="checkbox-wrapper">
+              <input type="checkbox" :checked="selectedMessages.includes(msg.id)" readonly />
             </div>
 
-            <!-- 气泡 -->
-            <div :class="['bubble', msg.type === 'user' ? 'user-bubble' : 'npc-bubble']">
-              {{ msg.text }}
-            </div>
+            <div :class="['message-row', msg.type === 'user' ? 'user-row' : 'npc-row']">
+              <!-- NPC 头像 -->
+              <div v-if="msg.type === 'npc'" class="avatar-wrapper">
+                <img class="avatar" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
+              </div>
 
-            <!-- 玩家头像 (可选，这里用占位符或不显示) -->
-            <div v-if="msg.type === 'user'" class="avatar-wrapper user-avatar-wrapper">
-              <span class="user-avatar-placeholder">👤</span>
+              <!-- 气泡 -->
+              <div :class="['bubble', msg.type === 'user' ? 'user-bubble' : 'npc-bubble']">
+                {{ msg.text }}
+              </div>
+
+              <!-- 玩家头像 (可选，这里用占位符或不显示) -->
+              <div v-if="msg.type === 'user'" class="avatar-wrapper user-avatar-wrapper">
+                <span class="user-avatar-placeholder">👤</span>
+              </div>
             </div>
           </div>
 
           <!-- 思考中动画 -->
-          <div v-if="isThinking" key="thinking" class="message-row npc-row thinking-row">
-            <div class="avatar-wrapper">
-              <img class="avatar pulse" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
-            </div>
-            <div class="thinking-text">
-              爱丽丝正在翻阅卷宗<span class="dots"></span>
+          <div v-if="isThinking" key="thinking" class="message-wrapper">
+            <div class="message-row npc-row thinking-row">
+              <div class="avatar-wrapper">
+                <img class="avatar pulse" src="https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png" alt="爱丽丝" />
+              </div>
+              <div class="thinking-text">
+                爱丽丝正在翻阅卷宗<span class="dots"></span>
+              </div>
             </div>
           </div>
         </transition-group>
@@ -125,7 +154,7 @@
               <p class="effect">效果: {{ details.作用 }}</p>
             </div>
             <div class="card-action">
-              <div class="price-display">需 {{ details.价格 || 100 }} 异质</div> <!-- 假设JSON里有价格，如果没有需补充默认值 -->
+              <div class="price-display">需 {{ details.价格 || 100 }} 异质</div>
               <button
                 class="action-btn buy-btn"
                 :disabled="hasSkill(name) || !canAfford(details.价格 || 100)"
@@ -220,6 +249,10 @@ const inputText = ref('');
 const isSending = ref(false);
 const isThinking = ref(false);
 
+// 批量删除状态管理
+const isDeleteMode = ref(false);
+const selectedMessages = ref([]);
+
 // 快捷回复
 const quickReplies = [
   "请爱丽丝锐评最近发生的事情",
@@ -234,7 +267,7 @@ const sendQuickReply = (text) => {
 };
 
 // 聊天数据
-const chatContents = ref([]); // 结构: { type: 'user'|'npc', text: string }
+const chatContents = ref([]); // 结构: { id: string, type: 'user'|'npc', text: string }
 const welcomeContent = ref('');
 const chatAreaRef = ref(null);
 
@@ -297,18 +330,68 @@ const switchMode = (mode) => {
   if (mode === '对话') scrollToBottom();
 };
 
+// ================= 核心逻辑：批量删除 =================
+
+const toggleDeleteMode = () => {
+  isDeleteMode.value = !isDeleteMode.value;
+  if (!isDeleteMode.value) {
+    selectedMessages.value = [];
+  }
+};
+
+const toggleSelect = (id) => {
+  const pos = selectedMessages.value.indexOf(id);
+  if (pos === -1) {
+    selectedMessages.value.push(id);
+  } else {
+    selectedMessages.value.splice(pos, 1);
+  }
+};
+
+const deleteSelected = async () => {
+  if (selectedMessages.value.length === 0) return;
+
+  // 过滤掉选中的消息
+  const newMessages = chatContents.value.filter(msg => !selectedMessages.value.includes(msg.id));
+
+  // 更新前端状态
+  chatContents.value = newMessages;
+  selectedMessages.value = [];
+  isDeleteMode.value = false;
+
+  // 更新世界书
+  const entryName = '<图书馆>聊天记录';
+  let newRaw = newMessages.map(m => {
+    const tag = m.type === 'user' ? 'user_say' : 'content';
+    return `<${tag}>\n${m.text}\n</${tag}>`;
+  }).join('\n');
+
+  if (welcomeContent.value) {
+    newRaw += `\n<welcome>\n${welcomeContent.value}\n</welcome>`;
+  }
+
+  try {
+    await WorldInfoUtil.updateEntryContent(entryName, newRaw);
+    showToast("删除成功");
+  } catch (e) {
+    console.error(e);
+    showToast("删除失败");
+  }
+};
+
 // ================= 核心逻辑：聊天同步 =================
 
 const welcome1 = welcomeMessage.welcome1;
 const welcome2 = welcomeMessage.welcome2;
 
 const syncChatRecord = async () => {
+  if (isDeleteMode.value) return; // 删除模式下暂停同步，防止选中状态错乱
+
   try {
     const entryName = '<图书馆>聊天记录';
     const rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
 
     // 解析逻辑：按顺序提取 <content> 和 <user_say>
-    // 使用正则 exec 循环匹配，保留顺序
     const regex = /<(content|user_say)>([\s\S]*?)<\/\1>/g;
     let match;
     const parsedMessages = [];
@@ -361,15 +444,27 @@ const syncChatRecord = async () => {
       await WorldInfoUtil.updateEntryContent(entryName, newRaw);
     }
 
+    // 给 newMessages 分配稳定的 ID，保证 Vue 动画平滑
+    newMessages.forEach((m) => {
+      const oldMsg = chatContents.value.find(old => old.text === m.text && old.type === m.type && !old._used);
+      if (oldMsg) {
+        m.id = oldMsg.id;
+        oldMsg._used = true;
+      } else {
+        m.id = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+      }
+    });
+    // 清理 _used 标记
+    chatContents.value.forEach(old => delete old._used);
+
     // 更新前端
-    const isNewMessage = chatContents.value.length !== parsedMessages.length;
-    chatContents.value = parsedMessages;
+    const isNewMessage = chatContents.value.length !== newMessages.length;
+    chatContents.value = newMessages;
     welcomeContent.value = currentWelcome;
 
     // 如果有新消息，停止思考动画并滚动
     if (isNewMessage) {
-      // 简单的判断：如果最后一条是 NPC 消息，则停止思考
-      const lastMsg = parsedMessages[parsedMessages.length - 1];
+      const lastMsg = newMessages[newMessages.length - 1];
       if (lastMsg && lastMsg.type === 'npc') {
         isThinking.value = false;
       }
@@ -386,9 +481,17 @@ const sendMessage = async () => {
   const text = inputText.value.trim();
   if (!text || isSending.value) return;
 
+  if (isDeleteMode.value) {
+    toggleDeleteMode(); // 发送消息时自动退出删除模式
+  }
+
   isSending.value = true;
   // 立即在前端显示（提升体验）
-  chatContents.value.push({ type: 'user', text: text });
+  chatContents.value.push({
+    id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+    type: 'user',
+    text: text
+  });
   scrollToBottom();
   inputText.value = '';
   isThinking.value = true;
@@ -401,14 +504,11 @@ const sendMessage = async () => {
     const newUserTag = `<user_say>\n${text}\n</user_say>`;
 
     // 检查最后是否已经是 user_say
-    // 正则匹配末尾的 user_say (允许后面有空白字符)
     const lastUserSayRegex = /<user_say>[\s\S]*?<\/user_say>\s*$/;
 
     if (lastUserSayRegex.test(rawText)) {
-      // 替换最后的 user_say
       rawText = rawText.replace(lastUserSayRegex, newUserTag);
     } else {
-      // 追加
       rawText += `\n${newUserTag}`;
     }
 
@@ -418,7 +518,7 @@ const sendMessage = async () => {
     // 2. 更新 MVU 变量 (触发 AI 响应)
     const diffObj = {
       "图书馆": {
-        "玩家输入": text // 保持这个以便兼容旧逻辑，或者作为触发器
+        "玩家输入": text
       }
     };
     await MvuUtil.updateMvuDataByDiff(diffObj);
@@ -451,9 +551,11 @@ const syncTransactionRecord = async () => {
     const update = (tag, mode, refVal) => {
       const str = extractTag(tag);
       if (lastRawRecords[tag] !== str) {
+        // 判断是否为首次加载，首次加载不挂红点
+        const isInitial = lastRawRecords[tag] === null;
         lastRawRecords[tag] = str;
         refVal.value = parse(str);
-        if (lastRawRecords[tag] !== null && currentMode.value !== mode) redDots[mode] = true;
+        if (!isInitial && currentMode.value !== mode) redDots[mode] = true;
       }
     };
 
@@ -482,20 +584,17 @@ const sellItem = async (itemName, details) => {
   const itemPath = `角色.user.物品.${itemName}`;
 
   if (userItems[itemName].数量 > 1) {
-    // 数量减 1
     diff[itemPath] = { ...userItems[itemName], 数量: userItems[itemName].数量 - 1 };
   } else {
     diff[itemPath] = null;
   }
 
-  // 增加异质
   const currentHetero = user.缥缈异质 || 0;
   diff["角色.user.缥缈异质"] = currentHetero + price;
 
   try {
     await MvuUtil.updateMvuDataByDiff(diff);
     showToast(`出售成功！获得 ${price} 异质`);
-    // 手动触发一次更新以快速刷新UI
     setTimeout(() => statStore.initData(), 200);
   } catch (e) {
     showToast("交易失败");
@@ -507,7 +606,7 @@ const sellItem = async (itemName, details) => {
 const buySkill = async (skillName, details) => {
   if (!statStore.stat_data) return;
   const user = statStore.stat_data.角色.user;
-  const price = details.价格 || 100; // 默认价格
+  const price = details.价格 || 100;
 
   if ((user.缥缈异质 || 0) < price) {
     showToast("异质不足");
@@ -515,13 +614,10 @@ const buySkill = async (skillName, details) => {
   }
 
   const diff = {};
-  // 扣钱
   diff["角色.user.缥缈异质"] = user.缥缈异质 - price;
-
-  // 添加技能
   diff[`角色.user.技能.${skillName}`] = {
     性相: details.性相 || "无",
-    技能等级: 1, // 默认为 1
+    技能等级: 1,
     描述: details.描述 || "",
     消耗: details.消耗 || "",
     作用: details.作用 || ""
@@ -547,7 +643,6 @@ const buySecret = async (secretName, details) => {
     return;
   }
 
-  // 处理重名
   let finalName = secretName;
   let counter = 1;
   const userItems = user.物品 || {};
@@ -559,8 +654,6 @@ const buySecret = async (secretName, details) => {
 
   const diff = {};
   diff["角色.user.缥缈异质"] = user.缥缈异质 - price;
-
-  // 插入物品
   diff[`角色.user.物品.${finalName}`] = {
     类型: "密传",
     数量: 1,
@@ -596,7 +689,6 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-/* 引入 Google Fonts (可选) */
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@400;700&display=swap');
 
 .library-container {
@@ -717,7 +809,7 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: url('https://www.transparenttextures.com/patterns/dark-matter.png'); /* 可选纹理 */
+  background: url('https://www.transparenttextures.com/patterns/dark-matter.png');
 }
 
 .scroll-area {
@@ -728,16 +820,94 @@ onUnmounted(() => {
 }
 
 /* Chat Styles */
+.chat-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 0 auto 15px auto;
+  max-width: 800px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--c-bg-dark);
+  padding: 5px 0;
+}
+
+.toolbar-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--c-text);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.danger-btn {
+  background: rgba(229, 115, 115, 0.15);
+  border-color: rgba(229, 115, 115, 0.5);
+  color: var(--c-danger);
+}
+
+.danger-btn:hover:not(:disabled) {
+  background: rgba(229, 115, 115, 0.3);
+}
+
+.danger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .message-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
   max-width: 800px;
   margin: 0 auto;
   padding-bottom: 20px;
 }
 
+.message-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: background 0.2s;
+  border-radius: 8px;
+  padding: 4px;
+  width: 100%;
+}
+
+.message-wrapper.is-selectable {
+  cursor: pointer;
+}
+
+.message-wrapper.is-selectable:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.checkbox-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-right: 5px;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--c-gold);
+  pointer-events: none; /* 让点击事件穿透到父元素 */
+}
+
 .message-row {
+  flex: 1;
+  width: 100%;
   display: flex;
   gap: 12px;
   align-items: flex-start;
@@ -902,7 +1072,7 @@ onUnmounted(() => {
   display: flex;
   gap: 10px;
   overflow-x: auto;
-  padding-bottom: 4px; /* 为滚动条留空间 */
+  padding-bottom: 4px;
   scrollbar-width: thin;
 }
 
