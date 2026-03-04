@@ -3,44 +3,40 @@
     <!-- 全局扫描线遮罩 -->
     <div class="scanlines"></div>
 
-    <div class="gallery-card" :class="{ 'active': phase !== 'idle' }">
+    <div class="gallery-card active">
       <!-- HUD 边角装饰 -->
       <div class="hud-corner top-left"></div>
       <div class="hud-corner top-right"></div>
       <div class="hud-corner bottom-left"></div>
       <div class="hud-corner bottom-right"></div>
 
-      <!-- 卡片头部 -->
+      <!-- 卡片头部 (动态显示当前攻防角色) -->
       <div class="card-header">
         <div class="header-title">
           <span class="tech-prefix">//</span>
-          战斗回溯 <span class="sub-text">MULTI-BEAT_LOG</span> <span class="separator">::</span>
-          <span class="entity-red">{{ charNames[0] }}</span>
+          战斗回溯 <span class="separator">::</span>
+          <!-- 攻方始终为红色，防方始终为金色，跟随当前拍动态变化 -->
+          <span class="entity-red">{{ parsedInteraction.atkName }}</span>
           <span class="vs-mini">VS</span>
-          <span class="entity-gold">{{ charNames[1] }}</span>
+          <span class="entity-gold">{{ parsedInteraction.defName }}</span>
         </div>
         <div class="status-indicator" :class="phase">
           <span class="status-dot"></span>
           {{ phaseText }}
-          <span v-if="phase !== 'idle' && phase !== 'finished'" class="beat-counter">
+          <span v-if="phase !== 'finished'" class="beat-counter">
             [ 拍数: {{ currentBeatIndex + 1 }} / {{ combatLog.length }} ]
           </span>
+          <button class="replay-btn" @click="replayCombat">[ 重置 ]</button>
         </div>
       </div>
 
       <!-- 卡片内容 -->
       <div class="card-content">
         <!-- SVG 动画区域 -->
-        <div class="svg-container" @click="startCombat">
-          <!-- 背景网格与准星 -->
+        <div class="svg-container" @click="advanceCombat" v-if="phase !== 'finished'">
           <div class="grid-bg"></div>
-          <div class="crosshair center"></div>
 
-          <div v-if="phase === 'idle'" class="start-hint">
-            <span class="bracket">[</span> 启动多拍交锋序列 <span class="bracket">]</span>
-          </div>
-
-          <svg viewBox="0 0 800 350" class="combat-svg" v-if="phase !== 'idle'">
+          <svg viewBox="0 0 800 190" class="combat-svg">
             <defs>
               <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation="3" result="blur" />
@@ -52,157 +48,189 @@
               </filter>
             </defs>
 
-            <!-- 左侧：当前拍攻方 (红色) -->
-            <g class="side-attacker" :class="{ 'fade-out': phase === 'beat-result' }">
-              <line x1="40" y1="35" x2="360" y2="35" stroke="#ff3333" stroke-width="1" opacity="0.3" />
-              <!-- 名称 -->
-              <text x="200" y="25" class="role-title" fill="#ff3333" text-anchor="middle" filter="url(#glow-red)">
+            <!-- 左侧：攻方基础信息 -->
+            <g class="side-attacker anim-group" :class="{ 'fade-out': phase === 'beat-result' || phase === 'switching' }">
+              <line x1="40" y1="20" x2="300" y2="20" stroke="#ff3333" stroke-width="1" opacity="0.3" />
+              <text x="170" y="15" class="role-title" fill="#ff3333" text-anchor="middle" filter="url(#glow-red)">
                 {{ parsedInteraction.atkName }} <tspan font-size="10" fill="#aaa">(攻)</tspan>
               </text>
-              <!-- 动作与消耗 -->
-              <text x="200" y="50" class="sub-info" fill="#ff3333" text-anchor="middle" opacity="0.8">
+              <text x="170" y="35" class="sub-info" fill="#ff3333" text-anchor="middle" opacity="0.8">
                 动作: {{ parsedInteraction.atkAction }} | 消耗: {{ currentBeat.攻方.消耗 }}
               </text>
-              <!-- 公式 -->
-              <text x="200" y="65" class="formula-text" fill="#888" text-anchor="middle">
-                公式: {{ currentBeat.攻方.公式 }}
+              <rect x="50" y="45" width="240" height="20" fill="rgba(255,51,51,0.05)" stroke="rgba(255,51,51,0.2)" stroke-width="1" rx="2"/>
+              <text x="170" y="59" class="formula-text" fill="#e8e0c5" text-anchor="middle">
+                {{ currentBeat.攻方.公式 }}
               </text>
-
-              <!-- 攻击方骰子矩阵 -->
-              <g>
-                <g v-for="(dice, index) in currentAtkRolls" :key="'atk'+index"
-                   :transform="`translate(${80 + (index % 5) * 50}, ${90 + Math.floor(index / 5) * 50})`">
-                  <rect width="36" height="36" fill="rgba(255,51,51,0.05)" stroke="#ff3333" stroke-width="1" />
-                  <line x1="0" y1="0" x2="5" y2="5" stroke="#ff3333" stroke-width="1" opacity="0.5"/>
-                  <text x="18" y="25" fill="#fff" font-size="16" font-family="monospace" text-anchor="middle">{{ dice }}</text>
-                </g>
-              </g>
-
-              <!-- 攻击方总值 -->
-              <g v-if="phase === 'clashing' || phase === 'beat-result'" class="total-group" :class="{ 'clash-move-right': phase === 'clashing' }">
-                <polygon points="200,245 235,280 200,315 165,280" fill="rgba(255,51,51,0.1)" stroke="#ff3333" stroke-width="1" filter="url(#glow-red)"/>
-                <text x="200" y="286" fill="#fff" font-size="20" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.攻方.攻击总值 }}</text>
-              </g>
             </g>
 
-            <!-- 右侧：当前拍防方 (暗金色) -->
-            <g class="side-defender" :class="{ 'fade-out': phase === 'beat-result' }">
-              <line x1="440" y1="35" x2="760" y2="35" stroke="#d4af37" stroke-width="1" opacity="0.3" />
-              <!-- 名称 -->
-              <text x="600" y="25" class="role-title" fill="#d4af37" text-anchor="middle" filter="url(#glow-gold)">
+            <!-- 右侧：防方基础信息 -->
+            <g class="side-defender anim-group" :class="{ 'fade-out': phase === 'beat-result' || phase === 'switching' }">
+              <line x1="500" y1="20" x2="760" y2="20" stroke="#d4af37" stroke-width="1" opacity="0.3" />
+              <text x="630" y="15" class="role-title" fill="#d4af37" text-anchor="middle" filter="url(#glow-gold)">
                 {{ parsedInteraction.defName }} <tspan font-size="10" fill="#aaa">(防)</tspan>
               </text>
-              <!-- 动作与消耗 -->
-              <text x="600" y="50" class="sub-info" fill="#d4af37" text-anchor="middle" opacity="0.8">
+              <text x="630" y="35" class="sub-info" fill="#d4af37" text-anchor="middle" opacity="0.8">
                 应对: {{ parsedInteraction.defAction }} | 消耗: {{ currentBeat.防方.消耗 }}
               </text>
-              <!-- 公式 -->
-              <text x="600" y="65" class="formula-text" fill="#888" text-anchor="middle">
-                公式: {{ currentBeat.防方.公式 }}
+              <rect x="510" y="45" width="240" height="20" fill="rgba(212, 175, 55, 0.05)" stroke="rgba(212, 175, 55, 0.2)" stroke-width="1" rx="2"/>
+              <text x="630" y="59" class="formula-text" fill="#e8e0c5" text-anchor="middle">
+                {{ currentBeat.防方.公式 }}
               </text>
+            </g>
 
-              <!-- 防御方骰子矩阵 -->
-              <g>
-                <g v-for="(dice, index) in currentDefRolls" :key="'def'+index"
-                   :transform="`translate(${550 + (index % 5) * 50}, ${90 + Math.floor(index / 5) * 50})`">
-                  <rect width="36" height="36" fill="rgba(212, 175, 55, 0.05)" stroke="#d4af37" stroke-width="1" />
-                  <line x1="0" y1="0" x2="5" y2="5" stroke="#d4af37" stroke-width="1" opacity="0.5"/>
-                  <text x="18" y="25" fill="#fff" font-size="16" font-family="monospace" text-anchor="middle">{{ dice }}</text>
+            <!-- 中央区域：骰子与总值对决 -->
+            <g class="center-clash-area anim-group" :class="{ 'fade-out': phase === 'switching' }">
+              <!-- 准备阶段：显示骰子占位符 (?) -->
+              <g v-if="phase === 'ready' || phase === 'switching'">
+                <g v-for="(_, index) in expectedAtkDice" :key="'atk-placeholder'+index"
+                   :transform="`translate(${320 - (expectedAtkDice * 35) / 2 + index * 35}, 80)`">
+                  <rect width="26" height="26" fill="transparent" stroke="rgba(255,51,51,0.3)" stroke-width="1" stroke-dasharray="2 2" />
+                  <text x="13" y="18" fill="rgba(255,51,51,0.5)" font-size="13" font-family="monospace" text-anchor="middle">?</text>
+                </g>
+                <g v-for="(_, index) in expectedDefDice" :key="'def-placeholder'+index"
+                   :transform="`translate(${480 - (expectedDefDice * 35) / 2 + index * 35}, 80)`">
+                  <rect width="26" height="26" fill="transparent" stroke="rgba(212, 175, 55, 0.3)" stroke-width="1" stroke-dasharray="2 2" />
+                  <text x="13" y="18" fill="rgba(212, 175, 55, 0.5)" font-size="13" font-family="monospace" text-anchor="middle">?</text>
                 </g>
               </g>
 
-              <!-- 防御方总值 -->
-              <g v-if="phase === 'clashing' || phase === 'beat-result'" class="total-group" :class="{ 'clash-move-left': phase === 'clashing' }">
-                <polygon points="600,245 635,280 600,315 565,280" fill="rgba(212, 175, 55, 0.1)" stroke="#d4af37" stroke-width="1" filter="url(#glow-gold)"/>
-                <text x="600" y="286" fill="#fff" font-size="20" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.防方.防御总值 }}</text>
+              <!-- 投骰/结算阶段：显示真实骰子 -->
+              <g v-else>
+                <g v-for="(dice, index) in currentAtkRolls" :key="'atk'+index"
+                   :transform="`translate(${320 - (currentAtkRolls.length * 35) / 2 + index * 35}, 80)`">
+                  <rect width="26" height="26" fill="rgba(255,51,51,0.1)" stroke="#ff3333" stroke-width="1" />
+                  <text x="13" y="18" fill="#fff" font-size="13" font-family="monospace" text-anchor="middle">{{ dice }}</text>
+                </g>
+                <g v-for="(dice, index) in currentDefRolls" :key="'def'+index"
+                   :transform="`translate(${480 - (currentDefRolls.length * 35) / 2 + index * 35}, 80)`">
+                  <rect width="26" height="26" fill="rgba(212, 175, 55, 0.1)" stroke="#d4af37" stroke-width="1" />
+                  <text x="13" y="18" fill="#fff" font-size="13" font-family="monospace" text-anchor="middle">{{ dice }}</text>
+                </g>
+              </g>
+
+              <!-- 拼点总值与 VS -->
+              <g v-if="phase === 'clashing' || phase === 'beat-result'">
+                <g class="total-group" :class="{ 'clash-move-right': phase === 'clashing' }">
+                  <polygon points="320,120 340,140 320,160 300,140" fill="rgba(255,51,51,0.15)" stroke="#ff3333" stroke-width="1" filter="url(#glow-red)"/>
+                  <text x="320" y="145" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.攻方.攻击总值 }}</text>
+                </g>
+                <g class="total-group" :class="{ 'clash-move-left': phase === 'clashing' }">
+                  <polygon points="480,120 500,140 480,160 460,140" fill="rgba(212, 175, 55, 0.15)" stroke="#d4af37" stroke-width="1" filter="url(#glow-gold)"/>
+                  <text x="480" y="145" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.防方.防御总值 }}</text>
+                </g>
+                <line x1="350" y1="140" x2="450" y2="140" stroke="#fff" stroke-width="1" stroke-dasharray="4 4" opacity="0.3" class="clash-line"/>
+                <text x="400" y="146" fill="#fff" font-size="18" font-family="monospace" letter-spacing="2" text-anchor="middle" class="vs-text">VS</text>
               </g>
             </g>
 
-            <!-- 中心：单拍拼点结果 -->
-            <g v-if="phase === 'clashing' || phase === 'beat-result'" class="clash-center">
-              <line x1="300" y1="280" x2="500" y2="280" stroke="#fff" stroke-width="1" stroke-dasharray="4 4" opacity="0.5" class="clash-line"/>
-              <text x="400" y="286" fill="#fff" font-size="24" font-family="monospace" letter-spacing="4" text-anchor="middle" class="vs-text">VS</text>
-
-              <g v-if="phase === 'beat-result'" class="result-group">
-                <rect x="200" y="140" width="400" height="50" fill="rgba(255,51,51,0.1)" stroke="#ff3333" stroke-width="1" />
-                <text x="400" y="173" fill="#ff3333" font-size="22" font-family="monospace" font-weight="bold" letter-spacing="2" text-anchor="middle" filter="url(#glow-red)">
-                  {{ currentBeat.结果 }}
-                </text>
-              </g>
+            <!-- 底部中央操作提示 -->
+            <g class="action-prompt anim-group" v-if="phase === 'ready' || phase === 'beat-result' || phase === 'switching'" :class="{ 'fade-out': phase === 'switching' }">
+              <rect x="330" y="165" width="140" height="20" fill="rgba(212, 175, 55, 0.1)" stroke="#d4af37" stroke-width="1" rx="10" />
+              <text x="400" y="179" fill="#d4af37" font-size="11" text-anchor="middle" class="click-continue-hint">
+                {{ phase === 'ready' ? '>> 点击投掷骰子 <<' : '>> 点击进入下一拍 <<' }}
+              </text>
             </g>
           </svg>
         </div>
 
-        <!-- 结算与视觉演绎 (分页模式) -->
-        <div class="result-panel" v-if="phase === 'finished'">
-          <!-- 分页控制器 -->
+        <!-- 结算与视觉演绎 -->
+        <div class="result-panel">
           <div class="tab-controller">
-            <div class="tab-btn" :class="{ active: currentTab === 'data' }" @click="currentTab = 'data'">
-              <span class="icon">▧</span> 最终结算 <span class="en">STATUS</span>
-            </div>
             <div class="tab-btn" :class="{ active: currentTab === 'visual' }" @click="currentTab = 'visual'">
-              <span class="icon">◈</span> 战斗复盘 <span class="en">LOGS</span>
+              <span class="icon">◈</span> 战斗复盘
+            </div>
+            <div class="tab-btn" :class="{ active: currentTab === 'data' }" @click="currentTab = 'data'">
+              <span class="icon">▧</span> 最终结算
             </div>
             <div class="tab-line"></div>
           </div>
 
           <div class="tab-content-area">
-            <!-- TAB 1: 数值结算 -->
+            <!-- TAB 1: 视觉演绎 -->
             <transition name="fade-slide" mode="out-in">
-              <div v-if="currentTab === 'data'" key="data" class="data-view">
-                <div class="data-grid-layout">
+              <div v-if="currentTab === 'visual'" key="visual" class="visual-view">
+                <div class="data-box visual-narrative">
+                  <div class="narrative-content">
 
-                  <!-- 角色状态遍历 -->
-                  <div v-for="(charData, charName) in finalSettlement.角色状态" :key="charName" class="data-box tactical-analysis">
-                    <div class="box-header">
-                      <span class="box-icon"></span>
-                      <h4>{{ charName }} // STATUS</h4>
-                    </div>
-                    <div class="stats-comparison">
-                      <div class="stat-col" :class="charName === charNames[0] ? 'red' : 'gold'">
-                        <div class="stat-row"><span>生命 (HP)</span> <span class="val-highlight">{{ charData.生命 }}</span></div>
-                        <div class="stat-row"><span>体力 (SP)</span> <span>{{ charData.体力 }}</span></div>
-                        <div class="stat-row"><span>精神 (SAN)</span> <span>{{ charData.精神 }}</span></div>
+                    <!-- 战斗进行中：仅显示当前拍 -->
+                    <div v-if="phase !== 'finished' && currentBeat" class="beat-log-item current-focus">
+                      <div class="beat-header">
+                        <span class="beat-num">拍数 {{ currentBeatIndex + 1 }}</span>
+                        <span class="beat-interaction">{{ currentBeat.交互 }}</span>
+                      </div>
+
+                      <div class="narrative-text">
+                        <span v-if="phase === 'beat-result' || phase === 'switching'" class="revealed-text">
+                          {{ currentBeat.短述 }}
+                        </span>
+                        <span v-else class="pending-text">
+                          <span class="glitch-marks">???</span> 动作轨迹解析中... <span class="glitch-marks">???</span>
+                        </span>
+                      </div>
+
+                      <div class="system-result-box" :class="phase">
+                        <span class="result-arrow">>></span>
+                        <span v-if="phase === 'ready' || phase === 'switching'" class="pending">等待投骰演算...</span>
+                        <span v-else-if="phase === 'rolling' || phase === 'clashing'" class="pending">正在进行冲突判定...</span>
+                        <span v-else-if="phase === 'beat-result'" class="highlight-result">
+                          判定结果：{{ currentBeat.结果 }}
+                        </span>
                       </div>
                     </div>
-                  </div>
 
-                  <!-- 状态附加 -->
-                  <div class="data-box settlement" style="grid-column: 1 / -1;">
-                    <div class="box-header">
-                      <span class="box-icon"></span>
-                      <h4>状态附加 // BUFF & DEBUFF</h4>
+                    <!-- 战斗结束：显示全部拍的复盘列表 -->
+                    <div v-else class="full-recap-list">
+                      <div v-for="(beat, index) in combatLog" :key="'recap'+index" class="beat-log-item history-item">
+                        <div class="beat-header">
+                          <span class="beat-num">拍数 {{ index + 1 }}</span>
+                          <span class="beat-interaction">{{ beat.交互 }}</span>
+                        </div>
+                        <div class="narrative-text">
+                          <span class="revealed-text">{{ beat.短述 }}</span>
+                        </div>
+                        <div class="system-result-box beat-result">
+                          <span class="result-arrow">>></span>
+                          <span class="highlight-result">判定结果：{{ beat.结果 }}</span>
+                        </div>
+                      </div>
+                      <div class="narrative-footer">
+                        <span class="end-mark">/// 序列已完成，可切换至[最终结算]查看数值 ///</span>
+                      </div>
                     </div>
-                    <div class="list-section">
-                      <ul>
-                        <li v-if="finalSettlement.状态附加.length === 0" style="color: #777;">无新增状态</li>
-                        <li v-for="(state, i) in finalSettlement.状态附加" :key="'state'+i" class="status-alert">{{ state }}</li>
-                      </ul>
-                    </div>
-                  </div>
 
+                  </div>
                 </div>
               </div>
 
-              <!-- TAB 2: 视觉演绎 (多拍日志) -->
-              <div v-else-if="currentTab === 'visual'" key="visual" class="visual-view">
-                <div class="data-box visual-narrative">
-                  <div class="box-header">
-                    <span class="box-icon"></span>
-                    <h4>交锋推演记录 // COMBAT LOGS</h4>
-                  </div>
-                  <div class="narrative-content">
-                    <div v-for="(beat, index) in combatLog" :key="'log'+index" class="beat-log-item">
-                      <div class="beat-header">
-                        <span class="beat-num">拍 {{ index + 1 }}</span>
-                        <span class="beat-interaction">{{ beat.交互 }}</span>
+              <!-- TAB 2: 数值结算 -->
+              <div v-else-if="currentTab === 'data'" key="data" class="data-view">
+                <div class="data-grid-layout">
+                  <div v-for="charName in charNames" :key="charName" class="data-box tactical-analysis">
+                    <div class="box-header">
+                      <span class="box-icon"></span>
+                      <h4>{{ charName }}</h4>
+                    </div>
+                    <div class="stats-comparison">
+                      <div class="stat-col" :class="charName === charNames[0] ? 'red' : 'gold'">
+                        <div class="stat-row" v-for="(stat, index) in parseStats(finalSettlement[charName])" :key="index">
+                          <span>{{ stat.name }}</span>
+                          <span class="val-highlight">{{ stat.value }}</span>
+                        </div>
                       </div>
-                      <p class="narrative-text">{{ beat.短述 }}</p>
-                      <div class="beat-result-text">>> {{ beat.结果 }}</div>
                     </div>
                   </div>
-                  <div class="narrative-footer">
-                    <span class="end-mark">/// END OF LOG ///</span>
+
+                  <div class="data-box settlement" style="grid-column: 1 / -1;">
+                    <div class="box-header">
+                      <span class="box-icon"></span>
+                      <h4>状态附加</h4>
+                    </div>
+                    <div class="list-section">
+                      <ul>
+                        <li v-if="!finalSettlement.状态附加 || finalSettlement.状态附加.length === 0" style="color: #777;">无新增状态</li>
+                        <li v-for="(state, i) in finalSettlement.状态附加" :key="'state'+i" class="status-alert">{{ state }}</li>
+                      </ul>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -222,21 +250,31 @@ const rawJson = $1
 
 const combatLog = rawJson.交锋推演;
 const finalSettlement = rawJson.最终结算;
-const charNames = Object.keys(finalSettlement.角色状态);
+
+const charNames = Object.keys(finalSettlement).filter(key => key !== '状态附加');
+
+const parseStats = (statString) => {
+  if (!statString || typeof statString !== 'string') return [];
+  return statString.split(',').map(s => {
+    const parts = s.trim().split(/\s+/);
+    return { name: parts[0], value: parts.slice(1).join(' ') || '' };
+  });
+};
 
 // 2. 状态管理
-const phase = ref('idle'); // idle, rolling, clashing, beat-result, finished
-const currentTab = ref('data');
+const phase = ref('ready');
+const currentTab = ref('visual');
 const currentBeatIndex = ref(0);
 const currentAtkRolls = ref([]);
 const currentDefRolls = ref([]);
+const isAnimating = ref(false);
 
-// 获取当前拍的数据
 const currentBeat = computed(() => combatLog[currentBeatIndex.value]);
+const expectedAtkDice = computed(() => currentBeat.value?.攻方?.骰点详情?.length || 1);
+const expectedDefDice = computed(() => currentBeat.value?.防方?.骰点详情?.length || 1);
 
-// 正则解析 "角色A(动作) vs 角色B(动作)"
 const parsedInteraction = computed(() => {
-  if (!currentBeat.value) return {};
+  if (!currentBeat.value) return { atkName: '攻方', atkAction: '未知', defName: '防方', defAction: '未知' };
   const match = currentBeat.value.交互.match(/(.+?)\((.+?)\)\s*vs\s*(.+?)\((.+?)\)/);
   if (match) {
     return {
@@ -251,62 +289,79 @@ const parsedInteraction = computed(() => {
 
 const phaseText = computed(() => {
   const map = {
-    'idle': '等待指令 // AWAITING',
-    'rolling': '概率演算中 // CALCULATING',
-    'clashing': '冲突判定 // CONFLICT',
-    'beat-result': '单拍结算 // BEAT_RESULT',
-    'finished': '序列完成 // COMPLETE'
+    'ready': '准备投骰',
+    'rolling': '概率演算中',
+    'clashing': '冲突判定',
+    'beat-result': '单拍结算',
+    'switching': '重置序列...', // 新增过渡状态文本
+    'finished': '序列完成'
   };
   return map[phase.value];
 });
 
-// 辅助函数：延迟
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// 3. 核心动画逻辑 (异步多拍循环)
-const startCombat = async () => {
-  if (phase.value !== 'idle') return;
+// 3. 核心动画逻辑
+const advanceCombat = async () => {
+  if (isAnimating.value || phase.value === 'finished') return;
 
-  // 遍历每一拍
-  for (let i = 0; i < combatLog.length; i++) {
-    currentBeatIndex.value = i;
+  if (phase.value === 'beat-result') {
+    if (currentBeatIndex.value >= combatLog.length - 1) {
+      // 结束时留在 visual tab 观看完整复盘
+      phase.value = 'finished';
+    } else {
+      // 增加切拍的平滑过渡动画
+      isAnimating.value = true;
+      phase.value = 'switching';
+      await delay(300); // 等待 SVG 元素淡出
+
+      currentBeatIndex.value++;
+      currentAtkRolls.value = [];
+      currentDefRolls.value = [];
+      phase.value = 'ready';
+      isAnimating.value = false;
+    }
+    return;
+  }
+
+  if (phase.value === 'ready') {
+    isAnimating.value = true;
     phase.value = 'rolling';
 
-    const targetAtk = combatLog[i].攻方.骰点详情;
-    const targetDef = combatLog[i].防方.骰点详情;
+    const targetAtk = combatLog[currentBeatIndex.value].攻方.骰点详情;
+    const targetDef = combatLog[currentBeatIndex.value].防方.骰点详情;
 
-    // 启动随机跳字动画
     const rollInterval = setInterval(() => {
-      // 假设最大骰子面数为20用于动画表现
       currentAtkRolls.value = targetAtk.map(() => Math.floor(Math.random() * 20) + 1);
       currentDefRolls.value = targetDef.map(() => Math.floor(Math.random() * 20) + 1);
     }, 50);
 
-    // 掷骰动画持续 0.8 秒
-    await delay(800);
+    await delay(600);
     clearInterval(rollInterval);
 
-    // 定格真实骰点
     currentAtkRolls.value = [...targetAtk];
     currentDefRolls.value = [...targetDef];
 
-    // 进入拼点阶段 (展示总值)
     phase.value = 'clashing';
-    await delay(800);
+    await delay(600);
 
-    // 展示单拍结果
     phase.value = 'beat-result';
-    await delay(1200); // 结果停留 1.2 秒
+    isAnimating.value = false;
   }
+};
 
-  // 所有拍数结束，进入最终结算
-  phase.value = 'finished';
-  currentTab.value = 'data';
+const replayCombat = () => {
+  if (isAnimating.value) return;
+  phase.value = 'ready';
+  currentBeatIndex.value = 0;
+  currentTab.value = 'visual';
+  currentAtkRolls.value = [];
+  currentDefRolls.value = [];
 };
 </script>
 
 <style scoped>
-/* --- 核心色彩与变量 (暗金主题) --- */
+/* --- 核心色彩与变量 --- */
 .animus-theme {
   --ac-bg-dark: #080705;
   --ac-bg-panel: rgba(20, 18, 12, 0.9);
@@ -323,7 +378,7 @@ const startCombat = async () => {
   background-color: var(--ac-bg-dark);
   color: var(--ac-white);
   font-family: var(--ac-font-main);
-  padding: 40px 20px;
+  padding: 15px 10px;
   position: relative;
   overflow: hidden;
 }
@@ -342,11 +397,10 @@ const startCombat = async () => {
   position: relative;
   background-color: var(--ac-bg-panel);
   border: 1px solid var(--ac-line);
-  max-width: 900px;
+  max-width: 850px;
   margin: 0 auto;
   box-shadow: 0 0 30px rgba(0, 0, 0, 0.9);
   backdrop-filter: blur(4px);
-  transition: border-color 0.3s;
 }
 
 .gallery-card.active {
@@ -354,19 +408,14 @@ const startCombat = async () => {
   box-shadow: 0 0 20px rgba(212, 175, 55, 0.1);
 }
 
-.hud-corner {
-  position: absolute;
-  width: 15px; height: 15px;
-  border: 2px solid transparent;
-  z-index: 10;
-}
+.hud-corner { position: absolute; width: 10px; height: 10px; border: 2px solid transparent; z-index: 10; }
 .top-left { top: -1px; left: -1px; border-top-color: var(--ac-gold); border-left-color: var(--ac-gold); }
 .top-right { top: -1px; right: -1px; border-top-color: var(--ac-gold); border-right-color: var(--ac-gold); }
 .bottom-left { bottom: -1px; left: -1px; border-bottom-color: var(--ac-gold); border-left-color: var(--ac-gold); }
 .bottom-right { bottom: -1px; right: -1px; border-bottom-color: var(--ac-gold); border-right-color: var(--ac-gold); }
 
 .card-header {
-  padding: 12px 20px;
+  padding: 8px 12px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -374,181 +423,158 @@ const startCombat = async () => {
   background: linear-gradient(90deg, rgba(212, 175, 55, 0.1) 0%, transparent 100%);
 }
 
-.header-title {
-  font-size: 1.1rem;
-  letter-spacing: 1px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: bold;
-}
-
+.header-title { font-size: 0.95rem; display: flex; align-items: center; gap: 6px; font-weight: bold; }
 .tech-prefix { color: var(--ac-gold-dim); }
-.sub-text { font-size: 0.7em; color: var(--ac-gold-dim); margin-left: -4px; }
 .separator { color: var(--ac-line); }
-.entity-red { color: var(--ac-red); text-shadow: 0 0 5px rgba(204, 41, 41, 0.4); }
-.entity-gold { color: var(--ac-gold); text-shadow: 0 0 5px rgba(212, 175, 55, 0.4); }
-.vs-mini { font-size: 0.8rem; color: var(--ac-gray); font-family: var(--ac-font-mono); }
+.entity-red { color: var(--ac-red); transition: color 0.3s; }
+.entity-gold { color: var(--ac-gold); transition: color 0.3s; }
+.vs-mini { font-size: 0.75rem; color: var(--ac-gray); font-family: var(--ac-font-mono); }
 
-.status-indicator {
-  font-family: var(--ac-font-mono);
-  font-size: 0.75rem;
-  letter-spacing: 1px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--ac-gray);
-}
-.status-dot {
-  width: 6px; height: 6px;
-  background-color: var(--ac-gray);
-  border-radius: 50%;
-}
-.beat-counter { color: var(--ac-gold-light); margin-left: 10px; }
-.status-indicator.rolling .status-dot { background-color: var(--ac-gold-light); box-shadow: 0 0 5px var(--ac-gold-light); animation: blink 0.5s infinite; }
-.status-indicator.clashing .status-dot { background-color: var(--ac-red); box-shadow: 0 0 5px var(--ac-red); }
-.status-indicator.beat-result .status-dot { background-color: var(--ac-red); box-shadow: 0 0 5px var(--ac-red); }
-.status-indicator.finished .status-dot { background-color: var(--ac-gold); box-shadow: 0 0 5px var(--ac-gold); }
+.status-indicator { font-family: var(--ac-font-mono); font-size: 0.75rem; display: flex; align-items: center; gap: 6px; color: var(--ac-gray); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; }
+.beat-counter { color: var(--ac-gold-light); margin-left: 6px; }
+.status-indicator.ready .status-dot { background-color: var(--ac-gold); animation: pulse 1.5s infinite; }
+.status-indicator.rolling .status-dot { background-color: var(--ac-gold-light); animation: blink 0.5s infinite; }
+.status-indicator.clashing .status-dot { background-color: var(--ac-red); }
+.status-indicator.beat-result .status-dot { background-color: var(--ac-red); }
+.status-indicator.switching .status-dot { background-color: var(--ac-gray); animation: blink 0.3s infinite; }
+.status-indicator.finished .status-dot { background-color: var(--ac-gold); }
 
+.replay-btn {
+  background: transparent; border: 1px solid var(--ac-gold-dim); color: var(--ac-gold-light);
+  font-family: var(--ac-font-mono); font-size: 0.7rem; padding: 2px 6px; margin-left: 6px; cursor: pointer;
+}
+.replay-btn:hover { background: rgba(212, 175, 55, 0.2); color: #fff; border-color: var(--ac-gold); }
+
+/* SVG 区域 */
 .svg-container {
-  position: relative;
-  width: 100%;
-  cursor: pointer;
-  border-bottom: 1px solid var(--ac-line);
-  overflow: hidden;
-  background-color: #0b0a08;
-  min-height: 350px;
+  position: relative; width: 100%; cursor: pointer; border-bottom: 1px solid var(--ac-line);
+  background-color: #0b0a08; min-height: 190px;
 }
-
 .grid-bg {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-image:
-    linear-gradient(var(--ac-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--ac-line) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 0.15;
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background-image: linear-gradient(var(--ac-line) 1px, transparent 1px), linear-gradient(90deg, var(--ac-line) 1px, transparent 1px);
+  background-size: 40px 40px; opacity: 0.15;
 }
-
-.crosshair {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100px; height: 100px;
-  pointer-events: none;
-}
-.crosshair::before, .crosshair::after { content: ''; position: absolute; background: var(--ac-gold-dim); }
-.crosshair::before { top: 50%; left: 0; width: 100%; height: 1px; }
-.crosshair::after { left: 50%; top: 0; height: 100%; width: 1px; }
-
-.start-hint {
-  position: absolute;
-  top: 50%; left: 50%;
-  transform: translate(-50%, -50%);
-  color: var(--ac-white);
-  font-family: var(--ac-font-main);
-  font-size: 1.2rem;
-  letter-spacing: 3px;
-  animation: pulse 2s infinite;
-  pointer-events: none;
-  white-space: nowrap;
-}
-.bracket { color: var(--ac-gold); margin: 0 5px; }
-
 .combat-svg { width: 100%; height: auto; display: block; position: relative; z-index: 2; }
 
-.role-title { font-size: 16px; letter-spacing: 2px; font-weight: bold; }
-.sub-info { font-size: 11px; font-family: var(--ac-font-mono); letter-spacing: 1px; }
-.formula-text { font-size: 10px; font-family: var(--ac-font-mono); letter-spacing: 0.5px; }
+.role-title { font-size: 14px; font-weight: bold; }
+.sub-info { font-size: 11px; font-family: var(--ac-font-mono); }
+.formula-text { font-size: 11px; font-family: var(--ac-font-mono); }
 
-.total-group { transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
-.clash-move-right { transform: translateX(120px); }
-.clash-move-left { transform: translateX(-120px); }
-.fade-out { opacity: 0.15; transition: opacity 0.3s ease; filter: grayscale(100%); }
+/* 动画组：增加平滑过渡 */
+.anim-group { transition: all 0.3s ease-in-out; }
+.total-group { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+.clash-move-right { transform: translateX(15px); }
+.clash-move-left { transform: translateX(-15px); }
+.fade-out { opacity: 0; transform: translateY(-5px); filter: grayscale(100%); pointer-events: none; }
+.side-attacker.fade-out, .side-defender.fade-out { opacity: 0.15; transform: translateY(0); }
 
 .clash-line { animation: drawLine 0.3s ease forwards; }
 .vs-text { animation: glitchPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-.result-group { animation: stampIn 0.4s cubic-bezier(0.25, 1, 0.5, 1) forwards; }
+.click-continue-hint { animation: blink 1.5s infinite; pointer-events: none; font-family: var(--ac-font-mono); }
 
-.result-panel {
-  padding: 20px;
-  background: linear-gradient(to bottom, rgba(212, 175, 55, 0.03), transparent);
-  animation: slideDown 0.5s ease forwards;
-  min-height: 350px;
-}
-
-.tab-controller { display: flex; gap: 2px; margin-bottom: 20px; position: relative; }
+/* 底部面板 */
+.result-panel { padding: 12px 15px; background: linear-gradient(to bottom, rgba(212, 175, 55, 0.03), transparent); min-height: 160px; }
+.tab-controller { display: flex; gap: 2px; margin-bottom: 10px; position: relative; }
 .tab-btn {
-  padding: 8px 24px;
-  background: rgba(0,0,0,0.3);
-  border: 1px solid var(--ac-line);
-  border-bottom: none;
-  color: var(--ac-gray);
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: all 0.3s;
-  display: flex; align-items: center; gap: 8px;
-  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+  padding: 4px 16px; background: rgba(0,0,0,0.3); border: 1px solid var(--ac-line); border-bottom: none;
+  color: var(--ac-gray); font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 6px;
+  clip-path: polygon(6px 0, 100% 0, 100% 100%, 0 100%, 0 6px);
 }
-.tab-btn:hover { background: rgba(212, 175, 55, 0.05); color: var(--ac-white); }
-.tab-btn.active {
-  background: rgba(212, 175, 55, 0.15);
-  color: var(--ac-gold);
-  border-color: var(--ac-gold);
-  text-shadow: 0 0 8px rgba(212, 175, 55, 0.3);
-}
-.tab-btn .en { font-size: 0.7em; opacity: 0.6; font-family: var(--ac-font-mono); }
-.tab-line { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: var(--ac-gold); opacity: 0.3; z-index: 0; }
+.tab-btn.active { background: rgba(212, 175, 55, 0.15); color: var(--ac-gold); border-color: var(--ac-gold); }
+.tab-line { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: var(--ac-gold); opacity: 0.3; }
 
-.data-grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.data-grid-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .data-box {
-  position: relative; padding: 20px;
-  background: rgba(20, 18, 12, 0.5);
-  border: 1px solid var(--ac-line);
-  clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
+  position: relative; padding: 10px 12px; background: rgba(20, 18, 12, 0.5); border: 1px solid var(--ac-line);
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
 }
 
-.box-header { display: flex; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--ac-line); padding-bottom: 8px; }
-.box-icon { width: 6px; height: 6px; background-color: var(--ac-gold); margin-right: 10px; box-shadow: 0 0 5px var(--ac-gold); transform: rotate(45deg); }
-.box-header h4 { margin: 0; font-size: 0.95rem; letter-spacing: 1px; color: var(--ac-white); font-weight: normal; }
+.box-header { display: flex; align-items: center; margin-bottom: 8px; border-bottom: 1px solid var(--ac-line); padding-bottom: 4px; }
+.box-icon { width: 4px; height: 4px; background-color: var(--ac-gold); margin-right: 6px; transform: rotate(45deg); }
+.box-header h4 { margin: 0; font-size: 0.85rem; color: var(--ac-white); font-weight: normal; }
 
-.stats-comparison { font-family: var(--ac-font-mono); font-size: 0.85rem; }
-.stat-col { display: flex; flex-direction: column; gap: 8px; }
+.stats-comparison { font-family: var(--ac-font-mono); font-size: 0.75rem; }
+.stat-col { display: flex; flex-direction: column; gap: 4px; }
 .stat-col.red { color: #ffaaaa; }
 .stat-col.gold { color: var(--ac-gold-light); }
-.stat-row { display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 4px; }
-.val-highlight { font-size: 1.1em; font-weight: bold; color: var(--ac-white); }
+.stat-row { display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(255,255,255,0.1); padding-bottom: 2px; }
+.val-highlight { font-weight: bold; color: var(--ac-white); }
 
-.list-section ul { margin: 0; padding: 0; list-style: none; font-size: 0.85rem; line-height: 1.8; font-family: var(--ac-font-mono); }
-.list-section ul li::before { content: '>'; color: var(--ac-gold); margin-right: 8px; }
+.list-section ul { margin: 0; padding: 0; list-style: none; font-size: 0.75rem; font-family: var(--ac-font-mono); }
+.list-section ul li::before { content: '>'; color: var(--ac-gold); margin-right: 4px; }
 .status-alert { color: var(--ac-red); }
 
-/* 多拍日志样式 */
-.visual-narrative { min-height: 200px; display: flex; flex-direction: column; }
-.narrative-content { flex-grow: 1; display: flex; flex-direction: column; gap: 15px; }
+/* --- 文本展示优化 --- */
+.visual-narrative { padding: 0; background: transparent; border: none; clip-path: none; }
 .beat-log-item {
-  padding: 12px 15px;
-  border-left: 2px solid var(--ac-gold);
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.05), transparent);
+  padding: 10px 12px;
+  border-left: 3px solid var(--ac-gold);
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.08), transparent);
+  margin-bottom: 8px;
 }
-.beat-header { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; font-family: var(--ac-font-mono); }
-.beat-num { background: var(--ac-gold); color: #000; padding: 2px 6px; font-size: 0.7rem; font-weight: bold; border-radius: 2px; }
-.beat-interaction { font-size: 0.8rem; color: var(--ac-gold-light); opacity: 0.8; }
-.narrative-text { font-family: 'Microsoft YaHei', sans-serif; line-height: 1.8; font-size: 0.95rem; color: #e2dac2; text-align: justify; margin: 0 0 8px 0; }
-.beat-result-text { font-family: var(--ac-font-mono); font-size: 0.85rem; color: var(--ac-red); font-weight: bold; }
+.beat-header { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-family: var(--ac-font-mono); }
+.beat-num { background: var(--ac-gold); color: #000; padding: 1px 5px; font-size: 0.7rem; font-weight: bold; border-radius: 2px; }
+.beat-interaction { font-size: 0.8rem; color: var(--ac-gold-light); opacity: 0.9; }
 
-.narrative-footer { margin-top: 20px; text-align: right; font-family: var(--ac-font-mono); font-size: 0.7rem; color: var(--ac-gold-dim); opacity: 0.5; }
+.narrative-text {
+  font-family: 'Microsoft YaHei', sans-serif;
+  line-height: 1.4;
+  font-size: 0.9rem;
+  color: #e2dac2;
+  text-align: justify;
+  margin-bottom: 8px;
+}
+
+.pending-text { color: var(--ac-gray); font-style: italic; font-family: var(--ac-font-mono); font-size: 0.85rem; }
+.glitch-marks { color: var(--ac-gold-dim); animation: blink 1s infinite; }
+.revealed-text { animation: glitchPop 0.3s ease forwards; }
+
+/* 终端输出风格的结果框 */
+.system-result-box {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(212, 175, 55, 0.2);
+  padding: 6px 10px;
+  font-family: var(--ac-font-mono);
+  font-size: 0.85rem;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.system-result-box.beat-result { border-color: rgba(204, 41, 41, 0.4); background: rgba(204, 41, 41, 0.05); }
+.result-arrow { color: var(--ac-gold); font-weight: bold; }
+.system-result-box .pending { color: var(--ac-gray); font-style: italic; }
+.highlight-result { color: var(--ac-red); font-weight: bold; text-shadow: 0 0 5px rgba(204, 41, 41, 0.3); animation: glitchPop 0.3s ease forwards;}
+
+/* 完整复盘列表样式 */
+.full-recap-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  animation: fadeSlideUp 0.4s ease forwards;
+}
+.full-recap-list::-webkit-scrollbar { width: 4px; }
+.full-recap-list::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+.full-recap-list::-webkit-scrollbar-thumb { background: var(--ac-gold-dim); border-radius: 2px; }
+.history-item { opacity: 0.85; transition: opacity 0.2s; }
+.history-item:hover { opacity: 1; background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), transparent); }
+
+.narrative-footer { margin-top: 10px; text-align: right; font-family: var(--ac-font-mono); font-size: 0.7rem; color: var(--ac-gold-dim); opacity: 0.8; }
 
 @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @keyframes pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; text-shadow: 0 0 10px var(--ac-gold); } }
 @keyframes drawLine { from { stroke-dashoffset: 200; stroke-dasharray: 200; } to { stroke-dashoffset: 0; stroke-dasharray: 4 4; } }
-@keyframes glitchPop { 0% { opacity: 0; transform: scale(0.8) skewX(20deg); } 20% { opacity: 1; transform: scale(1.2) skewX(-20deg); } 40% { transform: scale(0.9) skewX(10deg); } 100% { opacity: 1; transform: scale(1) skewX(0); } }
-@keyframes stampIn { 0% { opacity: 0; transform: scale(1.5); } 70% { opacity: 1; transform: scale(0.95); } 100% { opacity: 1; transform: scale(1); } }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes glitchPop { 0% { opacity: 0; transform: scale(0.98); filter: blur(2px); } 100% { opacity: 1; transform: scale(1); filter: blur(0); } }
+@keyframes fadeSlideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
 .fade-slide-enter-active, .fade-slide-leave-active { transition: all 0.3s ease; }
 .fade-slide-enter-from { opacity: 0; transform: translateX(10px); }
 .fade-slide-leave-to { opacity: 0; transform: translateX(-10px); }
 
-@media (max-width: 768px) { .data-grid-layout { grid-template-columns: 1fr; } .combat-svg { min-height: 200px; } }
+@media (max-width: 768px) { .data-grid-layout { grid-template-columns: 1fr; } .combat-svg { min-height: 160px; } }
 </style>
