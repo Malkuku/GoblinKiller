@@ -308,6 +308,7 @@ const advanceCombat = async () => {
   if (phase.value === 'beat-result') {
     if (currentBeatIndex.value >= combatLog.length - 1) {
       // 结束时留在 visual tab 观看完整复盘
+      currentTab.value = 'data';
       phase.value = 'finished';
     } else {
       // 增加切拍的平滑过渡动画
