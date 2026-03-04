@@ -2,14 +2,35 @@
   <div class="ac-skill-manager">
     <!-- 顶部状态栏 -->
     <header class="manager-header">
-      <div class="header-title">
-        <span class="animus-icon"></span>
-        <h2>秘术研习 / SKILL MASTERY</h2>
+      <div class="header-title-area">
+        <div class="header-title">
+          <span class="animus-icon"></span>
+          <h2>秘术研习 / SKILL MASTERY</h2>
+        </div>
+
+        <!-- 新增：角色切换器 -->
+        <div class="character-selector">
+          <select
+            v-model="activeCharacterKey"
+            class="ac-select"
+            :disabled="hasUnsavedChanges || isSaving"
+            @change="handleCharacterChange"
+          >
+            <option value="user">玩家 (User)</option>
+            <option
+              v-for="name in mainCharacterNames"
+              :key="name"
+              :value="name"
+            >
+              {{ name }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <div class="header-actions">
         <div v-if="hasUnsavedChanges" class="unsaved-warning">
-          <span class="blink">⚠</span> 未同步
+          <span class="blink">⚠</span> 未同步 (请先保存再切换角色)
         </div>
         <button
           class="ac-btn save-btn"
@@ -218,10 +239,13 @@ import { MessageUtil } from '@/Utils/MessageUtil';
 const statStore = useStatStore();
 const localEquipped = ref({});
 const localLibrary = ref({});
-const userArts = ref({}); // 存储玩家的术之等级
+const userArts = ref({}); // 存储当前选中角色的术之等级
 const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
 const searchQuery = ref('');
+
+// 角色切换状态
+const activeCharacterKey = ref('user');
 
 // 分类状态
 const activeCategory = ref('全部');
@@ -232,24 +256,46 @@ const activeItemId = ref(null);
 const pendingTransferItem = ref(null);
 const pendingTransferDirection = ref('');
 
-// --- 初始化 ---
+// --- 初始化与角色数据获取 ---
 onMounted(() => {
   resetData();
 });
 
+// 获取主要角色列表
+const mainCharacterNames = computed(() => {
+  const mainChars = statStore.stat_data?.角色?.主要角色 || {};
+  return Object.keys(mainChars);
+});
+
+// 动态获取当前选中角色的数据引用
+function getActiveCharacterData() {
+  if (activeCharacterKey.value === 'user') {
+    return statStore.stat_data?.角色?.user || {};
+  } else {
+    return statStore.stat_data?.角色?.主要角色?.[activeCharacterKey.value] || {};
+  }
+}
+
+function handleCharacterChange() {
+  resetData();
+}
+
 function resetData() {
-  const rawEquipped = statStore.stat_data?.角色?.user?.技能 || {};
+  const charData = getActiveCharacterData();
+
+  // 兼容处理：如果主要角色的技能是字符串(如"与某某共享")，这里做个容错，默认给空对象
+  const rawEquipped = typeof charData.技能 === 'object' ? charData.技能 : {};
   const rawLibrary = statStore.stat_data?.技能库 || {};
 
-  // 获取玩家的术之等级用于校验
-  userArts.value = statStore.stat_data?.角色?.user?.术之等级 || {};
+  // 获取当前角色的术之等级用于校验
+  userArts.value = typeof charData.术之等级 === 'object' ? charData.术之等级 : {};
 
   localEquipped.value = JSON.parse(JSON.stringify(rawEquipped));
   localLibrary.value = JSON.parse(JSON.stringify(rawLibrary));
 
   hasUnsavedChanges.value = false;
   activeItemId.value = null;
-  activeCategory.value = '全部';
+  // 切换角色时不重置 activeCategory，保持用户筛选习惯
 }
 
 // --- 数据处理 ---
@@ -357,10 +403,12 @@ function confirmTransfer() {
   closeTransfer();
 }
 
-// --- 文本格式化与图标 (继承自技能展示组件) ---
+// --- 文本格式化与图标 ---
 const formatSkillText = (text, currentSkill) => {
   if (!text || typeof text !== 'string') return text || '无';
-  const stats = statStore.stat_data?.角色?.user || {};
+
+  // 动态获取当前角色的数值用于文本解析
+  const stats = getActiveCharacterData();
 
   return text.replace(/\$\{([^}]+)\}/g, (match, key) => {
     if (key === '技能等级') return `技能等级[${currentSkill.技能等级}]`;
@@ -440,10 +488,17 @@ async function saveAllChanges() {
 
   try {
     const payloads = { delete: {}, insert: {}, update: {} };
-    const remoteEquipped = statStore.stat_data?.角色?.user?.技能 || {};
+
+    // 动态获取当前角色的远程数据和保存路径
+    const charData = getActiveCharacterData();
+    const remoteEquipped = typeof charData.技能 === 'object' ? charData.技能 : {};
     const remoteLibrary = statStore.stat_data?.技能库 || {};
 
-    generateDiff(localEquipped.value, remoteEquipped, ['角色', 'user', '技能'], payloads);
+    const characterSkillPath = activeCharacterKey.value === 'user'
+      ? ['角色', 'user', '技能']
+      : ['角色', '主要角色', activeCharacterKey.value, '技能'];
+
+    generateDiff(localEquipped.value, remoteEquipped, characterSkillPath, payloads);
     generateDiff(localLibrary.value, remoteLibrary, ['技能库'], payloads);
 
     const mergedPayload = {};
@@ -481,7 +536,8 @@ async function saveAllChanges() {
     });
 
     if (exchangeLogs.length > 0) {
-      const logText = `\n<user>调整了意识深处的秘术:\n${exchangeLogs.join('\n')}\n`;
+      const logName = activeCharacterKey.value === 'user' ? 'user' : activeCharacterKey.value;
+      const logText = `\n<${logName}>调整了意识深处的秘术:\n${exchangeLogs.join('\n')}\n`;
       const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
       await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
     }
@@ -500,7 +556,7 @@ async function saveAllChanges() {
 </script>
 
 <style scoped>
-/* --- 基础变量与布局 (继承自仓库) --- */
+/* --- 基础变量与布局 --- */
 .ac-skill-manager {
   --c-gold: #d4af37;
   --c-gold-dim: rgba(212, 175, 55, 0.3);
@@ -529,8 +585,28 @@ async function saveAllChanges() {
   background: linear-gradient(to right, rgba(0,0,0,0.8), transparent);
   flex-shrink: 0;
 }
-.header-title h2 { margin: 0; font-family: var(--font-title); color: var(--c-gold); font-size: 1.4rem; display: flex; align-items: center; gap: 10px; }
+.header-title-area { display: flex; align-items: center; gap: 20px; }
+.header-title { display: flex; align-items: center; gap: 10px; }
+.header-title h2 { margin: 0; font-family: var(--font-title); color: var(--c-gold); font-size: 1.4rem; }
 .animus-icon { width: 10px; height: 10px; background: var(--c-gold); transform: rotate(45deg); box-shadow: 0 0 8px var(--c-gold); }
+
+/* 新增：角色选择器样式 */
+.character-selector { display: flex; align-items: center; }
+.ac-select {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--c-gold-dim);
+  color: var(--c-gold);
+  padding: 6px 12px;
+  font-family: var(--font-title);
+  font-size: 0.9rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.ac-select:hover:not(:disabled) { border-color: var(--c-gold); box-shadow: 0 0 8px var(--c-gold-dim); }
+.ac-select:disabled { opacity: 0.5; cursor: not-allowed; border-color: #444; color: #888; }
+.ac-select option { background: var(--c-bg-panel); color: var(--c-text); }
+
 .header-actions { display: flex; align-items: center; gap: 15px; }
 .unsaved-warning { color: var(--c-gold); font-size: 0.9rem; font-family: var(--font-title); }
 .blink { animation: blink 1.5s infinite; }
@@ -564,7 +640,7 @@ async function saveAllChanges() {
 .ac-input:focus { outline: none; border-color: var(--c-gold); width: 150px; }
 .divider-column { display: flex; align-items: center; justify-content: center; width: 40px; flex-shrink: 0; color: var(--c-gold-dim); font-size: 1.5rem; }
 
-/* --- 技能网格与卡片 (融合技能展示UI) --- */
+/* --- 技能网格与卡片 --- */
 .item-grid { flex: 1; padding: 10px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); grid-auto-rows: max-content; gap: 12px; align-content: start; }
 .custom-scroll::-webkit-scrollbar { width: 6px; }
 .custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
@@ -624,6 +700,8 @@ async function saveAllChanges() {
 
 /* --- 移动端适配 --- */
 @media (max-width: 768px) {
+  .manager-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .header-actions { width: 100%; justify-content: space-between; }
   .manager-body { flex-direction: column; padding: 10px; }
   .mobile-tabs { display: flex; gap: 10px; margin-bottom: 5px; flex-shrink: 0; }
   .mobile-tab-item { flex: 1; text-align: center; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #888; font-family: var(--font-title); cursor: pointer; transition: 0.3s; }
