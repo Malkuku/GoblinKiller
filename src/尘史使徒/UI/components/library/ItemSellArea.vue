@@ -31,10 +31,19 @@
 import { inject } from 'vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { MvuUtil } from '@/Utils/MvuUtil';
+import { MessageUtil } from '@/Utils/MessageUtil'; // 引入消息工具
 
 const props = defineProps({ itemSells: Object });
 const showToast = inject('showToast', (msg) => console.log(msg));
 const statStore = useStatStore();
+
+// 模糊化异质数量的辅助函数
+const getVagueYizhiDesc = (amount) => {
+  if (amount <= 20) return "些许微弱的异质";
+  if (amount <= 60) return "一缕缥缈的异质";
+  if (amount <= 150) return "一团氤氲的异质";
+  return "一股涌动的浓郁异质";
+};
 
 const getUserItemCount = (itemName) => {
   const items = statStore.stat_data?.角色?.user?.物品 || {};
@@ -63,7 +72,14 @@ const sellItem = async (itemName, details) => {
 
   try {
     await MvuUtil.updateMvuDataByDiff(diff);
-    showToast(`出售成功！获得 ${price} 异质`);
+    showToast(`出售成功！`);
+
+    // 发送交易日志消息
+    const vagueDesc = getVagueYizhiDesc(price);
+    const logText = `\n<user>将【${itemName}】投入了未知的虚空。作为交换，你失去了该物品，但从中汲取了${vagueDesc}。\n`;
+    const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
+    await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
+
     setTimeout(() => statStore.initData(), 200);
   } catch (e) {
     showToast("交易失败");

@@ -34,10 +34,18 @@
 import { inject } from 'vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { MvuUtil } from '@/Utils/MvuUtil';
+import { MessageUtil } from '@/Utils/MessageUtil'; // 引入消息工具
 
 const props = defineProps({ skillBuys: Object });
 const showToast = inject('showToast', (msg) => console.log(msg));
 const statStore = useStatStore();
+
+const getVagueYizhiDesc = (amount) => {
+  if (amount <= 20) return "些许微弱的异质";
+  if (amount <= 60) return "一缕缥缈的异质";
+  if (amount <= 150) return "一团氤氲的异质";
+  return "一股涌动的浓郁异质";
+};
 
 const hasSkill = (skillName) => {
   const skills = statStore.stat_data?.角色?.user?.技能 || {};
@@ -70,6 +78,13 @@ const buySkill = async (skillName, details) => {
   try {
     await MvuUtil.updateMvuDataByDiff(diff);
     showToast(`习得技能：${skillName}`);
+
+    // 发送交易日志消息
+    const vagueDesc = getVagueYizhiDesc(price);
+    const logText = `\n<user>献出了${vagueDesc}作为代价。古老的低语在脑海中回荡，你失去了这些异质，但成功将【${skillName}】的技艺铭刻于心。\n`;
+    const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
+    await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
+
     setTimeout(() => statStore.initData(), 200);
   } catch (e) {
     showToast("购买失败");
