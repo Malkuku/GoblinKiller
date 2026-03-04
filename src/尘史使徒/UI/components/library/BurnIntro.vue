@@ -68,13 +68,54 @@ const isFading = ref(false);
 const holes = ref([]);
 
 onMounted(() => {
-  const numHoles = 5 + Math.floor(Math.random() * 3);
+  const numHoles = 5 + Math.floor(Math.random() * 3); // 5 到 7 个洞
+
+  // 获取屏幕宽高，用于计算真实的像素距离，防止在宽屏/长屏上距离计算变形
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+
+  // 设定两个火圈中心点的最小安全距离（取屏幕较短边的 35% 作为防重叠半径）
+  const minDistancePx = Math.min(vw, vh) * 0.35;
+  const maxRetries = 50; // 最大重试次数，防止死循环
+
   for (let i = 0; i < numHoles; i++) {
+    let xPercent, yPercent, xPx, yPx;
+    let isValid = false;
+    let retries = 0;
+
+    // 拒绝采样算法：生成坐标 -> 检查距离 -> 不合格则重试
+    while (!isValid && retries < maxRetries) {
+      xPercent = 10 + Math.random() * 80;
+      yPercent = 10 + Math.random() * 80;
+
+      // 转换为实际像素坐标
+      xPx = (xPercent / 100) * vw;
+      yPx = (yPercent / 100) * vh;
+
+      isValid = true;
+
+      // 与已存在的火圈进行距离校验
+      for (const existingHole of holes.value) {
+        const dx = xPx - existingHole.px;
+        const dy = yPx - existingHole.py;
+        const distance = Math.sqrt(dx * dx + dy * dy); // 勾股定理计算直线距离
+
+        if (distance < minDistancePx) {
+          isValid = false; // 距离太近，标记为不合格，跳出当前比对，重新生成
+          break;
+        }
+      }
+      retries++;
+    }
+
+    // 将合格的（或达到最大重试次数妥协的）火圈加入数组
     holes.value.push({
-      x: (10 + Math.random() * 80) + '%',
-      y: (10 + Math.random() * 80) + '%',
+      x: xPercent + '%',
+      y: yPercent + '%',
+      px: xPx, // 保存像素坐标供后续比对使用
+      py: yPx,
       delay: (Math.random() * 0.5) + 's',
-      dur: '4s' // 保持缓慢扩张，维持蛀烧感
+      dur: '4s'
     });
   }
 
@@ -95,7 +136,6 @@ onMounted(() => {
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 9999;
   pointer-events: none;
-  /* 核心改动 3：淡出时间从 1.2s 缩短到 0.5s，消失得更干脆快速 */
   transition: opacity 0.5s ease-out;
 }
 .fade-out {

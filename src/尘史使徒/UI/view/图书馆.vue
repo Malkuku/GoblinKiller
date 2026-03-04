@@ -37,6 +37,11 @@
         v-show="currentMode === '密传购买'"
         :secretBuys="secretBuys"
       />
+
+      <ExpBuyArea
+        v-show="currentMode === '经验兑换'"
+      />
+
     </div>
 
     <!-- 底部输入区 -->
@@ -60,13 +65,14 @@ import ItemSellArea from '@/尘史使徒/UI/components/library/ItemSellArea.vue'
 import SkillBuyArea from '@/尘史使徒/UI/components/library/SkillBuyArea.vue';
 import SecretBuyArea from '@/尘史使徒/UI/components/library/SecretBuyArea.vue';
 import InputArea from '@/尘史使徒/UI/components/library/InputArea.vue';
+import ExpBuyArea from '@/尘史使徒/UI/components/library/ExpBuyArea.vue';
 
 
 const showToast = inject('showToast', (msg) => console.log(msg));
 const statStore = useStatStore();
 
 // 状态管理
-const modes = ['对话', '物品出售', '技能购买', '密传购买'];
+const modes = ['对话', '物品出售', '技能购买', '密传购买', '经验兑换'];
 const currentMode = ref('对话');
 const isSending = ref(false);
 const isThinking = ref(false);
