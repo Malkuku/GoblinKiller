@@ -1,5 +1,16 @@
 <template>
   <div class="user-shortcut-bar">
+    <!-- 战斗策略切换与自定义输入 -->
+    <div class="strategy-module">
+      <div class="strategy-selector" title="切换战斗策略">
+        <span class="icon">⚔️</span>
+        <select :value="strategy" @change="onStrategyChange" class="custom-select">
+          <option value="节省体力">节省体力</option>
+          <option value="伤害灌注">伤害灌注</option>
+          <option value="防御优先">防御优先</option>
+          <option value="自定义">自定义</option>
+        </select>
+      </div>
     <!-- 生命状态三维 (横向胶囊风格) -->
     <div class="status-group">
       <div class="stat-pill hp" :title="`生命: ${lifeStatus?.['生命']?.['当前'] || 0} / ${lifeStatus?.['生命']?.['最大值'] || 0}`">
@@ -15,19 +26,6 @@
         <div class="bar-bg"><div class="bar-fill" :style="{ width: getPercent(lifeStatus?.['精神']) + '%' }"></div></div>
       </div>
     </div>
-
-    <!-- 战斗策略切换与自定义输入 -->
-    <div class="strategy-module">
-      <div class="strategy-selector" title="切换战斗策略">
-        <span class="icon">⚔️</span>
-        <select :value="strategy" @change="onStrategyChange" class="custom-select">
-          <option value="节省体力">节省体力</option>
-          <option value="伤害灌注">伤害灌注</option>
-          <option value="防御优先">防御优先</option>
-          <option value="自定义">自定义</option>
-        </select>
-      </div>
-
       <!-- 自定义策略输入框 -->
       <transition name="slide-fade-input">
         <div v-if="strategy === '自定义'" class="custom-input-wrapper">
