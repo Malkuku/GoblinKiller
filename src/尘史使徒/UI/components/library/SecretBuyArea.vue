@@ -13,11 +13,13 @@
         </div>
         <div class="card-action">
           <div class="price-display">需 {{ details.价格 || 50 }} 异质</div>
-          <div class="cart-controls" v-if="pendingCart[name]">
-            <button class="ctrl-btn" @click="removeFromCart(name)">-</button>
-            <span class="count">{{ pendingCart[name].count }}</span>
-            <button class="ctrl-btn" :disabled="!canAddMore(details.价格 || 50)" @click="addToCart(name, details)">+</button>
-          </div>
+
+          <button v-if="pendingCart[name]"
+                  class="action-btn cancel-btn"
+                  @click="removeFromCart(name)"
+          >
+            取消待购
+          </button>
           <button v-else
                   class="action-btn buy-btn"
                   :disabled="!canAddMore(details.价格 || 50)"
@@ -32,7 +34,6 @@
     <!-- 结算悬浮栏 -->
     <div class="checkout-bar" v-if="totalCartCount > 0">
       <div class="checkout-info">
-        <span>已选: {{ totalCartCount }} 份</span>
         <span>总计: {{ totalCartCost }} 异质</span>
       </div>
       <div class="checkout-actions">
@@ -56,11 +57,11 @@ const statStore = useStatStore();
 const pendingCart = ref({});
 
 const totalCartCount = computed(() => {
-  return Object.values(pendingCart.value).reduce((sum, item) => sum + item.count, 0);
+  return Object.keys(pendingCart.value).length;
 });
 
 const totalCartCost = computed(() => {
-  return Object.values(pendingCart.value).reduce((sum, item) => sum + item.count * (item.details.价格 || 50), 0);
+  return Object.values(pendingCart.value).reduce((sum, item) => sum + (item.details.价格 || 50), 0);
 });
 
 const currentYizhi = computed(() => {
@@ -78,17 +79,13 @@ const addToCart = (name, details) => {
     return;
   }
   if (!pendingCart.value[name]) {
-    pendingCart.value[name] = { details, count: 0 };
+    pendingCart.value[name] = { details, count: 1 };
   }
-  pendingCart.value[name].count++;
 };
 
 const removeFromCart = (name) => {
   if (pendingCart.value[name]) {
-    pendingCart.value[name].count--;
-    if (pendingCart.value[name].count <= 0) {
-      delete pendingCart.value[name];
-    }
+    delete pendingCart.value[name];
   }
 };
 
@@ -102,6 +99,7 @@ const getVagueYizhiDesc = (amount) => {
   if (amount <= 150) return "一团氤氲的异质";
   return "一股涌动的浓郁异质";
 };
+
 const confirmCheckout = async () => {
   if (totalCartCount.value === 0) return;
   if (!statStore.stat_data) return;
@@ -126,24 +124,22 @@ const confirmCheckout = async () => {
   const acquiredNames = [];
 
   for (const [secretName, cartItem] of Object.entries(pendingCart.value)) {
-    for (let i = 0; i < cartItem.count; i++) {
-      let finalName = secretName;
-      let counter = 1;
-      while (occupiedNames.has(finalName)) {
-        finalName = `${secretName}${counter}`;
-        counter++;
-      }
-      occupiedNames.add(finalName);
-      acquiredNames.push(finalName);
-
-      diff.角色.user.物品[finalName] = {
-        类型: "密传",
-        数量: 1,
-        耐久: 100,
-        描述: cartItem.details.描述 || "一份神秘的记录",
-        作用: cartItem.details.作用 || "阅读以获取知识"
-      };
+    let finalName = secretName;
+    let counter = 1;
+    while (occupiedNames.has(finalName)) {
+      finalName = `${secretName}${counter}`;
+      counter++;
     }
+    occupiedNames.add(finalName);
+    acquiredNames.push(finalName);
+
+    diff.角色.user.物品[finalName] = {
+      类型: "密传",
+      数量: 1,
+      耐久: 100,
+      描述: cartItem.details.描述 || "一份神秘的记录",
+      作用: cartItem.details.作用 || "阅读以获取知识"
+    };
   }
 
   try {
@@ -166,37 +162,18 @@ const confirmCheckout = async () => {
 </script>
 
 <style scoped>
-.cart-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.ctrl-btn {
-  width: 28px;
-  height: 28px;
+.cancel-btn {
+  background: #d32f2f;
+  color: white;
+  border: none;
+  padding: 6px 12px;
   border-radius: 4px;
-  border: 1px solid #666;
-  background: #333;
-  color: #fff;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  transition: all 0.2s;
 }
-.ctrl-btn:hover:not(:disabled) {
-  background: #444;
+.cancel-btn:hover {
+  background: #b71c1c;
 }
-.ctrl-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.count {
-  min-width: 20px;
-  text-align: center;
-  font-weight: bold;
-}
+
 .checkout-bar {
   position: sticky;
   bottom: 0;

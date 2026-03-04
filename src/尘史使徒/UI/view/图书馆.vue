@@ -20,7 +20,9 @@
         :chatContents="chatContents"
         :welcomeContent="welcomeContent"
         :isThinking="isThinking"
-        @deleteMessages="deleteSelected"
+        :isDeleteMode="isDeleteMode"
+        :selectedMessages="selectedMessages"
+        @toggleSelect="toggleSelect"
       />
 
       <ItemSellArea
@@ -47,7 +49,11 @@
     <!-- 底部输入区 -->
     <InputArea
       :isSending="isSending"
+      :isDeleteMode="isDeleteMode"
+      :selectedCount="selectedMessages.length"
       @sendMessage="sendMessage"
+      @toggleDeleteMode="toggleDeleteMode"
+      @deleteSelected="deleteSelected"
     />
   </div>
 </template>
@@ -67,7 +73,6 @@ import SecretBuyArea from '@/尘史使徒/UI/components/library/SecretBuyArea.vu
 import InputArea from '@/尘史使徒/UI/components/library/InputArea.vue';
 import ExpBuyArea from '@/尘史使徒/UI/components/library/ExpBuyArea.vue';
 
-
 const showToast = inject('showToast', (msg) => console.log(msg));
 const statStore = useStatStore();
 
@@ -77,6 +82,10 @@ const currentMode = ref('对话');
 const isSending = ref(false);
 const isThinking = ref(false);
 const showIntro = ref(true);
+
+// 删除模式状态管理 (新增)
+const isDeleteMode = ref(false);
+const selectedMessages = ref([]);
 
 // 聊天数据
 const chatContents = ref([]);
@@ -104,8 +113,21 @@ const switchMode = (mode) => {
   }
 };
 
-// ================= 核心逻辑：批量删除 =================
-const deleteSelected = async (selectedIds) => {
+// ================= 核心逻辑：删除模式控制 (新增) =================
+const toggleDeleteMode = () => {
+  isDeleteMode.value = !isDeleteMode.value;
+  if (!isDeleteMode.value) selectedMessages.value = [];
+};
+
+const toggleSelect = (id) => {
+  const pos = selectedMessages.value.indexOf(id);
+  if (pos === -1) selectedMessages.value.push(id);
+  else selectedMessages.value.splice(pos, 1);
+};
+
+// ================= 核心逻辑：批量删除 (修改) =================
+const deleteSelected = async () => {
+  const selectedIds = selectedMessages.value;
   if (!selectedIds || selectedIds.length === 0) return;
 
   const newMessages = chatContents.value.filter(msg => !selectedIds.includes(msg.id));
@@ -127,13 +149,19 @@ const deleteSelected = async (selectedIds) => {
   } catch (e) {
     console.error(e);
     showToast("删除失败");
+  } finally {
+    // 删除完成后退出删除模式并清空选择
+    selectedMessages.value = [];
+    isDeleteMode.value = false;
   }
 };
 
-// ================= 核心逻辑：发送消息 =================
+// ================= 核心逻辑：发送消息 (修改) =================
 const sendMessage = async (text) => {
-  if (chatAreaRef.value && chatAreaRef.value.isDeleteMode) {
-    chatAreaRef.value.toggleDeleteMode();
+  // 发送消息时，如果处于删除模式，则退出
+  if (isDeleteMode.value) {
+    isDeleteMode.value = false;
+    selectedMessages.value = [];
   }
 
   isSending.value = true;
@@ -173,12 +201,13 @@ const sendMessage = async (text) => {
   }
 };
 
-// ================= 核心逻辑：数据同步 =================
+// ================= 核心逻辑：数据同步 (修改) =================
 const welcome1 = welcomeMessage.welcome1;
 const welcome2 = welcomeMessage.welcome2;
 
 const syncChatRecord = async () => {
-  if (chatAreaRef.value && chatAreaRef.value.isDeleteMode) return;
+  // 如果处于删除模式，暂停同步以防干扰用户选择
+  if (isDeleteMode.value) return;
 
   try {
     const entryName = '<图书馆>聊天记录';
@@ -202,8 +231,8 @@ const syncChatRecord = async () => {
     let needsUpdate = false;
     let newMessages = [...parsedMessages];
 
-    if (newMessages.length > 20) {
-      newMessages = newMessages.slice(newMessages.length - 20);
+    if (newMessages.length > 10) {
+      newMessages = newMessages.slice(newMessages.length - 10);
       needsUpdate = true;
     }
 

@@ -37,7 +37,6 @@
     <!-- 结算悬浮栏 -->
     <div class="checkout-bar" v-if="totalCartCount > 0">
       <div class="checkout-info">
-        <span>已选: {{ totalCartCount }} 项</span>
         <span>总计: {{ totalCartCost }} 异质</span>
       </div>
       <div class="checkout-actions">
