@@ -53,19 +53,39 @@
     <!-- 底部交互区域 -->
     <div v-show="!isInitializing" class="interaction-panel">
 
-      <!-- 新增：附加工具栏 (变量重算 / 重roll) -->
+      <!-- 移动端工具栏切换按钮 -->
+      <div v-show="!isTavernBusy" class="mobile-toolbar-toggle" @click="showMobileToolbar = !showMobileToolbar">
+        <span class="toggle-line"></span>
+        <span class="toggle-text">{{ showMobileToolbar ? '▲ 收起控制台' : '▼ 展开控制台' }}</span>
+        <span class="toggle-line"></span>
+      </div>
+
+      <!-- 控制台区域 (包含状态栏和工具按钮) -->
       <transition name="fade-toolbar">
-        <div v-show="!isTavernBusy" class="extra-toolbar">
-          <button class="toolbar-btn" @click="recalculateVariables" title="重新计算当前变量">
-            <span class="icon">⟳</span> 变量重算
-          </button>
-          <button class="toolbar-btn" @click="rerollCurrent" title="重新生成当前回复">
-            <span class="icon">🎲</span> 重塑命运
-          </button>
+        <div v-show="!isTavernBusy" class="dashboard-console" :class="{ 'mobile-hidden': !showMobileToolbar }">
+          <!-- 左侧：用户状态与策略 -->
+          <UserShortcutBar
+            :life-status="userLifeStatus"
+            :strategy="combatStrategy"
+            :custom-content="combatStrategyCustom"
+            @update:strategy="handleStrategyChange"
+            @update:custom-content="handleCustomContentChange"
+          />
+
+          <!-- 右侧：附加工具栏 (变量重算 / 重roll) -->
+          <div class="extra-toolbar">
+            <button class="toolbar-btn" @click="recalculateVariables" title="重新计算当前变量">
+              <span class="icon">⟳</span> 变量重算
+            </button>
+            <button class="toolbar-btn" @click="rerollCurrent" title="重新生成当前回复">
+              <span class="icon">🎲</span> 重塑命运
+            </button>
+          </div>
         </div>
       </transition>
 
       <div class="input-wrapper">
+
         <!-- 选项菜单按钮 -->
         <div class="options-container">
           <transition name="slide-up">
@@ -146,6 +166,8 @@ import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 import * as toastr from 'toastr';
 import { KatEvents } from '@/Constants/KatEvent';
+import { MvuUtil } from '@/Utils/MvuUtil';
+import UserShortcutBar from '@/尘史使徒/UI/components/tool/UserShortcutBar.vue';
 
 const router = useRouter();
 const messageStore = useMessageStore();
@@ -163,6 +185,7 @@ const isInitializing = ref(true);
 const pollingInterval = ref<any>(null);
 const fontSize = ref(18);
 const showOptionsPanel = ref(false);
+const showMobileToolbar = ref(false); // 移动端控制台展开状态
 
 // 跳转按钮控制
 const showQuestLink = ref(false);
@@ -170,6 +193,15 @@ const showShopLink = ref(false);
 
 const isTavernBusy = ref(false);
 let sendButtonObserver: MutationObserver | null = null;
+
+// --- 快捷栏状态 ---
+const userLifeStatus = ref<any>({
+  "生命": { "最大值": 100, "当前": 100 },
+  "体力": { "最大值": 100, "当前": 100 },
+  "精神": { "最大值": 100, "当前": 100 }
+});
+const combatStrategy = ref('节省体力');
+const combatStrategyCustom = ref(''); // 新增：自定义策略内容
 
 // --- 正则 ---
 const OPTIONS_BLOCK_REGEX = /<options>([\s\S]*?)<\/options>/i;
@@ -242,6 +274,66 @@ const navigateToShop = () => {
   router.push('/商店');
 };
 
+// --- 同步 Mvu 状态数据 ---
+const syncStatData = () => {
+  try {
+    const parentWin = window.parent as any;
+    if (parentWin.Mvu) {
+      const mvuData = parentWin.Mvu.getMvuData({ type: 'message', message_id: -1 });
+      if (mvuData && mvuData.stat_data) {
+        // 同步生命状态
+        if (mvuData.stat_data['角色']?.['user']?.['生命状态']) {
+          userLifeStatus.value = mvuData.stat_data['角色']['user']['生命状态'];
+        }
+        // 同步战斗策略
+        if (mvuData.stat_data['system']?.['战斗策略']) {
+          combatStrategy.value = mvuData.stat_data['system']['战斗策略'];
+        }
+        // 同步自定义内容
+        if (mvuData.stat_data['system']?.['战斗策略自定义内容'] !== undefined) {
+          combatStrategyCustom.value = mvuData.stat_data['system']['战斗策略自定义内容'];
+        }
+      }
+    }
+  } catch (e) {
+    // 忽略错误，避免频繁报错
+  }
+};
+
+// --- 处理策略切换 ---
+const handleStrategyChange = async (newStrategy: string) => {
+  combatStrategy.value = newStrategy;
+  try {
+    await MvuUtil.updateMvuDataByDiff({
+      "system": {
+        "战斗策略": newStrategy
+      }
+    });
+    if (newStrategy !== '自定义') {
+      toastr.success(`战斗策略已切换为: ${newStrategy}`);
+    }
+  } catch (e) {
+    console.error("策略切换失败", e);
+    toastr.error("策略切换失败");
+  }
+};
+
+// --- 处理自定义策略内容更新 ---
+const handleCustomContentChange = async (newContent: string) => {
+  combatStrategyCustom.value = newContent;
+  try {
+    await MvuUtil.updateMvuDataByDiff({
+      "system": {
+        "战斗策略自定义内容": newContent
+      }
+    });
+    toastr.success(`自定义策略已更新`);
+  } catch (e) {
+    console.error("自定义策略更新失败", e);
+    toastr.error("自定义策略更新失败");
+  }
+};
+
 // 轮询核心：同时检查消息和按钮状态
 const fetchLatestMessage = () => {
   try {
@@ -256,7 +348,10 @@ const fetchLatestMessage = () => {
     // 2. 同步原始消息
     messageStore.getMessage();
 
-    // 3. 检查消息内容
+    // 3. 同步状态数据 (生命值/策略)
+    syncStatData();
+
+    // 4. 检查消息内容
     const chatContainer = parentDoc.getElementById('chat');
     if (!chatContainer) return;
 
@@ -349,7 +444,7 @@ const sendMessage = async () => {
   }
 };
 
-// --- 新增：变量重算 ---
+// --- 变量重算 ---
 const recalculateVariables = async () => {
   try {
     await eventEmit(KatEvents.kat_resend_mvu_update);
@@ -360,7 +455,7 @@ const recalculateVariables = async () => {
   }
 };
 
-// --- 核心修改：重roll本楼 (Swipe) ---
+// --- 重roll本楼 (Swipe) ---
 const rerollCurrent = () => {
   const parentWin = window.parent as any;
   const parentDoc = parentWin.document;
@@ -606,20 +701,37 @@ onUnmounted(() => {
 .interaction-panel {
   flex-shrink: 0;
   background: linear-gradient(to top, rgba(10, 12, 16, 1) 20%, rgba(10, 12, 16, 0.8) 80%, transparent);
-  padding: 20px 30px 30px;
+  padding: 15px 30px 30px;
   display: flex; flex-direction: column; align-items: center;
   border-top: 1px solid rgba(164, 139, 87, 0.1);
   backdrop-filter: blur(5px);
 }
 
-/* --- Extra Toolbar (新增) --- */
-.extra-toolbar {
+/* --- Dashboard 控制台 (包含状态栏和工具栏) --- */
+.dashboard-console {
   width: 100%;
   max-width: 800px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 12px;
   gap: 15px;
-  margin-bottom: 10px;
+  flex-wrap: wrap;
+  transition: max-height 0.3s ease, opacity 0.3s ease, margin 0.3s ease;
+  max-height: 500px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+/* --- 移动端工具栏切换按钮 --- */
+.mobile-toolbar-toggle {
+  display: none;
+}
+
+/* --- Extra Toolbar --- */
+.extra-toolbar {
+  display: flex;
+  gap: 10px;
 }
 
 .toolbar-btn {
@@ -635,6 +747,7 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   transition: all 0.3s ease;
+  height: 32px;
 }
 
 .toolbar-btn:hover {
@@ -702,9 +815,59 @@ onUnmounted(() => {
   backdrop-filter: blur(10px); overflow: hidden;
 }
 
+/* --- 移动端适配 --- */
 @media (max-width: 768px) {
   .options-popup-menu { width: calc(100vw - 30px); }
   .option-item { padding: 12px; font-size: 1.05rem; }
+
+  .interaction-panel {
+    padding: 10px 15px 20px;
+  }
+
+  /* 移动端显示折叠开关 */
+  .mobile-toolbar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 5px 0 10px 0;
+    color: var(--c-gold);
+    font-family: 'Cinzel', serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    opacity: 0.8;
+    gap: 10px;
+  }
+
+  .toggle-line {
+    flex: 1;
+    height: 1px;
+    background: rgba(164, 139, 87, 0.3);
+  }
+
+  /* 移动端控制台收起状态 */
+  .dashboard-console.mobile-hidden {
+    max-height: 0;
+    opacity: 0;
+    margin-bottom: 0;
+  }
+
+  /* 移动端控制台展开时的布局优化 */
+  .dashboard-console {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .extra-toolbar {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .toolbar-btn {
+    flex: 1;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 480px) {
@@ -712,6 +875,7 @@ onUnmounted(() => {
   .options-header { padding: 8px 12px; font-size: 0.85rem; }
   .option-item { padding: 10px; font-size: 1rem; }
 }
+
 .options-header {
   padding: 10px 15px; background: rgba(164, 139, 87, 0.1);
   border-bottom: 1px solid rgba(164, 139, 87, 0.3);
