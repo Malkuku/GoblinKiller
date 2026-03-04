@@ -65,6 +65,7 @@ import { ref, computed } from 'vue';
 import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
 import { router } from '@/尘史使徒/UI/router/router';
 import { ScenariosMetadata } from '@/尘史使徒/UI/types/剧本数据';
+import { MvuUtil } from '@/Utils/MvuUtil';
 
 const selectedScenario = ref('');
 const loading = ref(false);
@@ -158,7 +159,7 @@ const loadScenarioContent = async (entryName) => {
   // 2. 获取当前消息ID
   const msgId = getLastMessageId();
   if (msgId === undefined || msgId === null) {
-    if (window.toastr) window.toastr.error('无法获取当前消息ID');
+    toastr.error('无法获取当前消息ID');
     throw new Error('No message ID');
   }
 
@@ -170,7 +171,15 @@ const loadScenarioContent = async (entryName) => {
     message: content
   }], { refresh: 'affected' });
 
-  if (window.toastr) window.toastr.success('剧本加载成功，世界已重塑。');
+  await MvuUtil.updateMvuData(`
+  <JSONPatch>
+[
+  { "op": "replace", "path": "/哈基米", "value": "叮咚鸡" }
+]
+</JSONPatch>
+  `);
+
+  toastr.success('剧本加载成功，世界已重塑。');
 };
 </script>
 
