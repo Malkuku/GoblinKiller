@@ -267,10 +267,10 @@ const getAspectClass = (aspect) => {
 /* --- 性相配色方案 (包含 SVG 图标颜色与发光效果) --- */
 
 /* 刃 (Edge) */
-.aspect-edge { border-top: 2px solid #388e3c; }
-.aspect-edge .skill-header { background: linear-gradient(90deg, rgba(56, 142, 60, 0.15), transparent); }
-.aspect-edge .skill-aspect-tag { background: #81c784; color: #000; }
-.aspect-edge .skill-icon { color: #81c784; filter: drop-shadow(0 0 4px rgba(129, 199, 132, 0.5)); }
+.aspect-edge { border-top: 2px solid #2a2a2a; }
+.aspect-edge .skill-header { background: linear-gradient(90deg, rgba(42, 42, 42, 0.15), transparent); }
+.aspect-edge .skill-aspect-tag { background: #4a4a4a; color: #fff; }
+.aspect-edge .skill-icon { color: #4a4a4a; filter: drop-shadow(0 0 4px rgba(74, 74, 74, 0.5)); }
 
 /* 杯 (Grail) */
 .aspect-grail { border-top: 2px solid #d32f2f; }
