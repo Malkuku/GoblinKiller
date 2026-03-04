@@ -1,6 +1,17 @@
 <template>
   <div class="scroll-area transaction-area arts-container">
 
+    <!-- 角色选择器 -->
+    <div class="character-selector">
+      <label>选择灌注目标：</label>
+      <select v-model="selectedCharacter">
+        <option value="user">User</option>
+        <option v-for="name in mainCharacterNames" :key="name" :value="name">
+          {{ name }}
+        </option>
+      </select>
+    </div>
+
     <!-- 统一结算控制台 (当有待消耗异质时显示) -->
     <div class="settlement-bar" v-if="totalPendingCost > 0">
       <div class="settlement-info">
@@ -50,7 +61,8 @@
               </div>
               <div class="detail-row cost">
                 <span class="label">距下级:</span>
-                <span class="value">{{ getExpNeeded(data.等级, data.经验) }} 经验 (需 {{ getExpNeeded(data.等级, data.经验) * 5 }} 异质)</span>
+                <!-- 费用比例修改为 4:1 -->
+                <span class="value">{{ getExpNeeded(data.等级, data.经验) }} 经验 (需 {{ getExpNeeded(data.等级, data.经验) * 4 }} 异质)</span>
               </div>
             </div>
           </template>
@@ -62,23 +74,23 @@
             <button
               class="action-btn buy-btn"
               @click="queueExp(artName, 10)"
-              :disabled="remainingHeterogeneity < 50"
-              title="消耗 50 异质"
+              :disabled="remainingHeterogeneity < 40"
+              title="消耗 40 异质"
             >
               +10 经验
             </button>
             <button
               class="action-btn buy-btn"
               @click="queueExp(artName, 100)"
-              :disabled="remainingHeterogeneity < 500"
-              title="消耗 500 异质"
+              :disabled="remainingHeterogeneity < 400"
+              title="消耗 400 异质"
             >
               +100 经验
             </button>
             <button
               class="action-btn buy-btn highlight"
               @click="queueNextLevel(artName)"
-              :disabled="remainingHeterogeneity < getExpNeeded(data.等级, data.经验) * 5 || getExpNeeded(data.等级, data.经验) === 0"
+              :disabled="remainingHeterogeneity < getExpNeeded(data.等级, data.经验) * 4 || getExpNeeded(data.等级, data.经验) === 0"
               title="消耗所需异质直接升至下一级"
             >
               升至下级
@@ -94,23 +106,46 @@
 </template>
 
 <script setup>
-import { ref, computed, inject } from 'vue';
+import { ref, computed, inject, watch } from 'vue';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { MvuUtil } from '@/Utils/MvuUtil';
-import { MessageUtil } from '@/Utils/MessageUtil';
 
 const showToast = inject('showToast', (msg) => console.log(msg));
 const statStore = useStatStore();
 
+const username = substitudeMacros('{{user}}');
+
 // 固定的所有术的列表
 const ALL_ARTS = ["灯", "铸", "刃", "冬", "心", "杯", "蛾", "启"];
 
-// 获取玩家的基础数据
-const userArts = computed(() => statStore.stat_data?.角色?.user?.术之等级 || {});
+// 当前选中的角色 (默认玩家自己)
+const selectedCharacter = ref('user');
+
+// 获取主要角色列表
+const mainCharacterNames = computed(() => {
+  const mainChars = statStore.stat_data?.角色?.主要角色 || {};
+  return Object.keys(mainChars);
+});
+
+// 获取当前选中角色的术之等级数据
+const currentArts = computed(() => {
+  if (selectedCharacter.value === 'user') {
+    return statStore.stat_data?.角色?.user?.术之等级 || {};
+  } else {
+    return statStore.stat_data?.角色?.主要角色?.[selectedCharacter.value]?.术之等级 || {};
+  }
+});
+
+// 缥缈异质始终是玩家(user)的资源
 const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
 
 // 待处理的经验队列 { "灯": 0, "铸": 100, ... }
 const pendingExp = ref(Object.fromEntries(ALL_ARTS.map(art => [art, 0])));
+
+// 监听角色切换，切换时重置待处理队列，防止加错人
+watch(selectedCharacter, () => {
+  resetPending();
+});
 
 // 计算升级所需经验
 const getRequiredExp = (level) => {
@@ -131,7 +166,7 @@ const getExpNeeded = (level, currentExp) => {
 const projectedArts = computed(() => {
   const result = {};
   ALL_ARTS.forEach(art => {
-    const baseData = userArts.value[art] || { 等级: 0, 经验: 0 };
+    const baseData = currentArts.value[art] || { 等级: 0, 经验: 0 };
     const baseLevel = baseData.等级 || 0;
     const baseExp = baseData.经验 || 0;
     const addedExp = pendingExp.value[art] || 0;
@@ -155,9 +190,9 @@ const projectedArts = computed(() => {
   return result;
 });
 
-// 计算待消耗的总异质
+// 计算待消耗的总异质 (比例 4:1)
 const totalPendingCost = computed(() => {
-  return Object.values(pendingExp.value).reduce((sum, exp) => sum + exp * 5, 0);
+  return Object.values(pendingExp.value).reduce((sum, exp) => sum + exp * 4, 0);
 });
 
 // 计算结算后的剩余异质
@@ -167,7 +202,7 @@ const remainingHeterogeneity = computed(() => {
 
 // 将经验加入待处理队列
 const queueExp = (artName, amount) => {
-  const cost = amount * 5;
+  const cost = amount * 4; // 比例 4:1
   if (remainingHeterogeneity.value < cost) {
     showToast("剩余缥缈异质不足！");
     return;
@@ -204,49 +239,41 @@ const resetPending = () => {
 const confirmSettlement = async () => {
   if (totalPendingCost.value === 0) return;
 
+  // 构造基础 diff，必定扣除玩家的异质
   const diff = {
     角色: {
       user: {
-        缥缈异质: userHeterogeneity.value - totalPendingCost.value,
-        术之等级: {}
+        缥缈异质: userHeterogeneity.value - totalPendingCost.value
       }
     }
   };
 
-  let logDetails = [];
-
+  // 构造更新后的术之等级对象 (保留未修改的术)
+  const updatedArts = { ...currentArts.value };
   ALL_ARTS.forEach(art => {
     if (pendingExp.value[art] > 0) {
-      const proj = projectedArts.value[art];
-      diff.角色.user.术之等级[art] = {
-        经验: proj.经验
+      updatedArts[art] = {
+        等级: projectedArts.value[art].等级,
+        经验: projectedArts.value[art].经验
       };
-
-      let logStr = `【${art}】(+${pendingExp.value[art]}经验)`;
-      if (proj.等级 > proj.baseLevel) {
-        diff.角色.user.术之等级[art].等级 = proj.等级;
-        logStr = `【${art}】(突破至 Lv.${proj.等级})`;
-      }
-      logDetails.push(logStr);
     }
   });
 
+  // 根据选中的角色，将术之等级写入对应的路径
+  if (selectedCharacter.value === 'user') {
+    diff.角色.user.术之等级 = updatedArts;
+  } else {
+    diff.角色.主要角色 = {
+      [selectedCharacter.value]: {
+        术之等级: updatedArts
+      }
+    };
+  }
+
   try {
     await MvuUtil.updateMvuDataByDiff(diff);
-    showToast(`成功消耗 ${totalPendingCost.value} 异质进行灌注！`);
-
-    // 写入交易日志
-    const logText = `\n<user>将缥缈异质注入了灵魂深处，加深了对术的感悟：${logDetails.join('，')}。\n`;
-    let lastMsgId = -1;
-    if (typeof getLastMessageId === 'function') {
-      lastMsgId = getLastMessageId();
-    }
-    await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
-
-
-    // 清空队列并刷新
-    resetPending();
-    setTimeout(() => statStore.initData(), 200);
+    showToast(`成功消耗 ${totalPendingCost.value} 异质为 ${selectedCharacter.value === 'user' ? '自己' : selectedCharacter.value} 进行灌注！`);
+    resetPending(); // 结算成功后清空队列
   } catch (e) {
     showToast("灌注失败，请重试");
     console.error(e);
@@ -286,6 +313,42 @@ const getAspectClass = (aspect) => {
   position: relative;
 }
 
+/* --- 角色选择器样式 --- */
+.character-selector {
+  background: rgba(20, 20, 22, 0.75);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 12px 20px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #e8e8e8;
+  font-size: 0.95rem;
+}
+
+.character-selector select {
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 6px 12px;
+  border-radius: 4px;
+  outline: none;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.character-selector select:hover {
+  border-color: rgba(255, 213, 79, 0.5);
+}
+
+.character-selector select option {
+  background: #1a1a1c;
+  color: #fff;
+}
+
 /* --- 统一结算控制台样式 --- */
 .settlement-bar {
   position: sticky;
@@ -308,6 +371,7 @@ const getAspectClass = (aspect) => {
   gap: 20px;
   font-size: 0.95rem;
   color: #e8e8e8;
+  flex-wrap: wrap;
 }
 
 .val-base { color: #81c784; font-weight: bold; }
@@ -349,10 +413,11 @@ const getAspectClass = (aspect) => {
   text-shadow: 0 0 4px rgba(79, 195, 247, 0.4);
 }
 
-/* --- 卡片网格：强制一排四个 --- */
+/* --- 卡片网格：响应式布局 --- */
 .arts-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* 使用 auto-fill 和 minmax，PC端自动排满，移动端自动折行 */
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
 }
 
