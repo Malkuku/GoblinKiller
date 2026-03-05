@@ -1,8 +1,19 @@
-// stores/statStore.js
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import { StatData } from '../types/StatData';
 import { KatEvents } from '@/Constants/KatEvent';
+
+// 简单的防抖函数
+function debounce(fn: any, delay: any) {
+  let timer = null as any;
+  return function(...args: any[]) {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => {
+      fn.apply(this, args);
+      timer = null;
+    }, delay);
+  };
+}
 
 export const useStatStore = defineStore('stat', () => {
   // 状态数据
@@ -11,19 +22,16 @@ export const useStatStore = defineStore('stat', () => {
   // 用于存储轮询定时器的ID
   let pollingTimer: any = null;
 
-  // 核心逻辑：从当前消息变量中获取 stat_data
-  // 增加 silent 参数，用于在轮询时避免频繁弹出错误提示（可选）
+
   const updateFromVariables = async (silent = false) => {
     try {
-      // 获取变量集合
       const variables = getVariables({ type: 'message', message_id: -1 });
 
-      // 如果变量中包含 stat_data，则更新状态
       if (variables && variables.stat_data) {
         stat_data.value = variables.stat_data;
         console.log('Stat data updated from variables:', stat_data.value);
         if (!silent) toastr.success('已获取变量更新');
-        return true; // 返回成功标志
+        return true;
       }
       return false;
     } catch (error) {
@@ -35,10 +43,8 @@ export const useStatStore = defineStore('stat', () => {
 
   const clearAndBuildVariables = async () => {
     try {
-      // 获取变量集合
       stat_data.value = {} as any;
       const variables = getVariables({ type: 'message', message_id: -1 });
-      // 如果变量中包含 stat_data，则更新状态
       if (variables && variables.stat_data) {
         stat_data.value = variables.stat_data;
         console.log('Stat data updated from variables:', stat_data.value);
@@ -49,6 +55,10 @@ export const useStatStore = defineStore('stat', () => {
       toastr.error('获取变量更新失败');
     }
   };
+
+  // 创建防抖版本（延迟800ms）
+  const debouncedUpdate = debounce(() => updateFromVariables(), 800);
+  const debouncedClearAndBuild = debounce(() => clearAndBuildVariables(), 800);
 
   // 初始化数据 (包含轮询逻辑)
   const initData = () => {
@@ -69,7 +79,7 @@ export const useStatStore = defineStore('stat', () => {
         return;
       }
 
-      // 尝试获取数据，传入 true 开启静默模式（防止轮询时一直弹窗，可根据需求去掉）
+      // 尝试获取数据，传入 true 开启静默模式
       const success = await updateFromVariables(true);
 
       // 如果本次获取成功，清除定时器
@@ -81,13 +91,12 @@ export const useStatStore = defineStore('stat', () => {
     }, 1000);
   };
 
-  // 注册事件监听器
+  // 注册事件监听器（使用防抖版本）
   const registerListener = () => {
-    eventOn('mag_variable_update_ended'
-      , () => updateFromVariables());
-    eventOn(KatEvents.kat_mvu_update_finished, () => updateFromVariables());
-    eventOn(tavern_events.MESSAGE_DELETED, () => updateFromVariables());
-    eventOn(tavern_events.CHAT_CHANGED, clearAndBuildVariables);
+    eventOn('mag_variable_update_ended', debouncedUpdate);
+    eventOn(KatEvents.kat_mvu_update_finished, debouncedUpdate);
+    eventOn(tavern_events.MESSAGE_DELETED, debouncedUpdate);
+    eventOn(tavern_events.CHAT_CHANGED, debouncedClearAndBuild);
   };
 
   return {
