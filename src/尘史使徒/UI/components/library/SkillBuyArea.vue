@@ -17,16 +17,12 @@
         </div>
         <div class="card-action">
           <div class="price-display">需 {{ details.价格 || 100 }} 异质</div>
-          <button v-if="pendingCart[name]"
-                  class="action-btn cancel-btn"
-                  @click="removeFromCart(name)"
-          >
-            取消待购
-          </button>
-          <button v-else
-                  class="action-btn buy-btn"
-                  :disabled="hasSkill(name) || !canAddMore(details.价格 || 100)"
-                  @click="addToCart(name, details)"
+          <button v-if="pendingCart[name]" class="action-btn cancel-btn" @click="removeFromCart(name)">取消待购</button>
+          <button
+            v-else
+            class="action-btn buy-btn"
+            :disabled="hasSkill(name) || !canAddMore(details.价格 || 100)"
+            @click="addToCart(name, details)"
           >
             {{ hasSkill(name) ? '已习得' : '加入待购' }}
           </button>
@@ -54,7 +50,7 @@ import { MvuUtil } from '@/Utils/MvuUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 
 const props = defineProps({ skillBuys: Object });
-const showToast = inject('showToast', (msg) => console.log(msg));
+const showToast = inject('showToast', msg => console.log(msg));
 const statStore = useStatStore();
 
 const pendingCart = ref({});
@@ -69,29 +65,29 @@ const currentYizhi = computed(() => {
   return statStore.stat_data?.角色?.user?.缥缈异质 || 0;
 });
 
-const hasSkill = (skillName) => {
+const hasSkill = skillName => {
   const skills = statStore.stat_data?.角色?.user?.技能 || {};
   return !!skills[skillName];
 };
 
-const canAddMore = (price) => {
-  return (currentYizhi.value - totalCartCost.value) >= price;
+const canAddMore = price => {
+  return currentYizhi.value - totalCartCost.value >= price;
 };
 
 const addToCart = (name, details) => {
   const price = details.价格 || 100;
   if (hasSkill(name)) {
-    showToast("已习得该技能");
+    showToast('已习得该技能');
     return;
   }
   if (!canAddMore(price)) {
-    showToast("异质不足");
+    showToast('异质不足');
     return;
   }
   pendingCart.value[name] = { details };
 };
 
-const removeFromCart = (name) => {
+const removeFromCart = name => {
   delete pendingCart.value[name];
 };
 
@@ -99,11 +95,11 @@ const clearCart = () => {
   pendingCart.value = {};
 };
 
-const getVagueYizhiDesc = (amount) => {
-  if (amount <= 20) return "些许微弱的异质";
-  if (amount <= 60) return "一缕缥缈的异质";
-  if (amount <= 150) return "一团氤氲的异质";
-  return "一股涌动的浓郁异质";
+const getVagueYizhiDesc = amount => {
+  if (amount <= 20) return '些许微弱的异质';
+  if (amount <= 60) return '一缕缥缈的异质';
+  if (amount <= 150) return '一团氤氲的异质';
+  return '一股涌动的浓郁异质';
 };
 
 const confirmCheckout = async () => {
@@ -112,7 +108,7 @@ const confirmCheckout = async () => {
 
   const user = statStore.stat_data.角色.user;
   if ((user.缥缈异质 || 0) < totalCartCost.value) {
-    showToast("异质不足");
+    showToast('异质不足');
     return;
   }
 
@@ -121,9 +117,9 @@ const confirmCheckout = async () => {
     角色: {
       user: {
         缥缈异质: user.缥缈异质 - totalCartCost.value,
-        技能: {}
-      }
-    }
+        技能: {},
+      },
+    },
   };
 
   const acquiredNames = [];
@@ -132,11 +128,11 @@ const confirmCheckout = async () => {
     acquiredNames.push(skillName);
     // 直接在对象上赋值
     diff.角色.user.技能[skillName] = {
-      性相: cartItem.details.性相 || "无",
+      性相: cartItem.details.性相 || '无',
       技能等级: cartItem.details.技能等级 || 1,
-      描述: cartItem.details.描述 || "",
-      消耗: cartItem.details.消耗 || "",
-      作用: cartItem.details.作用 || ""
+      描述: cartItem.details.描述 || '',
+      消耗: cartItem.details.消耗 || '',
+      作用: cartItem.details.作用 || '',
     };
   }
 
@@ -147,14 +143,14 @@ const confirmCheckout = async () => {
 
     const vagueDesc = getVagueYizhiDesc(cost);
     const namesStr = acquiredNames.map(n => `【${n}】`).join('、');
-    const logText = `\n<user>献出了${vagueDesc}作为代价。古老的低语在脑海中回荡，你失去了这些异质，但成功将${namesStr}的技艺铭刻于心。\n`;
+    const logText = `\n<systemLog>\n<user>献出了${vagueDesc}作为代价。古老的低语在脑海中回荡，你失去了这些异质，但成功将${namesStr}的技艺铭刻于心。\n</systemLog>\n`;
     const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
     await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
 
     clearCart();
     setTimeout(() => statStore.initData(), 200);
   } catch (e) {
-    showToast("购买失败");
+    showToast('购买失败');
   }
 };
 </script>
@@ -173,7 +169,7 @@ const confirmCheckout = async () => {
   border-radius: 8px;
   color: #fff;
   z-index: 10;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
 }
 .checkout-info {
   display: flex;

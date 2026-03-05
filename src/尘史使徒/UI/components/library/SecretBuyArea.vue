@@ -14,16 +14,12 @@
         <div class="card-action">
           <div class="price-display">需 {{ details.价格 || 50 }} 异质</div>
 
-          <button v-if="pendingCart[name]"
-                  class="action-btn cancel-btn"
-                  @click="removeFromCart(name)"
-          >
-            取消待购
-          </button>
-          <button v-else
-                  class="action-btn buy-btn"
-                  :disabled="!canAddMore(details.价格 || 50)"
-                  @click="addToCart(name, details)"
+          <button v-if="pendingCart[name]" class="action-btn cancel-btn" @click="removeFromCart(name)">取消待购</button>
+          <button
+            v-else
+            class="action-btn buy-btn"
+            :disabled="!canAddMore(details.价格 || 50)"
+            @click="addToCart(name, details)"
           >
             加入待购
           </button>
@@ -51,7 +47,7 @@ import { MvuUtil } from '@/Utils/MvuUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 
 const props = defineProps({ secretBuys: Object });
-const showToast = inject('showToast', (msg) => console.log(msg));
+const showToast = inject('showToast', msg => console.log(msg));
 const statStore = useStatStore();
 
 const pendingCart = ref({});
@@ -68,14 +64,14 @@ const currentYizhi = computed(() => {
   return statStore.stat_data?.角色?.user?.缥缈异质 || 0;
 });
 
-const canAddMore = (price) => {
-  return (currentYizhi.value - totalCartCost.value) >= price;
+const canAddMore = price => {
+  return currentYizhi.value - totalCartCost.value >= price;
 };
 
 const addToCart = (name, details) => {
   const price = details.价格 || 50;
   if (!canAddMore(price)) {
-    showToast("异质不足");
+    showToast('异质不足');
     return;
   }
   if (!pendingCart.value[name]) {
@@ -83,7 +79,7 @@ const addToCart = (name, details) => {
   }
 };
 
-const removeFromCart = (name) => {
+const removeFromCart = name => {
   if (pendingCart.value[name]) {
     delete pendingCart.value[name];
   }
@@ -93,11 +89,11 @@ const clearCart = () => {
   pendingCart.value = {};
 };
 
-const getVagueYizhiDesc = (amount) => {
-  if (amount <= 20) return "些许微弱的异质";
-  if (amount <= 60) return "一缕缥缈的异质";
-  if (amount <= 150) return "一团氤氲的异质";
-  return "一股涌动的浓郁异质";
+const getVagueYizhiDesc = amount => {
+  if (amount <= 20) return '些许微弱的异质';
+  if (amount <= 60) return '一缕缥缈的异质';
+  if (amount <= 150) return '一团氤氲的异质';
+  return '一股涌动的浓郁异质';
 };
 
 const confirmCheckout = async () => {
@@ -106,7 +102,7 @@ const confirmCheckout = async () => {
 
   const user = statStore.stat_data.角色.user;
   if ((user.缥缈异质 || 0) < totalCartCost.value) {
-    showToast("异质不足");
+    showToast('异质不足');
     return;
   }
 
@@ -114,9 +110,9 @@ const confirmCheckout = async () => {
     角色: {
       user: {
         缥缈异质: user.缥缈异质 - totalCartCost.value,
-        物品: {}
-      }
-    }
+        物品: {},
+      },
+    },
   };
 
   const userItems = user.物品 || {};
@@ -134,11 +130,11 @@ const confirmCheckout = async () => {
     acquiredNames.push(finalName);
 
     diff.角色.user.物品[finalName] = {
-      类型: "密传",
+      类型: '密传',
       数量: 1,
       耐久: 100,
-      描述: cartItem.details.描述 || "一份神秘的记录",
-      作用: cartItem.details.作用 || "阅读以获取知识"
+      描述: cartItem.details.描述 || '一份神秘的记录',
+      作用: cartItem.details.作用 || '阅读以获取知识',
     };
   }
 
@@ -149,14 +145,14 @@ const confirmCheckout = async () => {
 
     const vagueDesc = getVagueYizhiDesc(cost);
     const namesStr = acquiredNames.map(n => `【${n}】`).join('、');
-    const logText = `\n<user>散去了${vagueDesc}。随着异质的流失，隐秘的知识在现实中凝结，你获得了密传线索：${namesStr}。\n`;
+    const logText = `\n<systemLog>\n<user>散去了${vagueDesc}。随着异质的流失，隐秘的知识在现实中凝结，你获得了密传线索：${namesStr}。\n</systemLog>\n`;
     const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
     await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
 
     clearCart();
     setTimeout(() => statStore.initData(), 200);
   } catch (e) {
-    showToast("购买失败");
+    showToast('购买失败');
   }
 };
 </script>
@@ -187,7 +183,7 @@ const confirmCheckout = async () => {
   border-radius: 8px;
   color: #fff;
   z-index: 10;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
 }
 .checkout-info {
   display: flex;

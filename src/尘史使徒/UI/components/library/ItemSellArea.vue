@@ -19,11 +19,7 @@
             <span class="count">{{ pendingCart[name].count }}</span>
             <button class="ctrl-btn" :disabled="!canSellMore(name)" @click="addToCart(name, details)">+</button>
           </div>
-          <button v-else
-                  class="action-btn sell-btn"
-                  :disabled="!canSellMore(name)"
-                  @click="addToCart(name, details)"
-          >
+          <button v-else class="action-btn sell-btn" :disabled="!canSellMore(name)" @click="addToCart(name, details)">
             {{ getUserItemCount(name) > 0 ? '加入待售' : '未持有' }}
           </button>
         </div>
@@ -51,7 +47,7 @@ import { MvuUtil } from '@/Utils/MvuUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 
 const props = defineProps({ itemSells: Object });
-const showToast = inject('showToast', (msg) => console.log(msg));
+const showToast = inject('showToast', msg => console.log(msg));
 const statStore = useStatStore();
 
 const pendingCart = ref({});
@@ -64,12 +60,12 @@ const totalCartEarn = computed(() => {
   return Object.values(pendingCart.value).reduce((sum, item) => sum + item.count * (item.details.单价 || 0), 0);
 });
 
-const getUserItemCount = (itemName) => {
+const getUserItemCount = itemName => {
   const items = statStore.stat_data?.角色?.user?.物品 || {};
   return items[itemName]?.数量 || 0;
 };
 
-const canSellMore = (itemName) => {
+const canSellMore = itemName => {
   const owned = getUserItemCount(itemName);
   const pending = pendingCart.value[itemName]?.count || 0;
   return owned > pending;
@@ -77,7 +73,7 @@ const canSellMore = (itemName) => {
 
 const addToCart = (name, details) => {
   if (!canSellMore(name)) {
-    showToast("物品数量不足");
+    showToast('物品数量不足');
     return;
   }
   if (!pendingCart.value[name]) {
@@ -86,7 +82,7 @@ const addToCart = (name, details) => {
   pendingCart.value[name].count++;
 };
 
-const removeFromCart = (name) => {
+const removeFromCart = name => {
   if (pendingCart.value[name]) {
     pendingCart.value[name].count--;
     if (pendingCart.value[name].count <= 0) {
@@ -99,16 +95,19 @@ const clearCart = () => {
   pendingCart.value = {};
 };
 
-const getVagueYizhiDesc = (amount) => {
-  if (amount <= 20) return "些许微弱的异质";
-  if (amount <= 60) return "一缕缥缈的异质";
-  if (amount <= 150) return "一团氤氲的异质";
-  return "一股涌动的浓郁异质";
+const getVagueYizhiDesc = amount => {
+  if (amount <= 20) return '些许微弱的异质';
+  if (amount <= 60) return '一缕缥缈的异质';
+  if (amount <= 150) return '一团氤氲的异质';
+  return '一股涌动的浓郁异质';
 };
 
 const confirmCheckout = async () => {
   if (totalCartCount.value === 0) return;
-  if (!statStore.stat_data) { showToast("数据未加载"); return; }
+  if (!statStore.stat_data) {
+    showToast('数据未加载');
+    return;
+  }
 
   const user = statStore.stat_data.角色.user;
   const userItems = user.物品 || {};
@@ -126,9 +125,9 @@ const confirmCheckout = async () => {
     角色: {
       user: {
         缥缈异质: (user.缥缈异质 || 0) + totalEarn,
-        物品: {}
-      }
-    }
+        物品: {},
+      },
+    },
   };
 
   for (const [itemName, cartItem] of Object.entries(pendingCart.value)) {
@@ -158,14 +157,14 @@ const confirmCheckout = async () => {
 
     const vagueDesc = getVagueYizhiDesc(totalEarn);
     const namesStr = soldNames.join('、');
-    const logText = `\n<user>将${namesStr}投入了未知的虚空。作为交换，你失去了这些物品，但从中汲取了${vagueDesc}。\n`;
+    const logText = `\n<systemLog>\n<user>将${namesStr}投入了未知的虚空。作为交换，你失去了这些物品，但从中汲取了${vagueDesc}。\n</systemLog>\n`;
     const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
     await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
 
     clearCart();
     setTimeout(() => statStore.initData(), 200);
   } catch (e) {
-    showToast("交易失败");
+    showToast('交易失败');
     console.error(e);
   }
 };
@@ -216,7 +215,7 @@ const confirmCheckout = async () => {
   border-radius: 8px;
   color: #fff;
   z-index: 10;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.3);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
 }
 .checkout-info {
   display: flex;

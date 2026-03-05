@@ -30,9 +30,7 @@
           <span v-else>🗑 批量整理</span>
         </button>
 
-        <div v-if="hasUnsavedChanges" class="unsaved-warning">
-          <span class="blink">⚠</span> 未同步
-        </div>
+        <div v-if="hasUnsavedChanges" class="unsaved-warning"><span class="blink">⚠</span> 未同步</div>
         <button
           class="ac-btn save-btn"
           :class="{ 'is-active': hasUnsavedChanges }"
@@ -62,7 +60,6 @@
 
     <!-- 主体双栏区域 -->
     <div class="manager-body">
-
       <!-- 移动端 Tab 切换栏 -->
       <div class="mobile-tabs">
         <div
@@ -82,10 +79,7 @@
       </div>
 
       <!-- 左侧：随身行囊 -->
-      <div
-        class="pane backpack-pane"
-        :class="{ 'mobile-hidden': activeMobileTab !== 'backpack' }"
-      >
+      <div class="pane backpack-pane" :class="{ 'mobile-hidden': activeMobileTab !== 'backpack' }">
         <div class="pane-header">
           <div class="title-group">
             <h3>行囊 <small>INVENTORY</small></h3>
@@ -120,7 +114,7 @@
               { 'is-modified': item.isModified },
               { 'is-expanded': activeItemId === 'bag-' + item.name },
               { 'is-selected': isSelected('bag', item.name) },
-              { 'mode-select': isDeleteMode }
+              { 'mode-select': isDeleteMode },
             ]"
             @click="handleItemClick(item, 'toWarehouse', 'bag')"
           >
@@ -145,16 +139,10 @@
             </div>
 
             <!-- 展开区域 (仅在非删除模式下显示) -->
-            <div
-              v-if="activeItemId === 'bag-' + item.name && !isDeleteMode"
-              class="expanded-panel"
-              @click.stop
-            >
+            <div v-if="activeItemId === 'bag-' + item.name && !isDeleteMode" class="expanded-panel" @click.stop>
               <div class="item-details">
                 <p v-if="item.raw.描述" class="detail-desc">"{{ item.raw.描述 }}"</p>
-                <p v-if="item.raw.作用" class="detail-effect">
-                  <span class="bullet">✦</span> {{ item.raw.作用 }}
-                </p>
+                <p v-if="item.raw.作用" class="detail-effect"><span class="bullet">✦</span> {{ item.raw.作用 }}</p>
               </div>
 
               <!-- 操作栏 -->
@@ -168,7 +156,7 @@
                       min="1"
                       :max="item.quantity"
                       class="mini-slider"
-                    >
+                    />
                     <span class="qty-max">/ {{ item.quantity }}</span>
                   </template>
                   <template v-else>
@@ -176,9 +164,7 @@
                   </template>
                 </div>
 
-                <button class="mini-confirm-btn" @click="confirmTransfer">
-                  存入 ➔
-                </button>
+                <button class="mini-confirm-btn" @click="confirmTransfer">存入 ➔</button>
               </div>
             </div>
           </div>
@@ -195,10 +181,7 @@
       </div>
 
       <!-- 右侧：漫宿仓库 -->
-      <div
-        class="pane warehouse-pane"
-        :class="{ 'mobile-hidden': activeMobileTab !== 'warehouse' }"
-      >
+      <div class="pane warehouse-pane" :class="{ 'mobile-hidden': activeMobileTab !== 'warehouse' }">
         <div class="pane-header">
           <div class="title-group">
             <h3>仓库 <small>WAREHOUSE</small></h3>
@@ -224,7 +207,7 @@
               { 'is-modified': item.isModified },
               { 'is-expanded': activeItemId === 'wh-' + item.name },
               { 'is-selected': isSelected('wh', item.name) },
-              { 'mode-select': isDeleteMode }
+              { 'mode-select': isDeleteMode },
             ]"
             @click="handleItemClick(item, 'toBackpack', 'wh')"
           >
@@ -249,11 +232,7 @@
             </div>
 
             <!-- 展开区域 -->
-            <div
-              v-if="activeItemId === 'wh-' + item.name && !isDeleteMode"
-              class="expanded-panel"
-              @click.stop
-            >
+            <div v-if="activeItemId === 'wh-' + item.name && !isDeleteMode" class="expanded-panel" @click.stop>
               <div class="item-details">
                 <p v-if="item.raw.描述" class="detail-desc">"{{ formatItemText(item.raw.描述, item) }}"</p>
                 <p v-if="item.raw.作用" class="detail-effect">
@@ -272,7 +251,7 @@
                       min="1"
                       :max="item.quantity"
                       class="mini-slider"
-                    >
+                    />
                     <span class="qty-max">/ {{ item.quantity }}</span>
                   </template>
                   <template v-else>
@@ -280,9 +259,7 @@
                   </template>
                 </div>
 
-                <button class="mini-confirm-btn" @click="confirmTransfer">
-                  取出 ➔
-                </button>
+                <button class="mini-confirm-btn" @click="confirmTransfer">取出 ➔</button>
               </div>
             </div>
           </div>
@@ -291,7 +268,6 @@
           </div>
         </div>
       </div>
-
     </div>
   </div>
 </template>
@@ -389,11 +365,10 @@ const formatItemText = (text, currentItem) => {
   });
 };
 
-
 // --- 数据处理 ---
 const categories = computed(() => {
   const types = new Set();
-  const collectTypes = (obj) => {
+  const collectTypes = obj => {
     Object.entries(obj).forEach(([key, val]) => {
       if (key !== '$template' && val.类型) {
         types.add(val.类型);
@@ -405,7 +380,7 @@ const categories = computed(() => {
   return ['全部', ...Array.from(types).sort()];
 });
 
-const processList = (sourceObj) => {
+const processList = sourceObj => {
   return Object.entries(sourceObj)
     .filter(([key]) => key !== '$template')
     .map(([key, val]) => ({
@@ -413,13 +388,12 @@ const processList = (sourceObj) => {
       quantity: val.数量 || 0,
       durability: val.耐久 || 0,
       isModified: val.isModified || false,
-      raw: val
+      raw: val,
     }))
     .filter(item => {
       if (searchQuery.value) {
         const query = searchQuery.value;
-        const matchesSearch = item.name.includes(query) ||
-          (item.raw.类型 && item.raw.类型.includes(query));
+        const matchesSearch = item.name.includes(query) || (item.raw.类型 && item.raw.类型.includes(query));
         if (!matchesSearch) return false;
       }
       if (activeCategory.value !== '全部') {
@@ -438,7 +412,7 @@ const processList = (sourceObj) => {
 const backpackList = computed(() => processList(localBackpack.value));
 const warehouseList = computed(() => processList(localWarehouse.value));
 
-const getItemStyle = (item) => {
+const getItemStyle = item => {
   const type = item.raw.类型 || '';
   const name = item.name || '';
   if (name.includes('刃') || type === '武器') return 'style-weapon';
@@ -573,9 +547,9 @@ function confirmTransfer() {
   } else {
     targetObj[item.name] = {
       ...item.raw,
-      "数量": qty,
-      "耐久": item.durability,
-      "isModified": true
+      数量: qty,
+      耐久: item.durability,
+      isModified: true,
     };
   }
 
@@ -615,11 +589,9 @@ function generateDiff(localObj, remoteObj, pathArr, payloads) {
     if (remoteItem && !localItem) {
       // 使用null标记删除，而不是空对象
       addToPayload(payloads.delete, pathArr, key, null);
-    }
-    else if (localItem && !remoteItem) {
+    } else if (localItem && !remoteItem) {
       addToPayload(payloads.insert, pathArr, key, cleanData(localItem));
-    }
-    else if (localItem && remoteItem) {
+    } else if (localItem && remoteItem) {
       const cleanLocal = cleanData(localItem);
       if (JSON.stringify(cleanLocal) !== JSON.stringify(remoteItem)) {
         addToPayload(payloads.update, pathArr, key, cleanLocal);
@@ -672,8 +644,10 @@ async function saveAllChanges() {
 
     const exchangeLogs = [];
     const allNames = new Set([
-      ...Object.keys(remoteBackpack), ...Object.keys(remoteWarehouse),
-      ...Object.keys(localBackpack.value), ...Object.keys(localWarehouse.value)
+      ...Object.keys(remoteBackpack),
+      ...Object.keys(remoteWarehouse),
+      ...Object.keys(localBackpack.value),
+      ...Object.keys(localWarehouse.value),
     ]);
 
     allNames.forEach(name => {
@@ -687,27 +661,26 @@ async function saveAllChanges() {
       const whDiff = newWh - oldWh;
 
       if (bagDiff < 0 && whDiff > 0) {
-        exchangeLogs.push({ "名称": name, "数量": Math.min(Math.abs(bagDiff), whDiff), "方向": "存入仓库" });
+        exchangeLogs.push({ 名称: name, 数量: Math.min(Math.abs(bagDiff), whDiff), 方向: '存入仓库' });
       } else if (bagDiff > 0 && whDiff < 0) {
-        exchangeLogs.push({ "名称": name, "数量": Math.min(bagDiff, Math.abs(whDiff)), "方向": "取出到背包" });
+        exchangeLogs.push({ 名称: name, 数量: Math.min(bagDiff, Math.abs(whDiff)), 方向: '取出到背包' });
       }
     });
 
     if (exchangeLogs.length > 0) {
-      const logText = `\n<user>与漫宿之上的神秘空间完成了物品交换:\n${JSON.stringify(exchangeLogs, null, 0)}\n`;
+      const logText = `\n<systemLog>\n<user>与漫宿之上的神秘空间完成了物品交换:\n${JSON.stringify(exchangeLogs, null, 0)}\n</systemLog>\n`;
       const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
       await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
     }
 
     hasUnsavedChanges.value = false;
-    Object.values(localBackpack.value).forEach(i => i.isModified = false);
-    Object.values(localWarehouse.value).forEach(i => i.isModified = false);
+    Object.values(localBackpack.value).forEach(i => (i.isModified = false));
+    Object.values(localWarehouse.value).forEach(i => (i.isModified = false));
     activeItemId.value = null;
     isDeleteMode.value = false;
     selectedItems.value.clear();
-
   } catch (e) {
-    console.error("Inventory Sync Failed:", e);
+    console.error('Inventory Sync Failed:', e);
   } finally {
     isSaving.value = false;
   }
@@ -753,7 +726,7 @@ async function saveAllChanges() {
   align-items: center;
   padding: 15px 20px;
   border-bottom: 2px solid var(--c-gold);
-  background: linear-gradient(to right, rgba(0,0,0,0.8), transparent);
+  background: linear-gradient(to right, rgba(0, 0, 0, 0.8), transparent);
   flex-shrink: 0;
   transition: border-color 0.3s;
 }
@@ -770,7 +743,8 @@ async function saveAllChanges() {
 }
 
 .animus-icon {
-  width: 10px; height: 10px;
+  width: 10px;
+  height: 10px;
   background: var(--c-gold);
   transform: rotate(45deg);
   box-shadow: 0 0 8px var(--c-gold);
@@ -789,11 +763,19 @@ async function saveAllChanges() {
   display: none;
 }
 @media (min-width: 768px) {
-  .unsaved-warning { display: block; }
+  .unsaved-warning {
+    display: block;
+  }
 }
 
-.blink { animation: blink 1.5s infinite; }
-@keyframes blink { 50% { opacity: 0; } }
+.blink {
+  animation: blink 1.5s infinite;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
 
 .ac-btn {
   background: transparent;
@@ -856,7 +838,7 @@ async function saveAllChanges() {
 .category-bar-wrapper {
   padding: 10px 20px 0 20px;
   flex-shrink: 0;
-  background: rgba(0,0,0,0.2);
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .category-scroll {
@@ -864,10 +846,12 @@ async function saveAllChanges() {
   gap: 10px;
   overflow-x: auto;
   padding-bottom: 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   scrollbar-width: none;
 }
-.category-scroll::-webkit-scrollbar { display: none; }
+.category-scroll::-webkit-scrollbar {
+  display: none;
+}
 
 .cat-btn {
   background: transparent;
@@ -885,7 +869,7 @@ async function saveAllChanges() {
 
 .cat-btn:hover {
   color: #ccc;
-  background: rgba(255,255,255,0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .cat-btn.active {
@@ -904,12 +888,14 @@ async function saveAllChanges() {
   flex-direction: row;
 }
 
-.mobile-tabs { display: none; }
+.mobile-tabs {
+  display: none;
+}
 
 .pane {
   flex: 1;
   background: var(--c-bg-panel);
-  border: 1px solid rgba(255,255,255,0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   display: flex;
   flex-direction: column;
   border-radius: 2px;
@@ -919,7 +905,7 @@ async function saveAllChanges() {
 
 .pane-header {
   padding: 12px 15px;
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -979,11 +965,18 @@ async function saveAllChanges() {
   user-select: none;
 }
 
-.currency-symbol { font-size: 1.1rem; text-shadow: 0 0 5px var(--c-gold); }
-.currency-val { font-size: 1.1rem; font-weight: bold; color: #fff; }
+.currency-symbol {
+  font-size: 1.1rem;
+  text-shadow: 0 0 5px var(--c-gold);
+}
+.currency-val {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: #fff;
+}
 
 .ac-input {
-  background: rgba(0,0,0,0.3);
+  background: rgba(0, 0, 0, 0.3);
   border: none;
   border-bottom: 1px solid #444;
   color: #fff;
@@ -1012,7 +1005,17 @@ async function saveAllChanges() {
   color: var(--c-danger);
   animation: pulse 2s infinite;
 }
-@keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+@keyframes pulse {
+  0% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.5;
+  }
+}
 
 /* --- 物品网格 --- */
 .item-grid {
@@ -1027,12 +1030,17 @@ async function saveAllChanges() {
   min-height: 0;
 }
 
-.custom-scroll::-webkit-scrollbar { width: 6px; }
-.custom-scroll::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+.custom-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
 
 /* --- 卡片样式 --- */
 .item-card {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.2s;
@@ -1044,14 +1052,14 @@ async function saveAllChanges() {
 }
 
 .item-card:hover {
-  background: rgba(255,255,255,0.06);
-  border-color: rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .item-card.is-expanded {
-  background: rgba(0,0,0,0.5);
+  background: rgba(0, 0, 0, 0.5);
   border-color: var(--c-gold);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   z-index: 10;
 }
 
@@ -1078,8 +1086,8 @@ async function saveAllChanges() {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.2);
-  border-right: 1px solid rgba(255,255,255,0.05);
+  background: rgba(0, 0, 0, 0.2);
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .checkbox-inner {
@@ -1119,18 +1127,51 @@ async function saveAllChanges() {
   flex-shrink: 0;
 }
 
-.item-info { flex: 1; overflow: hidden; min-width: 0; }
-.item-name { font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.95rem; }
-.item-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
-.item-type { font-size: 0.7rem; color: #888; text-transform: uppercase; }
-.item-durability { flex: 1; height: 3px; background: #333; max-width: 50px; }
-.dur-bar { height: 100%; background: #888; }
-.item-qty { font-family: var(--font-title); color: var(--c-gold); font-size: 1.1rem; margin-left: 10px; flex-shrink: 0; }
+.item-info {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+.item-name {
+  font-weight: bold;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.95rem;
+}
+.item-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.item-type {
+  font-size: 0.7rem;
+  color: #888;
+  text-transform: uppercase;
+}
+.item-durability {
+  flex: 1;
+  height: 3px;
+  background: #333;
+  max-width: 50px;
+}
+.dur-bar {
+  height: 100%;
+  background: #888;
+}
+.item-qty {
+  font-family: var(--font-title);
+  color: var(--c-gold);
+  font-size: 1.1rem;
+  margin-left: 10px;
+  flex-shrink: 0;
+}
 
 /* --- 展开面板 --- */
 .expanded-panel {
-  border-top: 1px solid rgba(255,255,255,0.1);
-  background: rgba(0,0,0,0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.3);
   padding: 10px;
   display: flex;
   flex-direction: column;
@@ -1139,33 +1180,80 @@ async function saveAllChanges() {
 }
 
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
-.item-details { font-size: 0.85rem; color: #aaa; line-height: 1.4; padding: 0 5px; word-break: break-word; }
-.detail-desc { font-style: italic; margin: 0 0 6px 0; color: #888; }
-.detail-effect { margin: 0; color: #ccc; }
-.detail-effect .bullet { color: var(--c-gold); margin-right: 4px; }
+.item-details {
+  font-size: 0.85rem;
+  color: #aaa;
+  line-height: 1.4;
+  padding: 0 5px;
+  word-break: break-word;
+}
+.detail-desc {
+  font-style: italic;
+  margin: 0 0 6px 0;
+  color: #888;
+}
+.detail-effect {
+  margin: 0;
+  color: #ccc;
+}
+.detail-effect .bullet {
+  color: var(--c-gold);
+  margin-right: 4px;
+}
 
-.transfer-action-bar { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+.transfer-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 5px;
+}
 
 .slider-wrapper {
   flex: 1;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0,0,0,0.4);
+  background: rgba(0, 0, 0, 0.4);
   padding: 4px 8px;
   border-radius: 4px;
   height: 32px;
   min-width: 0;
 }
 
-.qty-label { color: var(--c-gold); font-family: var(--font-title); font-weight: bold; min-width: 20px; text-align: center; }
-.qty-static { color: #888; font-size: 0.8rem; flex: 1; text-align: center; }
-.mini-slider { flex: 1; accent-color: var(--c-gold); height: 4px; cursor: pointer; min-width: 0; }
-.qty-max { font-size: 0.7rem; color: #666; }
+.qty-label {
+  color: var(--c-gold);
+  font-family: var(--font-title);
+  font-weight: bold;
+  min-width: 20px;
+  text-align: center;
+}
+.qty-static {
+  color: #888;
+  font-size: 0.8rem;
+  flex: 1;
+  text-align: center;
+}
+.mini-slider {
+  flex: 1;
+  accent-color: var(--c-gold);
+  height: 4px;
+  cursor: pointer;
+  min-width: 0;
+}
+.qty-max {
+  font-size: 0.7rem;
+  color: #666;
+}
 
 .mini-confirm-btn {
   background: var(--c-gold);
@@ -1181,42 +1269,103 @@ async function saveAllChanges() {
   height: 32px;
   flex-shrink: 0;
 }
-.mini-confirm-btn:hover { background: #fff; box-shadow: 0 0 10px var(--c-gold); }
+.mini-confirm-btn:hover {
+  background: #fff;
+  box-shadow: 0 0 10px var(--c-gold);
+}
 
-.style-weapon .item-icon { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
-.style-lore .item-icon { color: #a29bfe; border-color: rgba(162, 155, 254, 0.3); }
-.style-currency .item-icon { color: #ffeaa7; border-color: rgba(255, 234, 167, 0.3); }
+.style-weapon .item-icon {
+  color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.3);
+}
+.style-lore .item-icon {
+  color: #a29bfe;
+  border-color: rgba(162, 155, 254, 0.3);
+}
+.style-currency .item-icon {
+  color: #ffeaa7;
+  border-color: rgba(255, 234, 167, 0.3);
+}
 
 /* Vue Transition */
-.fade-enter-active, .fade-leave-active { transition: opacity 0.3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}
 
 /* --- 移动端适配 --- */
 @media (max-width: 768px) {
-  .manager-body { flex-direction: column; padding: 10px; }
-  .mobile-tabs { display: flex; gap: 10px; margin-bottom: 5px; flex-shrink: 0; }
+  .manager-body {
+    flex-direction: column;
+    padding: 10px;
+  }
+  .mobile-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 5px;
+    flex-shrink: 0;
+  }
 
   .mobile-tab-item {
-    flex: 1; text-align: center; padding: 10px;
-    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-    color: #888; font-family: var(--font-title); cursor: pointer; transition: 0.3s;
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #888;
+    font-family: var(--font-title);
+    cursor: pointer;
+    transition: 0.3s;
   }
   .mobile-tab-item.active {
-    background: rgba(212, 175, 55, 0.1); border-color: var(--c-gold); color: var(--c-gold);
+    background: rgba(212, 175, 55, 0.1);
+    border-color: var(--c-gold);
+    color: var(--c-gold);
   }
 
-  .divider-column { display: none; }
-  .pane.mobile-hidden { display: none; }
-  .pane { width: 100%; flex: 1; height: 100%; }
-  .item-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .divider-column {
+    display: none;
+  }
+  .pane.mobile-hidden {
+    display: none;
+  }
+  .pane {
+    width: 100%;
+    flex: 1;
+    height: 100%;
+  }
+  .item-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  }
 
-  .header-title h2 { font-size: 1.1rem; }
-  .ac-btn { padding: 6px 10px; font-size: 0.75rem; }
-  .header-controls { gap: 8px; }
-  .money-display { padding: 2px 6px; }
-  .currency-val { font-size: 0.9rem; }
-  .ac-input { width: 80px; }
-  .ac-input:focus { width: 100px; }
-  .category-bar-wrapper { padding: 10px 10px 0 10px; }
+  .header-title h2 {
+    font-size: 1.1rem;
+  }
+  .ac-btn {
+    padding: 6px 10px;
+    font-size: 0.75rem;
+  }
+  .header-controls {
+    gap: 8px;
+  }
+  .money-display {
+    padding: 2px 6px;
+  }
+  .currency-val {
+    font-size: 0.9rem;
+  }
+  .ac-input {
+    width: 80px;
+  }
+  .ac-input:focus {
+    width: 100px;
+  }
+  .category-bar-wrapper {
+    padding: 10px 10px 0 10px;
+  }
 }
 </style>

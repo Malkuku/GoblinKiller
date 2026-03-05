@@ -537,7 +537,7 @@ async function saveAllChanges() {
 
     if (exchangeLogs.length > 0) {
       const logName = activeCharacterKey.value === 'user' ? 'user' : activeCharacterKey.value;
-      const logText = `\n<${logName}>调整了意识深处的秘术:\n${exchangeLogs.join('\n')}\n`;
+      const logText = `\n<systemLog>\n<${logName}>调整了意识深处的秘术:\n${exchangeLogs.join('\n')}\n</systemLog>\n`;
       const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
       await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
     }
