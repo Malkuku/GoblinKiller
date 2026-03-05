@@ -159,15 +159,16 @@ const formData = reactive({
   personality: {
     "社交取向": 0, "决策模式": 0, "思维倾向": 0, "人际姿态": 0, "人性温度": 0
   },
-  arts: {
-    "灯": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 },
-    "铸": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 },
-    "刃": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 },
-    "冬": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 },
-    "心": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 },
-    "杯": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 },
-    "蛾": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 },
-    "启": { "当前等级": 0, "累计经验值": 0, "下一级需求经验": -1 }
+  // 统一修改为 术之等级，并适配 StatData.d.ts 的结构
+  术之等级: {
+    "灯": { "等级": 0, "经验": 0 },
+    "铸": { "等级": 0, "经验": 0 },
+    "刃": { "等级": 0, "经验": 0 },
+    "冬": { "等级": 0, "经验": 0 },
+    "心": { "等级": 0, "经验": 0 },
+    "杯": { "等级": 0, "经验": 0 },
+    "蛾": { "等级": 0, "经验": 0 },
+    "启": { "等级": 0, "经验": 0 }
   },
   relationships: []
 });
@@ -187,19 +188,19 @@ const finalAppearance = computed(() => {
   return parts.join('，');
 });
 
-// 术之点数计算
+// 术之点数计算 (适配新的数据结构)
 const maxArtLevel = computed(() => isInfiniteMode.value ? 21 : 10);
 const artsSpentPoints = computed(() => {
   let total = 0;
   let unlockedCount = 0;
-  for (const key in formData.arts) {
-    if (formData.arts[key].当前等级 > 0) unlockedCount++;
+  for (const key in formData.术之等级) {
+    if (formData.术之等级[key].等级 > 0) unlockedCount++;
   }
   for (let i = 0; i < unlockedCount; i++) {
     total += 2 * Math.pow(4, i);
   }
-  for (const key in formData.arts) {
-    const lv = formData.arts[key].当前等级;
+  for (const key in formData.术之等级) {
+    const lv = formData.术之等级[key].等级;
     if (lv > 1) total += lv * (lv - 1);
   }
   return total;
@@ -268,19 +269,10 @@ const submitCreation = async (payload) => {
     const relationshipData = {};
     const mainRolesUpdate = {};
 
-    // 辅助函数：获取矩阵描述 (需与子组件保持一致，或提取为公共工具)
-    // 这里简化处理，直接使用子组件传递的数据或重新计算，为保持解耦，建议将 getMatrixDesc 提取到 Utils
-    // 此处假设 formData.relationships 已经包含了足够的信息，或者在 Confirm 组件中处理好了
-    // 为了稳健，我们简单复用逻辑或假设数据已就绪。
-    // *注：实际项目中建议将 getMatrixDesc 移至公共文件*
-
-    // 简单复刻必要的描述逻辑 (为保证代码完整性)
-    const getDesc = (key, val) => { /* 简化版，实际应引用公共配置 */ return val.toString(); };
-
     formData.relationships.forEach(npc => {
       if (!npc.roleId) return;
       relationshipData[npc.name] = {
-        "认知了解": `熟悉度(${npc.matrix.familiarity})`, // 简化，实际应调用 getMatrixDesc
+        "认知了解": `熟悉度(${npc.matrix.familiarity})`,
         "情感羁绊": `好感:${npc.matrix.affection}, 浪漫:${npc.matrix.romantic}`,
         "利益纽带": `利用:${npc.matrix.utility}, 依赖:${npc.matrix.dependency}`
       };
@@ -294,7 +286,16 @@ const submitCreation = async (payload) => {
       }
     });
 
-    // 2. 基础更新
+    // 2. 过滤 0 级的术之等级
+    const artsToInsert = {};
+    for (const key in formData.术之等级) {
+      const lv = formData.术之等级[key].等级;
+      if (lv > 0) {
+        artsToInsert[key] = { "等级": lv, "经验": 0 };
+      }
+    }
+
+    // 3. 基础更新 Payload
     const updatePayload = {
       "世界": { "地图索引": formData.location, "地点": formData.location },
       "角色": {
@@ -305,28 +306,23 @@ const submitCreation = async (payload) => {
           "外貌": [finalAppearance.value],
           "人际关系": relationshipData,
           "金钱": finalMoney,
-          "缥缈异质": finalHeterogeneity
+          "缥缈异质": finalHeterogeneity,
+          "术之等级": artsToInsert // 只写入 >0 的术
         }
       },
       "system": { "插图模式": formData.gender, "叙事节奏": formData.narrativePace }
     };
+
+    // 如果子组件计算出了基础数值和生命状态，一并写入
+    if (formData.基础数值) updatePayload["角色"]["user"]["基础数值"] = formData.基础数值;
+    if (formData.生命状态) updatePayload["角色"]["user"]["生命状态"] = formData.生命状态;
+
     if (Object.keys(mainRolesUpdate).length > 0) updatePayload["角色"]["主要角色"] = mainRolesUpdate;
 
+    // 4. 一次性提交所有数据
     await MvuUtil.updateMvuDataByDiff(updatePayload);
 
-    // 3. 术之等级
-    const artsToInsert = {};
-    let hasArts = false;
-    for (const key in formData.arts) {
-      const lv = formData.arts[key].当前等级;
-      if (lv > 0) {
-        artsToInsert[key] = { "当前等级": lv, "累计经验值": 0, "下一级需求经验": lv < 14 ? lv * 100 : -1 };
-        hasArts = true;
-      }
-    }
-    if (hasArts) await MvuUtil.updateMvuDataByDiff({ "角色": { "user": { "术之等级": artsToInsert } } });
-
-    // 4. 注入正文
+    // 5. 注入正文
     const msgId = getLastMessageId(); // 假设全局有此函数
     let injectionText = `于破碎的镜面之中，{{user}}看到了自己\n<mirror>\n`;
     injectionText += `姓名：{{user}}\n性别：${formData.gender}\n出生地：${formData.location}\n`;
@@ -339,7 +335,7 @@ const submitCreation = async (payload) => {
       formData.relationships.forEach(npc => {
         if (!npc.roleId) return;
         injectionText += `> 与 ${npc.name} (${npc.gender}):\n`;
-        injectionText += `  - 情感: 好感${npc.matrix.affection}, 浪漫${npc.matrix.romantic}...\n`; // 简化
+        injectionText += `  - 情感: 好感${npc.matrix.affection}, 浪漫${npc.matrix.romantic}...\n`;
         if (npc.summary) injectionText += `  - 总结: ${npc.summary}\n`;
       });
     }
@@ -374,17 +370,18 @@ const submitCreation = async (payload) => {
   height: 100%;
   overflow: hidden;
   position: relative;
+  box-sizing: border-box;
 }
-.main-page-view { height: 100%; display: flex; flex-direction: column; padding: 20px 40px; }
-.creation-header { text-align: center; margin-bottom: 20px; flex-shrink: 0; }
+.main-page-view { height: 100%; display: flex; flex-direction: column; padding: 20px 40px; box-sizing: border-box; }
+.creation-header { text-align: center; margin-bottom: 20px; flex-shrink: 0; box-sizing: border-box; }
 .title { font-family: 'Cinzel', serif; font-size: 2.2rem; color: var(--c-gold); margin: 0; text-shadow: 0 0 10px rgba(197, 160, 89, 0.3); }
 .subtitle { font-size: 0.8rem; color: #888; letter-spacing: 3px; margin-bottom: 15px; }
 .step-indicator { display: flex; justify-content: center; align-items: center; gap: 10px; font-family: 'Cinzel', serif; font-size: 0.9rem; color: #555; }
 .step-indicator span.active { color: var(--c-gold); text-shadow: 0 0 5px var(--c-gold); }
 .step-indicator .line { width: 30px; height: 1px; background: #333; }
 .step-indicator span.active + .line { background: linear-gradient(90deg, var(--c-gold), #333); }
-.content-viewport { flex: 1; position: relative; overflow: hidden; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(197, 160, 89, 0.2); border-radius: 4px; margin-bottom: 15px; }
-.nav-footer { height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-top: 1px solid rgba(197, 160, 89, 0.2); background: rgba(0,0,0,0.3); }
+.content-viewport { flex: 1; position: relative; overflow: hidden; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(197, 160, 89, 0.2); border-radius: 4px; margin-bottom: 15px; display: flex; flex-direction: column; box-sizing: border-box; }
+.nav-footer { height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-top: 1px solid rgba(197, 160, 89, 0.2); background: rgba(0,0,0,0.3); flex-shrink: 0; box-sizing: border-box; }
 .nav-btn { background: transparent; border: 1px solid #444; color: #aaa; padding: 8px 20px; cursor: pointer; font-family: 'Cinzel', serif; transition: all 0.3s; }
 .nav-btn:hover:not(:disabled) { border-color: var(--c-gold); color: var(--c-gold); background: rgba(197, 160, 89, 0.1); }
 .nav-btn:disabled { opacity: 0.3; cursor: not-allowed; }
@@ -399,8 +396,8 @@ const submitCreation = async (payload) => {
 .page-slide-enter-active, .page-slide-leave-active { transition: all 0.3s ease; }
 .page-slide-enter-from, .page-slide-leave-to { transform: translateX(100%); opacity: 0; }
 /* 地图页面 */
-.map-page-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1a1d24; z-index: 100; display: flex; flex-direction: column; }
-.map-page-header { padding: 15px 20px; background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--c-gold); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.map-page-view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1a1d24; z-index: 100; display: flex; flex-direction: column; box-sizing: border-box; }
+.map-page-header { padding: 15px 20px; background: rgba(0,0,0,0.5); border-bottom: 1px solid var(--c-gold); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-sizing: border-box; }
 .map-page-header h2 { margin: 0; color: var(--c-gold); font-family: 'Cinzel', serif; font-size: 1.2rem; }
 .back-btn { background: transparent; border: 1px solid #444; color: #ccc; padding: 4px 12px; cursor: pointer; display: flex; align-items: center; gap: 3px; border-radius: 3px; transition: all 0.3s; }
 .back-btn:hover { border-color: var(--c-gold); color: var(--c-gold); }

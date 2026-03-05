@@ -112,7 +112,7 @@ watch(() => props.globalRemainingPoints, (newVal) => {
 
 const finalMoney = computed(() => {
   if (props.isInfiniteMode) return 1000;
-  return 1000 + (moneyExchangePoints.value * 50);
+  return 1000 + (moneyExchangePoints.value * 200);
 });
 
 const heterogeneityPoints = computed(() => {
@@ -122,7 +122,7 @@ const heterogeneityPoints = computed(() => {
 
 const finalHeterogeneity = computed(() => {
   if (props.isInfiniteMode) return 5000;
-  return 5000 + (heterogeneityPoints.value * 30);
+  return 5000 + (heterogeneityPoints.value * 100);
 });
 
 const onSubmit = () => {

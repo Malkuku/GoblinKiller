@@ -84,7 +84,8 @@
             <label>性格侧写</label>
             <span v-if="isManualSummary" class="reset-btn" @click="resetSummary">↺ 重置自动</span>
           </div>
-          <textarea v-model="finalPersonalitySummary" @input="handleSummaryInput" class="summary-textarea" rows="3"></textarea>
+          <!-- 增加了 rows 以适应多行文本 -->
+          <textarea v-model="finalPersonalitySummary" @input="handleSummaryInput" class="summary-textarea" rows="8"></textarea>
         </div>
       </div>
     </div>
@@ -173,18 +174,30 @@ const getTraitColorClass = (val) => {
   return 'text-gray';
 };
 
-// 自动生成性格总结
+// 自动生成性格总结 (包含每点数值及最终总结)
 const generatedPersonalitySummary = computed(() => {
-  // 注意：这里需要使用 .value 访问
   const p = formData.value.personality;
   if (!p) return "";
 
+  const details = [];
   const parts = [];
+
   for (const key in p) {
     const val = p[key];
-    if (Math.abs(val) >= 40) parts.push(getTraitDetail(key, val).label);
+    const traitDetail = getTraitDetail(key, val);
+    // 记录每个维度的数值和标签
+    details.push(`【${key}】: ${val} (${traitDetail.label})`);
+
+    // 提取极端性格用于总结
+    if (Math.abs(val) >= 40) {
+      parts.push(traitDetail.label);
+    }
   }
-  return parts.length === 0 ? "一位性格平衡、中庸的旅人。" : `一位${parts.join("、")}的旅人。`;
+
+  const summaryText = parts.length === 0 ? "一位性格平衡、中庸的旅人。" : `一位${parts.join("、")}的旅人。`;
+
+  // 拼接详细数值与总结
+  return `${details.join('\n')}\n\n总结：${summaryText}`;
 });
 
 const finalPersonalitySummary = ref("");
@@ -208,9 +221,7 @@ const resetSummary = () => {
 };
 
 // 监听性别变化自动调整外貌预设
-// 注意：这里监听 formData.value.gender
 watch(() => formData.value.gender, (newVal) => {
-  // 直接修改 appearanceDetails.value，defineModel 会处理更新
   if (newVal === '男性') {
     appearanceDetails.value.hairStyle = '利落短发';
     appearanceDetails.value.face = '棱角分明';
@@ -246,7 +257,13 @@ watch(() => formData.value.gender, (newVal) => {
 .slider-container { display: flex; align-items: center; gap: 10px; }
 .styled-slider { flex: 1; accent-color: var(--c-gold); cursor: pointer; height: 4px; background: #333; }
 .personality-summary-box { margin-top: auto; padding: 15px; background: rgba(197, 160, 89, 0.05); border: 1px solid rgba(197, 160, 89, 0.3); }
-.summary-textarea { color: var(--c-gold); font-weight: bold; font-family: 'Cinzel', serif; font-size: 1rem; background: transparent; border: none; resize: none; text-align: center; width: 100%; }
+
+/* 补充了 header-row 的样式以防错位 */
+.summary-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.reset-btn { font-size: 0.8rem; color: var(--c-gold); cursor: pointer; text-decoration: underline; }
+
+/* 调整了 textarea 的样式，改为左对齐，并优化了多行显示的行高和字体 */
+.summary-textarea { color: var(--c-gold); font-weight: bold; font-family: 'Cinzel', serif; font-size: 0.9rem; background: transparent; border: none; resize: none; text-align: left; width: 100%; line-height: 1.5; }
 .text-gold { color: var(--c-gold); }
 .text-blue { color: var(--c-blue); }
 .text-gray { color: #777; }
