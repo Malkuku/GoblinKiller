@@ -21,17 +21,17 @@
             <div class="res-row">
               <span>初始金钱:</span>
               <span class="val">{{ finalMoney }}</span>
-              <span class="sub">(1000 + {{ moneyExchangePoints * 50 }})</span>
+              <span class="sub">(1000 + {{ moneyExchangePoints * 200 }})</span>
             </div>
             <div class="res-row">
               <span>缥缈异质:</span>
               <span class="val text-blue">{{ finalHeterogeneity }}</span>
-              <span class="sub">(5000 + {{ heterogeneityPoints * 30 }})</span>
+              <span class="sub">(5000 + {{ heterogeneityPoints * 100 }})</span>
             </div>
           </div>
 
           <div class="exchange-control" v-if="globalRemainingPoints > 0 && !isInfiniteMode">
-            <label>兑换金钱 (1点 = 50金)</label>
+            <label>兑换金钱</label>
             <div class="slider-container">
               <span>0</span>
               <input type="range" v-model.number="moneyExchangePoints" min="0" :max="globalRemainingPoints" step="1" class="styled-slider">

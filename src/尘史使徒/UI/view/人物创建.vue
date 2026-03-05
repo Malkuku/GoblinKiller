@@ -121,8 +121,8 @@ import CreationBasic from '@/尘史使徒/UI/components/start/CreationBasic.vue'
 import CreationArts from '@/尘史使徒/UI/components/start/CreationArts.vue';
 import CreationRelations from '@/尘史使徒/UI/components/start/CreationRelations.vue';
 import CreationConfirm from '@/尘史使徒/UI/components/start/CreationConfirm.vue';
+// eslint-disable-next-line import-x/no-cycle
 import { router } from '@/尘史使徒/UI/router/router';
-
 
 const statStore = useStatStore();
 const submitting = ref(false);
@@ -154,12 +154,11 @@ const formData = reactive({
   age: '18',
   identity: '王家四艺学院学生',
   location: '艾斯特拉',
-  specialStatus: '',
+  specialStatus: '无特殊之处',
   narrativePace: '诡异现实',
   personality: {
     "社交取向": 0, "决策模式": 0, "思维倾向": 0, "人际姿态": 0, "人性温度": 0
   },
-  // 统一修改为 术之等级，并适配 StatData.d.ts 的结构
   术之等级: {
     "灯": { "等级": 0, "经验": 0 },
     "铸": { "等级": 0, "经验": 0 },
@@ -188,7 +187,7 @@ const finalAppearance = computed(() => {
   return parts.join('，');
 });
 
-// 术之点数计算 (适配新的数据结构)
+// 术之点数计算
 const maxArtLevel = computed(() => isInfiniteMode.value ? 21 : 10);
 const artsSpentPoints = computed(() => {
   let total = 0;
@@ -210,7 +209,7 @@ const artsRemainingPoints = computed(() => 100 - artsSpentPoints.value);
 // 羁绊点数计算
 const relationshipSpentPoints = computed(() => formData.relationships.length * 30);
 
-// 全局剩余点数 (用于羁绊和资源兑换)
+// 全局剩余点数
 const globalRemainingPoints = computed(() => 130 - artsSpentPoints.value - relationshipSpentPoints.value);
 
 // --- 导航逻辑 ---
@@ -258,32 +257,38 @@ const updateSummary = (val) => { finalPersonalitySummary.value = val; };
 
 // --- 提交逻辑 ---
 const submitCreation = async (payload) => {
-  // payload 来自 CreationConfirm 组件，包含金钱和异质的最终计算值
   const { finalMoney, finalHeterogeneity } = payload;
 
   if (!formData.location) return;
   submitting.value = true;
 
   try {
-    // 1. 构建人际关系数据
-    const relationshipData = {};
+    // 1. 构建主要角色更新数据 (修复：将关系写入 主要角色 -> user)
     const mainRolesUpdate = {};
 
     formData.relationships.forEach(npc => {
       if (!npc.roleId) return;
-      relationshipData[npc.name] = {
-        "认知了解": `熟悉度(${npc.matrix.familiarity})`,
-        "情感羁绊": `好感:${npc.matrix.affection}, 浪漫:${npc.matrix.romantic}`,
-        "利益纽带": `利用:${npc.matrix.utility}, 依赖:${npc.matrix.dependency}`
-      };
-      // 更新检索词
-      const roleData = statStore.stat_data["角色"]["主要角色"][npc.roleId];
-      if (roleData) {
-        const currentKeywords = roleData["区域检索词"] || [];
-        if (!currentKeywords.includes(formData.location)) {
-          mainRolesUpdate[npc.roleId] = { "区域检索词": [...currentKeywords, formData.location] };
+
+      const roleData = statStore.stat_data["角色"]["主要角色"][npc.roleId] || {};
+      const currentKeywords = roleData["区域检索词"] || [];
+      const existingRelationships = roleData["人际关系"] || {};
+
+      // 区域检索词去重合并
+      const newKeywords = currentKeywords.includes(formData.location)
+        ? currentKeywords
+        : [...currentKeywords, formData.location];
+
+      mainRolesUpdate[npc.roleId] = {
+        "区域检索词": newKeywords,
+        "人际关系": {
+          ...existingRelationships,
+          "user": {
+            "认知了解": `熟悉度(${npc.matrix.familiarity})`,
+            "情感羁绊": `好感:${npc.matrix.affection}, 浪漫:${npc.matrix.romantic}`,
+            "利益纽带": `利用:${npc.matrix.utility}, 依赖:${npc.matrix.dependency}`
+          }
         }
-      }
+      };
     });
 
     // 2. 过滤 0 级的术之等级
@@ -295,7 +300,7 @@ const submitCreation = async (payload) => {
       }
     }
 
-    // 3. 基础更新 Payload
+    // 3. 基础更新 Payload (移除了 user 节点下的错误人际关系)
     const updatePayload = {
       "世界": { "地图索引": formData.location, "地点": formData.location },
       "角色": {
@@ -304,16 +309,14 @@ const submitCreation = async (payload) => {
           "当前身份": formData.identity,
           "性格": { ...formData.personality, "性格总结": [finalPersonalitySummary.value] },
           "外貌": [finalAppearance.value],
-          "人际关系": relationshipData,
           "金钱": finalMoney,
           "缥缈异质": finalHeterogeneity,
-          "术之等级": artsToInsert // 只写入 >0 的术
+          "术之等级": artsToInsert
         }
       },
       "system": { "插图模式": formData.gender, "叙事节奏": formData.narrativePace }
     };
 
-    // 如果子组件计算出了基础数值和生命状态，一并写入
     if (formData.基础数值) updatePayload["角色"]["user"]["基础数值"] = formData.基础数值;
     if (formData.生命状态) updatePayload["角色"]["user"]["生命状态"] = formData.生命状态;
 
@@ -322,7 +325,7 @@ const submitCreation = async (payload) => {
     // 4. 一次性提交所有数据
     await MvuUtil.updateMvuDataByDiff(updatePayload);
 
-    // 5. 注入正文
+    // 5. 注入正文 (补全所有缺失信息)
     const msgId = getLastMessageId(); // 假设全局有此函数
     let injectionText = `于破碎的镜面之中，{{user}}看到了自己\n<mirror>\n`;
     injectionText += `姓名：{{user}}\n性别：${formData.gender}\n出生地：${formData.location}\n`;
@@ -330,15 +333,11 @@ const submitCreation = async (payload) => {
     injectionText += `外貌：${finalAppearance.value}\n性格：${finalPersonalitySummary.value}\n`;
     if (formData.specialStatus) injectionText += `特殊状态：${formData.specialStatus}\n`;
 
-    if (formData.relationships.some(n => n.roleId)) {
-      injectionText += `\n[命运羁绊]\n`;
-      formData.relationships.forEach(npc => {
-        if (!npc.roleId) return;
-        injectionText += `> 与 ${npc.name} (${npc.gender}):\n`;
-        injectionText += `  - 情感: 好感${npc.matrix.affection}, 浪漫${npc.matrix.romantic}...\n`;
-        if (npc.summary) injectionText += `  - 总结: ${npc.summary}\n`;
-      });
+    // 写入羁绊 (利用 CreationRelations.vue 自动注入到 formData 的完整综述文本)
+    if (formData.fullRelationshipText && formData.fullRelationshipText !== "孤身一人，没有额外羁绊") {
+      injectionText += `\n[命运羁绊]\n${formData.fullRelationshipText}\n`;
     }
+
     injectionText += `</mirror>\n随后伴随着一阵天旋地转，{{user}}的意识又陷入一片混沌...`;
 
     await MessageUtil.mergeContentToMessage(msgId, injectionText);
@@ -401,5 +400,21 @@ const submitCreation = async (payload) => {
 .map-page-header h2 { margin: 0; color: var(--c-gold); font-family: 'Cinzel', serif; font-size: 1.2rem; }
 .back-btn { background: transparent; border: 1px solid #444; color: #ccc; padding: 4px 12px; cursor: pointer; display: flex; align-items: center; gap: 3px; border-radius: 3px; transition: all 0.3s; }
 .back-btn:hover { border-color: var(--c-gold); color: var(--c-gold); }
-.map-page-content { flex: 1; position: relative; overflow: hidden; }
+.map-page-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  /* 新增以下属性修复溢出 */
+  height: 0; /* 强制高度由 flex 决定，解决内部 height: 100% 溢出问题 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 确保地图组件完全填满容器且不溢出 */
+.map-page-content > * {
+  flex: 1;
+  width: 100%;
+  height: 100%;
+}
+
 </style>

@@ -357,7 +357,7 @@ const generateTechnicalSummary = (npc) => {
   const m = npc.matrix;
   const lines = [];
 
-  lines.push(`【人际关系矩阵: ${getRoleName(npc.roleId)} → User】`);
+  lines.push(`【人际关系矩阵: ${getRoleName(npc.roleId)} → <user>】`);
 
   const emo = [];
   emo.push(`好感:${m.affection}[${getRangeDesc('affection', m.affection)}]`);
