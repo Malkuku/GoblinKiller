@@ -68,6 +68,12 @@ const isFireFading = ref(false);       // 控制火圈淡出 (新增)
 const holes = ref([]);
 
 onMounted(() => {
+  // --- 新增：播放火烧纸 BGM ---
+  playAudio('bgm', {
+    title: '火烧纸',
+    url: 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/bgm/火烧纸.mp3'
+  });
+
   const numHoles = 40 + Math.floor(Math.random() * 20);
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -130,6 +136,8 @@ onMounted(() => {
   // 4.2秒：彻底移除
   setTimeout(() => {
     visible.value = false;
+    // --- 新增：动画结束时暂停音乐 ---
+    pauseAudio('bgm');
     emit('complete');
   }, 3300);
 });

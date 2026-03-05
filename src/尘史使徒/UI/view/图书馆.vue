@@ -102,6 +102,7 @@ const redDots = reactive({ '物品出售': false, '技能购买': false, '密传
 const lastRawRecords = { ItemSell: null, SkillBuy: null, SecretBuy: null };
 
 let pollingTimer = null;
+let bgmTimer = null; // 新增：用于记录 BGM 的定时器
 
 const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
 
@@ -310,10 +311,27 @@ const fetchAll = async () => {
 onMounted(async () => {
   await fetchAll();
   pollingTimer = setInterval(fetchAll, 3000);
+
+  // 新增：延迟 5 秒后播放 BGM 并设置为单曲循环
+  bgmTimer = setTimeout(() => {
+    // 1. 设置背景音乐为单曲循环
+    setAudioSettings('bgm', { mode: 'repeat_one' });
+
+    // 2. 播放指定的 BGM
+    playAudio('bgm', {
+      title: '图书馆之梦',
+      url: 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/bgm/图书馆之梦.wav'
+    });
+  }, 4000);
 });
 
 onUnmounted(() => {
   if (pollingTimer) clearInterval(pollingTimer);
+
+  // 新增：如果组件在 5 秒内被销毁，清除定时器，防止在其他页面突然播放音乐
+  if (bgmTimer) clearTimeout(bgmTimer);
+
+  pauseAudio('bgm');
 });
 </script>
 
