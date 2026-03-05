@@ -461,7 +461,7 @@ function addToPayload(root, pathArr, key, value) {
   current[key] = value;
 }
 
-function generateDiff(localObj, remoteObj, pathArr, payloads) {
+function generateDiff(localObj, remoteObj, pathArr, payload) {
   const allKeys = new Set([...Object.keys(localObj), ...Object.keys(remoteObj)]);
 
   allKeys.forEach(key => {
@@ -470,13 +470,16 @@ function generateDiff(localObj, remoteObj, pathArr, payloads) {
     const remoteItem = remoteObj[key];
 
     if (remoteItem && !localItem) {
-      addToPayload(payloads.delete, pathArr, key, null);
+      // 远程有，本地没有 -> 删除
+      addToPayload(payload, pathArr, key, null);
     } else if (localItem && !remoteItem) {
-      addToPayload(payloads.insert, pathArr, key, cleanData(localItem));
+      // 本地有，远程没有 -> 新增
+      addToPayload(payload, pathArr, key, cleanData(localItem));
     } else if (localItem && remoteItem) {
+      // 都有 -> 检查更新
       const cleanLocal = cleanData(localItem);
       if (JSON.stringify(cleanLocal) !== JSON.stringify(remoteItem)) {
-        addToPayload(payloads.update, pathArr, key, cleanLocal);
+        addToPayload(payload, pathArr, key, cleanLocal);
       }
     }
   });
@@ -487,7 +490,8 @@ async function saveAllChanges() {
   isSaving.value = true;
 
   try {
-    const payloads = { delete: {}, insert: {}, update: {} };
+    // 直接使用单一的 payload 对象
+    const mergedPayload = {};
 
     // 动态获取当前角色的远程数据和保存路径
     const charData = getActiveCharacterData();
@@ -498,21 +502,11 @@ async function saveAllChanges() {
       ? ['角色', 'user', '技能']
       : ['角色', '主要角色', activeCharacterKey.value, '技能'];
 
-    generateDiff(localEquipped.value, remoteEquipped, characterSkillPath, payloads);
-    generateDiff(localLibrary.value, remoteLibrary, ['技能库'], payloads);
+    // 直接将差异写入 mergedPayload
+    generateDiff(localEquipped.value, remoteEquipped, characterSkillPath, mergedPayload);
+    generateDiff(localLibrary.value, remoteLibrary, ['技能库'], mergedPayload);
 
-    const mergedPayload = {};
-    if (Object.keys(payloads.delete).length > 0) {
-      Object.keys(payloads.delete).forEach(key => {
-        if (typeof payloads.delete[key] === 'object' && Object.keys(payloads.delete[key]).length === 0) {
-          payloads.delete[key] = null;
-        }
-      });
-      Object.assign(mergedPayload, payloads.delete);
-    }
-    if (Object.keys(payloads.update).length > 0) Object.assign(mergedPayload, payloads.update);
-    if (Object.keys(payloads.insert).length > 0) Object.assign(mergedPayload, payloads.insert);
-
+    // 如果有差异，则调用 MvuUtil 更新
     if (Object.keys(mergedPayload).length > 0) {
       await MvuUtil.updateMvuDataByDiff(mergedPayload);
     }
@@ -553,6 +547,7 @@ async function saveAllChanges() {
     isSaving.value = false;
   }
 }
+
 </script>
 
 <style scoped>

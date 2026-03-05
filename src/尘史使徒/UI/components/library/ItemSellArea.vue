@@ -162,7 +162,6 @@ const confirmCheckout = async () => {
     await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
 
     clearCart();
-    setTimeout(() => statStore.initData(), 200);
   } catch (e) {
     showToast('交易失败');
     console.error(e);

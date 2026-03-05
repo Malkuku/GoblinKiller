@@ -577,7 +577,7 @@ function addToPayload(root, pathArr, key, value) {
   current[key] = value;
 }
 
-function generateDiff(localObj, remoteObj, pathArr, payloads) {
+function generateDiff(localObj, remoteObj, pathArr, payload) {
   const allKeys = new Set([...Object.keys(localObj), ...Object.keys(remoteObj)]);
 
   allKeys.forEach(key => {
@@ -587,14 +587,16 @@ function generateDiff(localObj, remoteObj, pathArr, payloads) {
     const remoteItem = remoteObj[key];
 
     if (remoteItem && !localItem) {
-      // 使用null标记删除，而不是空对象
-      addToPayload(payloads.delete, pathArr, key, null);
+      // 远程有，本地没有 -> 删除 (值为 null)
+      addToPayload(payload, pathArr, key, null);
     } else if (localItem && !remoteItem) {
-      addToPayload(payloads.insert, pathArr, key, cleanData(localItem));
+      // 本地有，远程没有 -> 新增
+      addToPayload(payload, pathArr, key, cleanData(localItem));
     } else if (localItem && remoteItem) {
+      // 都有 -> 检查差异
       const cleanLocal = cleanData(localItem);
       if (JSON.stringify(cleanLocal) !== JSON.stringify(remoteItem)) {
-        addToPayload(payloads.update, pathArr, key, cleanLocal);
+        addToPayload(payload, pathArr, key, cleanLocal);
       }
     }
   });
@@ -605,43 +607,23 @@ async function saveAllChanges() {
   isSaving.value = true;
 
   try {
-    const payloads = { delete: {}, insert: {}, update: {} };
+    // 1. 创建单一的 payload 对象
+    const mergedPayload = {};
+
     const remoteBackpack = statStore.stat_data?.角色?.user?.物品 || {};
     const remoteWarehouse = statStore.stat_data?.仓库 || {};
 
-    generateDiff(localBackpack.value, remoteBackpack, ['角色', 'user', '物品'], payloads);
-    generateDiff(localWarehouse.value, remoteWarehouse, ['仓库'], payloads);
+    // 2. 直接将差异写入 mergedPayload
+    // addToPayload 会自动处理深层路径合并，不会发生覆盖
+    generateDiff(localBackpack.value, remoteBackpack, ['角色', 'user', '物品'], mergedPayload);
+    generateDiff(localWarehouse.value, remoteWarehouse, ['仓库'], mergedPayload);
 
-    // 合并所有操作为一个差分更新
-    const mergedPayload = {};
-
-    // 合并删除操作（将删除的字段设为null）
-    if (Object.keys(payloads.delete).length > 0) {
-      // 遍历删除payload，将值从{}改为null
-      Object.keys(payloads.delete).forEach(key => {
-        if (typeof payloads.delete[key] === 'object' && Object.keys(payloads.delete[key]).length === 0) {
-          // 如果是空对象，则转换为null表示删除
-          payloads.delete[key] = null;
-        }
-      });
-      Object.assign(mergedPayload, payloads.delete);
-    }
-
-    // 合并更新操作
-    if (Object.keys(payloads.update).length > 0) {
-      Object.assign(mergedPayload, payloads.update);
-    }
-
-    // 合并插入操作
-    if (Object.keys(payloads.insert).length > 0) {
-      Object.assign(mergedPayload, payloads.insert);
-    }
-
-    // 使用 MvuUtil 的差分更新方法一次性处理所有变更
+    // 3. 如果有变更，直接提交
     if (Object.keys(mergedPayload).length > 0) {
       await MvuUtil.updateMvuDataByDiff(mergedPayload);
     }
 
+    // --- 以下是日志逻辑 (保持不变) ---
     const exchangeLogs = [];
     const allNames = new Set([
       ...Object.keys(remoteBackpack),
