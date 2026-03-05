@@ -1,14 +1,12 @@
 <template>
-  <div class="burn-overlay" v-if="visible" :class="{ 'fade-out': isFading }">
+  <div class="burn-overlay" v-if="visible" :class="{ 'fade-out': isBackgroundFading }">
     <svg width="100%" height="100%">
       <defs>
-        <!-- 蛀烧滤镜：保留纸张边缘的粗糙感 -->
-        <filter id="paper-burn" filterUnits="userSpaceOnUse" x="-20%" y="-20%" width="140%" height="140%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="2" result="noise" />
-          <feDisplacementMap in="SourceGraphic" in2="noise" scale="20" xChannelSelector="R" yChannelSelector="G" />
+        <filter id="paper-burn" filterUnits="userSpaceOnUse" x="-30%" y="-30%" width="160%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="4" seed="5" result="noise" />
+          <feDisplacementMap in="SourceGraphic" in2="noise" scale="25" xChannelSelector="R" yChannelSelector="G" />
         </filter>
 
-        <!-- 遮罩：白色保留，黑色挖空 -->
         <mask id="holes-mask">
           <rect width="100%" height="100%" fill="white" />
           <g filter="url(#paper-burn)">
@@ -17,42 +15,43 @@
               :cx="h.x" :cy="h.y" r="0"
               fill="black"
             >
-              <animate attributeName="r" from="0" to="80%" :dur="h.dur" :begin="h.delay" fill="freeze" />
+              <animate attributeName="r" from="0" :to="h.maxR" :dur="h.dur" :begin="h.delay" fill="freeze" />
             </circle>
           </g>
         </mask>
       </defs>
 
-      <!-- 黑幕本体 -->
+      <!-- 黑幕本体 (受 isBackgroundFading 控制) -->
       <rect width="100%" height="100%" fill="#050505" mask="url(#holes-mask)" />
 
-      <!-- 燃烧的火焰边缘 -->
-      <g filter="url(#paper-burn)">
-        <!-- 1. 最外层：烧焦的碳化边缘 (宽) -->
+      <!-- 燃烧的火焰边缘 (受 isFireFading 控制，独立淡出) -->
+      <!-- 添加 class fire-group 用于控制透明度 -->
+      <g filter="url(#paper-burn)" class="fire-group" :class="{ 'fire-fade-out': isFireFading }">
+        <!-- 1. 焦黑边缘 -->
         <circle
           v-for="(h, i) in holes" :key="'char'+i"
           :cx="h.x" :cy="h.y" r="0"
-          fill="none" stroke="#1a0500" stroke-width="18"
+          fill="none" stroke="#2a0a00" stroke-width="6"
         >
-          <animate attributeName="r" from="0" to="80%" :dur="h.dur" :begin="h.delay" fill="freeze" />
+          <animate attributeName="r" from="0" :to="h.maxR" :dur="h.dur" :begin="h.delay" fill="freeze" />
         </circle>
 
-        <!-- 2. 中间层：暗红色的余烬 -->
+        <!-- 2. 余烬 -->
         <circle
           v-for="(h, i) in holes" :key="'fire-outer'+i"
           :cx="h.x" :cy="h.y" r="0"
-          fill="none" stroke="#8b1c00" stroke-width="8"
+          fill="none" stroke="#8b1c00" stroke-width="3"
         >
-          <animate attributeName="r" from="0" to="80%" :dur="h.dur" :begin="h.delay" fill="freeze" />
+          <animate attributeName="r" from="0" :to="h.maxR" :dur="h.dur" :begin="h.delay" fill="freeze" />
         </circle>
 
-        <!-- 3. 最内层：明亮的高温火线 (极细) -->
+        <!-- 3. 火线 -->
         <circle
           v-for="(h, i) in holes" :key="'fire-inner'+i"
           :cx="h.x" :cy="h.y" r="0"
-          fill="none" stroke="#ff7700" stroke-width="2"
+          fill="none" stroke="#ff9900" stroke-width="1"
         >
-          <animate attributeName="r" from="0" to="80%" :dur="h.dur" :begin="h.delay" fill="freeze" />
+          <animate attributeName="r" from="0" :to="h.maxR" :dur="h.dur" :begin="h.delay" fill="freeze" />
         </circle>
       </g>
     </svg>
@@ -64,69 +63,75 @@ import { ref, onMounted } from 'vue';
 
 const emit = defineEmits(['complete']);
 const visible = ref(true);
-const isFading = ref(false);
+const isBackgroundFading = ref(false); // 控制黑幕淡出
+const isFireFading = ref(false);       // 控制火圈淡出 (新增)
 const holes = ref([]);
 
 onMounted(() => {
-  const numHoles = 5 + Math.floor(Math.random() * 3); // 5 到 7 个洞
-
-  // 获取屏幕宽高，用于计算真实的像素距离，防止在宽屏/长屏上距离计算变形
+  const numHoles = 40 + Math.floor(Math.random() * 20);
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-
-  // 设定两个火圈中心点的最小安全距离（取屏幕较短边的 35% 作为防重叠半径）
-  const minDistancePx = Math.min(vw, vh) * 0.35;
-  const maxRetries = 50; // 最大重试次数，防止死循环
+  const minDistancePx = Math.min(vw, vh) * 0.04;
+  const maxRetries = 20;
 
   for (let i = 0; i < numHoles; i++) {
     let xPercent, yPercent, xPx, yPx;
     let isValid = false;
     let retries = 0;
 
-    // 拒绝采样算法：生成坐标 -> 检查距离 -> 不合格则重试
     while (!isValid && retries < maxRetries) {
-      xPercent = 10 + Math.random() * 80;
-      yPercent = 10 + Math.random() * 80;
-
-      // 转换为实际像素坐标
+      xPercent = Math.random() * 100;
+      yPercent = Math.random() * 100;
       xPx = (xPercent / 100) * vw;
       yPx = (yPercent / 100) * vh;
 
       isValid = true;
-
-      // 与已存在的火圈进行距离校验
       for (const existingHole of holes.value) {
         const dx = xPx - existingHole.px;
         const dy = yPx - existingHole.py;
-        const distance = Math.sqrt(dx * dx + dy * dy); // 勾股定理计算直线距离
-
+        const distance = Math.sqrt(dx * dx + dy * dy);
         if (distance < minDistancePx) {
-          isValid = false; // 距离太近，标记为不合格，跳出当前比对，重新生成
+          isValid = false;
           break;
         }
       }
       retries++;
     }
 
-    // 将合格的（或达到最大重试次数妥协的）火圈加入数组
+    // --- 修改点 1: 缩小尺寸 ---
+    // 原来是 8-12%，现在改为 3-7%
+    // 这样既不会太大，也能配合密集的数量
+    const maxRadiusPercent = 3 + Math.random() * 4;
+
     holes.value.push({
       x: xPercent + '%',
       y: yPercent + '%',
-      px: xPx, // 保存像素坐标供后续比对使用
+      px: xPx,
       py: yPx,
-      delay: (Math.random() * 0.5) + 's',
-      dur: '4s'
+      maxR: maxRadiusPercent + '%',
+      delay: (Math.random() * 0.8) + 's',
+      dur: (1.5 + Math.random() * 1.5) + 's'
     });
   }
 
-  setTimeout(() => {
-    isFading.value = true;
-  }, 1200);
+  // --- 修改点 2: 时间轴调整 ---
 
+  // 2.2秒：火圈开始淡出 (此时黑幕还在！)
+  // 这样可以解决“火圈滞留不再扩大”看起来很假的问题
+  // 因为在它们完全停止前，或者刚停止时，火就灭了
+  setTimeout(() => {
+    isFireFading.value = true;
+  }, 2000);
+
+  setTimeout(() => {
+    isBackgroundFading.value = true;
+  }, 2500);
+
+  // 4.2秒：彻底移除
   setTimeout(() => {
     visible.value = false;
     emit('complete');
-  }, 2000);
+  }, 3300);
 });
 </script>
 
@@ -136,9 +141,20 @@ onMounted(() => {
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 9999;
   pointer-events: none;
-  transition: opacity 0.5s ease-out;
+  transition: opacity 1s ease-out; /* 黑幕的淡出 */
 }
+
 .fade-out {
+  opacity: 0;
+}
+
+/* --- 新增：火圈层的独立过渡 --- */
+.fire-group {
+  transition: opacity 0.8s ease-out; /* 火圈淡出稍微快一点点 */
+  opacity: 1;
+}
+
+.fire-fade-out {
   opacity: 0;
 }
 </style>
