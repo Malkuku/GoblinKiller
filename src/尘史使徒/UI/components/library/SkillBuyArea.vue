@@ -133,7 +133,7 @@ const confirmCheckout = async () => {
     // 直接在对象上赋值
     diff.角色.user.技能[skillName] = {
       性相: cartItem.details.性相 || "无",
-      技能等级: 1,
+      技能等级: cartItem.details.技能等级 || 1,
       描述: cartItem.details.描述 || "",
       消耗: cartItem.details.消耗 || "",
       作用: cartItem.details.作用 || ""
