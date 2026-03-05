@@ -14,12 +14,12 @@
       <div class="card-header">
         <div class="header-title">
           <span class="tech-prefix">//</span>
-          敌对实体档案 <span class="sub-text">HOSTILE_ENTITY_DATABASE</span> <span class="separator">::</span>
-          <span class="entity-red">THREAT_DETECTED</span>
+          路遇险敌 <span class="separator">::</span>
+          <span class="entity-red">威胁检测</span>
         </div>
         <div class="status-indicator scanning">
           <span class="status-dot"></span>
-          数据同步中 // SYNCING
+          数据同步中
         </div>
       </div>
 
@@ -35,7 +35,7 @@
             :class="{ active: currentEnemyName === name }"
             @click="currentEnemyName = name"
           >
-            <span class="icon">▧</span> {{ name }} <span class="en">TARGET</span>
+            <span class="icon">▧</span> {{ name }}
           </div>
           <div class="tab-line"></div>
         </div>
@@ -45,17 +45,17 @@
           <div v-if="currentEnemy" :key="currentEnemyName" class="data-view">
             <div class="data-grid-layout">
 
-              <!-- 模块 1: 生命状态 (Vitals) -->
+              <!-- 模块 1: 生命状态 -->
               <div class="data-box vitals-box">
                 <div class="box-header">
                   <span class="box-icon"></span>
-                  <h4>生命体征 // VITALS</h4>
+                  <h4>生命体征</h4>
                 </div>
                 <div class="vitals-list">
                   <!-- 生命 -->
                   <div class="vital-item">
                     <div class="vital-labels">
-                      <span class="vital-name">生命 (HP)</span>
+                      <span class="vital-name">生命</span>
                       <span class="vital-value red">{{ currentEnemy.生命状态.生命.当前 }} / {{ currentEnemy.生命状态.生命.最大值 }}</span>
                     </div>
                     <div class="progress-bg">
@@ -65,7 +65,7 @@
                   <!-- 体力 -->
                   <div class="vital-item">
                     <div class="vital-labels">
-                      <span class="vital-name">体力 (SP)</span>
+                      <span class="vital-name">体力</span>
                       <span class="vital-value gold">{{ currentEnemy.生命状态.体力.当前 }} / {{ currentEnemy.生命状态.体力.最大值 }}</span>
                     </div>
                     <div class="progress-bg">
@@ -75,7 +75,7 @@
                   <!-- 精神 -->
                   <div class="vital-item">
                     <div class="vital-labels">
-                      <span class="vital-name">精神 (SAN)</span>
+                      <span class="vital-name">精神</span>
                       <span class="vital-value gray">{{ currentEnemy.生命状态.精神.当前 }} / {{ currentEnemy.生命状态.精神.最大值 }}</span>
                     </div>
                     <div class="progress-bg">
@@ -85,11 +85,11 @@
                 </div>
               </div>
 
-              <!-- 模块 2: 基础数值 (Attributes) -->
+              <!-- 模块 2: 基础数值 -->
               <div class="data-box attributes-box">
                 <div class="box-header">
                   <span class="box-icon"></span>
-                  <h4>基础参数 // ATTRIBUTES</h4>
+                  <h4>基础参数</h4>
                 </div>
                 <div class="attr-grid">
                   <div class="attr-item" v-for="(val, key) in currentEnemy.基础数值" :key="key">
@@ -99,11 +99,11 @@
                 </div>
               </div>
 
-              <!-- 模块 3: 术之等级 (Lore/Arts) -->
+              <!-- 模块 3: 术之等级 -->
               <div class="data-box arts-box">
                 <div class="box-header">
                   <span class="box-icon"></span>
-                  <h4>神秘学识 // LORE_ARTS</h4>
+                  <h4>神秘学识</h4>
                 </div>
                 <div class="arts-container">
                   <div v-if="Object.keys(currentEnemy.术之等级).length === 0" class="empty-hint">
@@ -112,16 +112,16 @@
                   <div class="art-badge" v-for="(data, artName) in currentEnemy.术之等级" :key="artName">
                     <div class="art-name">{{ artName }}</div>
                     <div class="art-level">Lv.{{ data.等级 }}</div>
-                    <div class="art-exp">EXP: {{ data.经验 }}</div>
+                    <div class="art-exp">经验: {{ data.经验 }}</div>
                   </div>
                 </div>
               </div>
 
-              <!-- 模块 4: 战斗策略 (Strategy) -->
+              <!-- 模块 4: 战斗策略 -->
               <div class="data-box strategy-box">
                 <div class="box-header">
                   <span class="box-icon"></span>
-                  <h4>行为预测 // COMBAT_STRATEGY</h4>
+                  <h4>行为预测</h4>
                 </div>
                 <div class="strategy-content">
                   <p class="terminal-text">> {{ currentEnemy.战斗策略 || '暂无可用战术情报...' }}</p>
@@ -180,10 +180,8 @@ const getPercentage = (stat) => {
   background-color: var(--ac-bg-dark);
   color: var(--ac-white);
   font-family: var(--ac-font-main);
-  padding: 40px 20px;
+  padding: 20px; /* 减小外边距 */
   position: relative;
-  min-height: 100vh;
-  overflow: hidden;
 }
 
 .scanlines {
@@ -221,7 +219,7 @@ const getPercentage = (stat) => {
 
 /* 头部 */
 .card-header {
-  padding: 12px 20px;
+  padding: 10px 16px; /* 紧凑 */
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -229,9 +227,8 @@ const getPercentage = (stat) => {
   background: linear-gradient(90deg, rgba(212, 175, 55, 0.1) 0%, transparent 100%);
 }
 
-.header-title { font-size: 1.1rem; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; font-weight: bold; }
+.header-title { font-size: 1rem; letter-spacing: 1px; display: flex; align-items: center; gap: 8px; font-weight: bold; }
 .tech-prefix { color: var(--ac-gold-dim); }
-.sub-text { font-size: 0.7em; color: var(--ac-gold-dim); margin-left: -4px; }
 .separator { color: var(--ac-line); }
 .entity-red { color: var(--ac-red); text-shadow: 0 0 5px rgba(204, 41, 41, 0.4); animation: pulse-red 2s infinite; }
 
@@ -239,11 +236,11 @@ const getPercentage = (stat) => {
 .status-dot { width: 6px; height: 6px; border-radius: 50%; background-color: var(--ac-gold-light); box-shadow: 0 0 5px var(--ac-gold-light); animation: blink 1s infinite; }
 
 /* 内容区与标签 */
-.card-content { padding: 20px; min-height: 400px; }
+.card-content { padding: 16px; } /* 紧凑 */
 
-.tab-controller { display: flex; gap: 2px; margin-bottom: 20px; position: relative; flex-wrap: wrap; }
+.tab-controller { display: flex; gap: 2px; margin-bottom: 12px; position: relative; flex-wrap: wrap; } /* 紧凑 */
 .tab-btn {
-  padding: 8px 24px;
+  padding: 6px 16px; /* 紧凑 */
   background: rgba(0,0,0,0.3);
   border: 1px solid var(--ac-line);
   border-bottom: none;
@@ -251,32 +248,31 @@ const getPercentage = (stat) => {
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.3s;
-  display: flex; align-items: center; gap: 8px;
-  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+  display: flex; align-items: center; gap: 6px;
+  clip-path: polygon(8px 0, 100% 0, 100% 100%, 0 100%, 0 8px);
 }
 .tab-btn:hover { background: rgba(212, 175, 55, 0.05); color: var(--ac-white); }
 .tab-btn.active {
-  background: rgba(204, 41, 41, 0.15); /* 敌人标签激活使用暗红色 */
+  background: rgba(204, 41, 41, 0.15);
   color: var(--ac-red);
   border-color: var(--ac-red);
   text-shadow: 0 0 8px rgba(204, 41, 41, 0.3);
 }
-.tab-btn .en { font-size: 0.7em; opacity: 0.6; font-family: var(--ac-font-mono); }
 .tab-line { position: absolute; bottom: 0; left: 0; right: 0; height: 1px; background: var(--ac-gold); opacity: 0.3; z-index: 0; }
 
 /* 网格布局 */
 .data-grid-layout {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 20px;
+  gap: 12px; /* 紧凑 */
 }
 
 /* 通用数据盒样式 */
 .data-box {
-  position: relative; padding: 20px;
+  position: relative; padding: 12px 16px; /* 紧凑 */
   background: rgba(20, 18, 12, 0.5);
   border: 1px solid var(--ac-line);
-  clip-path: polygon(0 0, calc(100% - 15px) 0, 100% 15px, 100% 100%, 15px 100%, 0 calc(100% - 15px));
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
   transition: transform 0.3s, box-shadow 0.3s;
 }
 .data-box:hover {
@@ -284,65 +280,65 @@ const getPercentage = (stat) => {
   border-color: rgba(212, 175, 55, 0.4);
 }
 
-.box-header { display: flex; align-items: center; margin-bottom: 16px; border-bottom: 1px solid var(--ac-line); padding-bottom: 8px; }
-.box-icon { width: 6px; height: 6px; background-color: var(--ac-gold); margin-right: 10px; box-shadow: 0 0 5px var(--ac-gold); transform: rotate(45deg); }
-.box-header h4 { margin: 0; font-size: 0.95rem; letter-spacing: 1px; color: var(--ac-white); font-weight: normal; }
+.box-header { display: flex; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--ac-line); padding-bottom: 6px; } /* 紧凑 */
+.box-icon { width: 5px; height: 5px; background-color: var(--ac-gold); margin-right: 8px; box-shadow: 0 0 5px var(--ac-gold); transform: rotate(45deg); }
+.box-header h4 { margin: 0; font-size: 0.9rem; letter-spacing: 1px; color: var(--ac-white); font-weight: normal; }
 
 /* 模块 1: 生命体征 */
-.vitals-list { display: flex; flex-direction: column; gap: 15px; }
+.vitals-list { display: flex; flex-direction: column; gap: 10px; } /* 紧凑 */
 .vital-item { font-family: var(--ac-font-mono); }
-.vital-labels { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85rem; }
+.vital-labels { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.8rem; }
 .vital-value { font-weight: bold; }
 .vital-value.red { color: #ff6b6b; }
 .vital-value.gold { color: var(--ac-gold-light); }
 .vital-value.gray { color: #a8b2c1; }
 
-.progress-bg { width: 100%; height: 8px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; }
+.progress-bg { width: 100%; height: 6px; background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.1); position: relative; overflow: hidden; } /* 紧凑 */
 .progress-fill { height: 100%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
 .fill-red { background: linear-gradient(90deg, #8b0000, var(--ac-red)); box-shadow: 0 0 10px rgba(204,41,41,0.5); }
 .fill-gold { background: linear-gradient(90deg, var(--ac-gold-dim), var(--ac-gold)); box-shadow: 0 0 10px rgba(212,175,55,0.5); }
 .fill-gray { background: linear-gradient(90deg, #4a5568, #a0aec0); }
 
 /* 模块 2: 基础数值 */
-.attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.attr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } /* 紧凑 */
 .attr-item {
   background: rgba(0,0,0,0.4);
   border: 1px dashed var(--ac-line);
-  padding: 10px;
+  padding: 6px 10px; /* 紧凑 */
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
-.attr-label { font-size: 0.9rem; color: var(--ac-gray); }
-.attr-value { font-family: var(--ac-font-mono); font-size: 1.2rem; color: var(--ac-gold); font-weight: bold; text-shadow: 0 0 5px rgba(212,175,55,0.3); }
+.attr-label { font-size: 0.85rem; color: var(--ac-gray); }
+.attr-value { font-family: var(--ac-font-mono); font-size: 1.1rem; color: var(--ac-gold); font-weight: bold; text-shadow: 0 0 5px rgba(212,175,55,0.3); }
 
 /* 模块 3: 神秘学识 */
 .arts-box { grid-column: 1 / -1; }
-.arts-container { display: flex; flex-wrap: wrap; gap: 15px; }
+.arts-container { display: flex; flex-wrap: wrap; gap: 10px; } /* 紧凑 */
 .empty-hint { color: var(--ac-gray); font-family: var(--ac-font-mono); font-size: 0.85rem; font-style: italic; }
 .art-badge {
   background: linear-gradient(135deg, rgba(212,175,55,0.1) 0%, rgba(0,0,0,0.8) 100%);
   border: 1px solid var(--ac-gold-dim);
-  padding: 10px 20px;
-  min-width: 120px;
-  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  padding: 8px 16px; /* 紧凑 */
+  min-width: 100px;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
   display: flex; flex-direction: column; align-items: center;
 }
-.art-name { font-size: 1.1rem; font-weight: bold; color: var(--ac-white); margin-bottom: 4px; letter-spacing: 2px; }
-.art-level { font-family: var(--ac-font-mono); font-size: 0.9rem; color: var(--ac-gold); }
+.art-name { font-size: 1rem; font-weight: bold; color: var(--ac-white); margin-bottom: 2px; letter-spacing: 1px; }
+.art-level { font-family: var(--ac-font-mono); font-size: 0.85rem; color: var(--ac-gold); }
 .art-exp { font-family: var(--ac-font-mono); font-size: 0.7rem; color: var(--ac-gray); margin-top: 2px; }
 
 /* 模块 4: 战斗策略 */
 .strategy-box { grid-column: 1 / -1; }
 .strategy-content {
   background: rgba(0, 0, 0, 0.6);
-  padding: 15px;
+  padding: 10px 12px; /* 紧凑 */
   border-left: 3px solid var(--ac-red);
   font-family: var(--ac-font-mono);
-  font-size: 0.9rem;
-  line-height: 1.6;
+  font-size: 0.85rem;
+  line-height: 1.5;
   color: #e2dac2;
-  min-height: 80px;
+  min-height: 60px; /* 紧凑 */
 }
 .terminal-text { margin: 0; display: inline; }
 .cursor { display: inline-block; width: 8px; height: 1em; background-color: var(--ac-gold); animation: blink 1s step-end infinite; vertical-align: bottom; margin-left: 4px; }

@@ -15,17 +15,18 @@
         <div class="header-title">
           <span class="tech-prefix">//</span>
           战斗回溯 <span class="separator">::</span>
-          <!-- 攻方始终为红色，防方始终为金色，跟随当前拍动态变化 -->
           <span class="entity-red">{{ parsedInteraction.atkName }}</span>
           <span class="vs-mini">VS</span>
           <span class="entity-gold">{{ parsedInteraction.defName }}</span>
         </div>
         <div class="status-indicator" :class="phase">
-          <span class="status-dot"></span>
-          {{ phaseText }}
-          <span v-if="phase !== 'finished'" class="beat-counter">
-            [ 拍数: {{ currentBeatIndex + 1 }} / {{ combatLog.length }} ]
-          </span>
+          <div class="status-left">
+            <span class="status-dot"></span>
+            {{ phaseText }}
+            <span v-if="phase !== 'finished'" class="beat-counter">
+              [ 拍数: {{ currentBeatIndex + 1 }} / {{ combatLog.length }} ]
+            </span>
+          </div>
           <button class="replay-btn" @click="replayCombat">[ 重置 ]</button>
         </div>
       </div>
@@ -36,7 +37,8 @@
         <div class="svg-container" @click="advanceCombat" v-if="phase !== 'finished'">
           <div class="grid-bg"></div>
 
-          <svg viewBox="0 0 800 190" class="combat-svg">
+          <!-- 动态 viewBox，适配移动端垂直布局与电脑端横向布局 -->
+          <svg :viewBox="layout.viewBox" class="combat-svg">
             <defs>
               <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
                 <feGaussianBlur stdDeviation="3" result="blur" />
@@ -48,32 +50,32 @@
               </filter>
             </defs>
 
-            <!-- 左侧：攻方基础信息 -->
+            <!-- 攻方基础信息 -->
             <g class="side-attacker anim-group" :class="{ 'fade-out': phase === 'beat-result' || phase === 'switching' }">
-              <line x1="40" y1="20" x2="300" y2="20" stroke="#ff3333" stroke-width="1" opacity="0.3" />
-              <text x="170" y="15" class="role-title" fill="#ff3333" text-anchor="middle" filter="url(#glow-red)">
+              <line :x1="layout.atk.line.x1" :y1="layout.atk.line.y1" :x2="layout.atk.line.x2" :y2="layout.atk.line.y2" stroke="#ff3333" stroke-width="1" opacity="0.3" class="svg-trans" />
+              <text :x="layout.atk.title.x" :y="layout.atk.title.y" class="role-title svg-trans" fill="#ff3333" text-anchor="middle" filter="url(#glow-red)">
                 {{ parsedInteraction.atkName }} <tspan font-size="10" fill="#aaa">(攻)</tspan>
               </text>
-              <text x="170" y="35" class="sub-info" fill="#ff3333" text-anchor="middle" opacity="0.8">
+              <text :x="layout.atk.sub.x" :y="layout.atk.sub.y" class="sub-info svg-trans" fill="#ff3333" text-anchor="middle" opacity="0.8">
                 动作: {{ parsedInteraction.atkAction }} | 消耗: {{ currentBeat.攻方.消耗 }}
               </text>
-              <rect x="50" y="45" width="240" height="20" fill="rgba(255,51,51,0.05)" stroke="rgba(255,51,51,0.2)" stroke-width="1" rx="2"/>
-              <text x="170" y="59" class="formula-text" fill="#e8e0c5" text-anchor="middle">
+              <rect :x="layout.atk.rect.x" :y="layout.atk.rect.y" :width="layout.atk.rect.w" :height="layout.atk.rect.h" fill="rgba(255,51,51,0.05)" stroke="rgba(255,51,51,0.2)" stroke-width="1" rx="2" class="svg-trans"/>
+              <text :x="layout.atk.form.x" :y="layout.atk.form.y" class="formula-text svg-trans" fill="#e8e0c5" text-anchor="middle">
                 {{ currentBeat.攻方.公式 }}
               </text>
             </g>
 
-            <!-- 右侧：防方基础信息 -->
+            <!-- 防方基础信息 -->
             <g class="side-defender anim-group" :class="{ 'fade-out': phase === 'beat-result' || phase === 'switching' }">
-              <line x1="500" y1="20" x2="760" y2="20" stroke="#d4af37" stroke-width="1" opacity="0.3" />
-              <text x="630" y="15" class="role-title" fill="#d4af37" text-anchor="middle" filter="url(#glow-gold)">
+              <line :x1="layout.def.line.x1" :y1="layout.def.line.y1" :x2="layout.def.line.x2" :y2="layout.def.line.y2" stroke="#d4af37" stroke-width="1" opacity="0.3" class="svg-trans" />
+              <text :x="layout.def.title.x" :y="layout.def.title.y" class="role-title svg-trans" fill="#d4af37" text-anchor="middle" filter="url(#glow-gold)">
                 {{ parsedInteraction.defName }} <tspan font-size="10" fill="#aaa">(防)</tspan>
               </text>
-              <text x="630" y="35" class="sub-info" fill="#d4af37" text-anchor="middle" opacity="0.8">
+              <text :x="layout.def.sub.x" :y="layout.def.sub.y" class="sub-info svg-trans" fill="#d4af37" text-anchor="middle" opacity="0.8">
                 应对: {{ parsedInteraction.defAction }} | 消耗: {{ currentBeat.防方.消耗 }}
               </text>
-              <rect x="510" y="45" width="240" height="20" fill="rgba(212, 175, 55, 0.05)" stroke="rgba(212, 175, 55, 0.2)" stroke-width="1" rx="2"/>
-              <text x="630" y="59" class="formula-text" fill="#e8e0c5" text-anchor="middle">
+              <rect :x="layout.def.rect.x" :y="layout.def.rect.y" :width="layout.def.rect.w" :height="layout.def.rect.h" fill="rgba(212, 175, 55, 0.05)" stroke="rgba(212, 175, 55, 0.2)" stroke-width="1" rx="2" class="svg-trans"/>
+              <text :x="layout.def.form.x" :y="layout.def.form.y" class="formula-text svg-trans" fill="#e8e0c5" text-anchor="middle">
                 {{ currentBeat.防方.公式 }}
               </text>
             </g>
@@ -83,12 +85,12 @@
               <!-- 准备阶段：显示骰子占位符 (?) -->
               <g v-if="phase === 'ready' || phase === 'switching'">
                 <g v-for="(_, index) in expectedAtkDice" :key="'atk-placeholder'+index"
-                   :transform="`translate(${320 - (expectedAtkDice * 35) / 2 + index * 35}, 80)`">
+                   :transform="`translate(${layout.dice.atkCenterX - (expectedAtkDice * 35) / 2 + index * 35}, ${layout.dice.atkY})`" class="svg-trans">
                   <rect width="26" height="26" fill="transparent" stroke="rgba(255,51,51,0.3)" stroke-width="1" stroke-dasharray="2 2" />
                   <text x="13" y="18" fill="rgba(255,51,51,0.5)" font-size="13" font-family="monospace" text-anchor="middle">?</text>
                 </g>
                 <g v-for="(_, index) in expectedDefDice" :key="'def-placeholder'+index"
-                   :transform="`translate(${480 - (expectedDefDice * 35) / 2 + index * 35}, 80)`">
+                   :transform="`translate(${layout.dice.defCenterX - (expectedDefDice * 35) / 2 + index * 35}, ${layout.dice.defY})`" class="svg-trans">
                   <rect width="26" height="26" fill="transparent" stroke="rgba(212, 175, 55, 0.3)" stroke-width="1" stroke-dasharray="2 2" />
                   <text x="13" y="18" fill="rgba(212, 175, 55, 0.5)" font-size="13" font-family="monospace" text-anchor="middle">?</text>
                 </g>
@@ -97,12 +99,12 @@
               <!-- 投骰/结算阶段：显示真实骰子 -->
               <g v-else>
                 <g v-for="(dice, index) in currentAtkRolls" :key="'atk'+index"
-                   :transform="`translate(${320 - (currentAtkRolls.length * 35) / 2 + index * 35}, 80)`">
+                   :transform="`translate(${layout.dice.atkCenterX - (currentAtkRolls.length * 35) / 2 + index * 35}, ${layout.dice.atkY})`" class="svg-trans">
                   <rect width="26" height="26" fill="rgba(255,51,51,0.1)" stroke="#ff3333" stroke-width="1" />
                   <text x="13" y="18" fill="#fff" font-size="13" font-family="monospace" text-anchor="middle">{{ dice }}</text>
                 </g>
                 <g v-for="(dice, index) in currentDefRolls" :key="'def'+index"
-                   :transform="`translate(${480 - (currentDefRolls.length * 35) / 2 + index * 35}, 80)`">
+                   :transform="`translate(${layout.dice.defCenterX - (currentDefRolls.length * 35) / 2 + index * 35}, ${layout.dice.defY})`" class="svg-trans">
                   <rect width="26" height="26" fill="rgba(212, 175, 55, 0.1)" stroke="#d4af37" stroke-width="1" />
                   <text x="13" y="18" fill="#fff" font-size="13" font-family="monospace" text-anchor="middle">{{ dice }}</text>
                 </g>
@@ -110,23 +112,27 @@
 
               <!-- 拼点总值与 VS -->
               <g v-if="phase === 'clashing' || phase === 'beat-result'">
-                <g class="total-group" :class="{ 'clash-move-right': phase === 'clashing' }">
-                  <polygon points="320,120 340,140 320,160 300,140" fill="rgba(255,51,51,0.15)" stroke="#ff3333" stroke-width="1" filter="url(#glow-red)"/>
-                  <text x="320" y="145" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.攻方.攻击总值 }}</text>
+                <g class="total-group"
+                   :class="{ 'clash-move-right': phase === 'clashing' && !isMobile, 'clash-move-down': phase === 'clashing' && isMobile }"
+                   :transform="`translate(${layout.clash.atkTotalX}, ${layout.clash.atkTotalY})`">
+                  <polygon points="0,-20 20,0 0,20 -20,0" fill="rgba(255,51,51,0.15)" stroke="#ff3333" stroke-width="1" filter="url(#glow-red)"/>
+                  <text x="0" y="5" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.攻方.攻击总值 }}</text>
                 </g>
-                <g class="total-group" :class="{ 'clash-move-left': phase === 'clashing' }">
-                  <polygon points="480,120 500,140 480,160 460,140" fill="rgba(212, 175, 55, 0.15)" stroke="#d4af37" stroke-width="1" filter="url(#glow-gold)"/>
-                  <text x="480" y="145" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.防方.防御总值 }}</text>
+                <g class="total-group"
+                   :class="{ 'clash-move-left': phase === 'clashing' && !isMobile, 'clash-move-up': phase === 'clashing' && isMobile }"
+                   :transform="`translate(${layout.clash.defTotalX}, ${layout.clash.defTotalY})`">
+                  <polygon points="0,-20 20,0 0,20 -20,0" fill="rgba(212, 175, 55, 0.15)" stroke="#d4af37" stroke-width="1" filter="url(#glow-gold)"/>
+                  <text x="0" y="5" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.防方.防御总值 }}</text>
                 </g>
-                <line x1="350" y1="140" x2="450" y2="140" stroke="#fff" stroke-width="1" stroke-dasharray="4 4" opacity="0.3" class="clash-line"/>
-                <text x="400" y="146" fill="#fff" font-size="18" font-family="monospace" letter-spacing="2" text-anchor="middle" class="vs-text">VS</text>
+                <line :x1="layout.clash.lineX1" :y1="layout.clash.lineY" :x2="layout.clash.lineX2" :y2="layout.clash.lineY" stroke="#fff" stroke-width="1" stroke-dasharray="4 4" opacity="0.3" class="clash-line svg-trans"/>
+                <text :x="layout.clash.vsX" :y="layout.clash.vsY" fill="#fff" font-size="18" font-family="monospace" letter-spacing="2" text-anchor="middle" class="vs-text svg-trans">VS</text>
               </g>
             </g>
 
-            <!-- 底部中央操作提示 -->
+            <!-- 操作提示 -->
             <g class="action-prompt anim-group" v-if="phase === 'ready' || phase === 'beat-result' || phase === 'switching'" :class="{ 'fade-out': phase === 'switching' }">
-              <rect x="330" y="165" width="140" height="20" fill="rgba(212, 175, 55, 0.1)" stroke="#d4af37" stroke-width="1" rx="10" />
-              <text x="400" y="179" fill="#d4af37" font-size="11" text-anchor="middle" class="click-continue-hint">
+              <rect :x="layout.clash.promptX" :y="layout.clash.promptY" :width="layout.clash.promptW" :height="layout.clash.promptH" fill="rgba(212, 175, 55, 0.1)" stroke="#d4af37" stroke-width="1" rx="10" class="svg-trans" />
+              <text :x="layout.clash.promptTextX" :y="layout.clash.promptTextY" fill="#d4af37" font-size="11" text-anchor="middle" class="click-continue-hint svg-trans">
                 {{ phase === 'ready' ? '>> 点击投掷骰子 <<' : '>> 点击进入下一拍 <<' }}
               </text>
             </g>
@@ -152,7 +158,6 @@
                 <div class="data-box visual-narrative">
                   <div class="narrative-content">
 
-                    <!-- 战斗进行中：仅显示当前拍 -->
                     <div v-if="phase !== 'finished' && currentBeat" class="beat-log-item current-focus">
                       <div class="beat-header">
                         <span class="beat-num">拍数 {{ currentBeatIndex + 1 }}</span>
@@ -178,7 +183,6 @@
                       </div>
                     </div>
 
-                    <!-- 战斗结束：显示全部拍的复盘列表 -->
                     <div v-else class="full-recap-list">
                       <div v-for="(beat, index) in combatLog" :key="'recap'+index" class="beat-log-item history-item">
                         <div class="beat-header">
@@ -243,10 +247,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 // 1. 注入符合新规则的 JSON 数据
-const rawJson = $1
+const rawJson =  $1
 
 const combatLog = rawJson.交锋推演;
 const finalSettlement = rawJson.最终结算;
@@ -268,6 +272,85 @@ const currentBeatIndex = ref(0);
 const currentAtkRolls = ref([]);
 const currentDefRolls = ref([]);
 const isAnimating = ref(false);
+
+// --- 新增：响应式布局检测 ---
+const isMobile = ref(false);
+const checkMobile = () => {
+  isMobile.value = window.innerWidth <= 768;
+};
+
+onMounted(() => {
+  checkMobile();
+  window.addEventListener('resize', checkMobile);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile);
+});
+
+// --- 新增：动态 SVG 坐标系 (电脑端横向，移动端垂直) ---
+const layout = computed(() => {
+  if (isMobile.value) {
+    return {
+      viewBox: "0 0 400 500",
+      atk: {
+        line: { x1: 20, y1: 30, x2: 380, y2: 30 },
+        title: { x: 200, y: 20 },
+        sub: { x: 200, y: 45 },
+        rect: { x: 40, y: 55, w: 320, h: 24 },
+        form: { x: 200, y: 72 }
+      },
+      def: {
+        line: { x1: 20, y1: 490, x2: 380, y2: 490 },
+        title: { x: 200, y: 480 },
+        sub: { x: 200, y: 455 },
+        rect: { x: 40, y: 415, w: 320, h: 24 },
+        form: { x: 200, y: 432 }
+      },
+      dice: {
+        atkY: 100, defY: 370,
+        atkCenterX: 200, defCenterX: 200
+      },
+      clash: {
+        atkTotalX: 200, atkTotalY: 170,
+        defTotalX: 200, defTotalY: 330,
+        vsX: 200, vsY: 246,
+        lineX1: 100, lineX2: 300, lineY: 240,
+        promptX: 130, promptY: 265, promptW: 140, promptH: 24, promptTextX: 200, promptTextY: 281
+      }
+    };
+  } else {
+    // 电脑端：保持原版坐标 100% 不变
+    return {
+      viewBox: "0 0 800 190",
+      atk: {
+        line: { x1: 40, y1: 20, x2: 300, y2: 20 },
+        title: { x: 170, y: 15 },
+        sub: { x: 170, y: 35 },
+        rect: { x: 50, y: 45, w: 240, h: 20 },
+        form: { x: 170, y: 59 }
+      },
+      def: {
+        line: { x1: 500, y1: 20, x2: 760, y2: 20 },
+        title: { x: 630, y: 15 },
+        sub: { x: 630, y: 35 },
+        rect: { x: 510, y: 45, w: 240, h: 20 },
+        form: { x: 630, y: 59 }
+      },
+      dice: {
+        atkY: 80, defY: 80,
+        atkCenterX: 320, defCenterX: 480
+      },
+      clash: {
+        atkTotalX: 320, atkTotalY: 140,
+        defTotalX: 480, defTotalY: 140,
+        vsX: 400, vsY: 146,
+        lineX1: 350, lineX2: 450, lineY: 140,
+        promptX: 330, promptY: 165, promptW: 140, promptH: 20, promptTextX: 400, promptTextY: 179
+      }
+    };
+  }
+});
 
 const currentBeat = computed(() => combatLog[currentBeatIndex.value]);
 const expectedAtkDice = computed(() => currentBeat.value?.攻方?.骰点详情?.length || 1);
@@ -293,7 +376,7 @@ const phaseText = computed(() => {
     'rolling': '概率演算中',
     'clashing': '冲突判定',
     'beat-result': '单拍结算',
-    'switching': '重置序列...', // 新增过渡状态文本
+    'switching': '重置序列...',
     'finished': '序列完成'
   };
   return map[phase.value];
@@ -307,14 +390,12 @@ const advanceCombat = async () => {
 
   if (phase.value === 'beat-result') {
     if (currentBeatIndex.value >= combatLog.length - 1) {
-      // 结束时留在 visual tab 观看完整复盘
       currentTab.value = 'data';
       phase.value = 'finished';
     } else {
-      // 增加切拍的平滑过渡动画
       isAnimating.value = true;
       phase.value = 'switching';
-      await delay(300); // 等待 SVG 元素淡出
+      await delay(300);
 
       currentBeatIndex.value++;
       currentAtkRolls.value = [];
@@ -432,6 +513,7 @@ const replayCombat = () => {
 .vs-mini { font-size: 0.75rem; color: var(--ac-gray); font-family: var(--ac-font-mono); }
 
 .status-indicator { font-family: var(--ac-font-mono); font-size: 0.75rem; display: flex; align-items: center; gap: 6px; color: var(--ac-gray); }
+.status-left { display: flex; align-items: center; gap: 6px; }
 .status-dot { width: 6px; height: 6px; border-radius: 50%; }
 .beat-counter { color: var(--ac-gold-light); margin-left: 6px; }
 .status-indicator.ready .status-dot { background-color: var(--ac-gold); animation: pulse 1.5s infinite; }
@@ -458,12 +540,13 @@ const replayCombat = () => {
   background-size: 40px 40px; opacity: 0.15;
 }
 .combat-svg { width: 100%; height: auto; display: block; position: relative; z-index: 2; }
+.svg-trans { transition: all 0.3s ease; } /* 坐标切换时的平滑过渡 */
 
 .role-title { font-size: 14px; font-weight: bold; }
 .sub-info { font-size: 11px; font-family: var(--ac-font-mono); }
 .formula-text { font-size: 11px; font-family: var(--ac-font-mono); }
 
-/* 动画组：增加平滑过渡 */
+/* 动画组 */
 .anim-group { transition: all 0.3s ease-in-out; }
 .total-group { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 .clash-move-right { transform: translateX(15px); }
@@ -532,7 +615,6 @@ const replayCombat = () => {
 .glitch-marks { color: var(--ac-gold-dim); animation: blink 1s infinite; }
 .revealed-text { animation: glitchPop 0.3s ease forwards; }
 
-/* 终端输出风格的结果框 */
 .system-result-box {
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid rgba(212, 175, 55, 0.2);
@@ -549,7 +631,6 @@ const replayCombat = () => {
 .system-result-box .pending { color: var(--ac-gray); font-style: italic; }
 .highlight-result { color: var(--ac-red); font-weight: bold; text-shadow: 0 0 5px rgba(204, 41, 41, 0.3); animation: glitchPop 0.3s ease forwards;}
 
-/* 完整复盘列表样式 */
 .full-recap-list {
   max-height: 320px;
   overflow-y: auto;
@@ -577,5 +658,74 @@ const replayCombat = () => {
 .fade-slide-enter-from { opacity: 0; transform: translateX(10px); }
 .fade-slide-leave-to { opacity: 0; transform: translateX(-10px); }
 
-@media (max-width: 768px) { .data-grid-layout { grid-template-columns: 1fr; } .combat-svg { min-height: 160px; } }
+/* ==========================================
+   移动端深度优化 (完全重构，不影响电脑端)
+========================================== */
+@media (max-width: 768px) {
+  .animus-theme { padding: 10px 5px; }
+  .gallery-card { border-radius: 6px; }
+
+  /* 1. 头部排版优化：上下堆叠，信息清晰 */
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+  }
+  .header-title {
+    font-size: 1.1rem;
+    flex-wrap: wrap;
+    line-height: 1.4;
+  }
+  .status-indicator {
+    width: 100%;
+    justify-content: space-between;
+    font-size: 0.85rem;
+  }
+  .replay-btn {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  /* 2. SVG 区域：取消强行放大和横向滚动，让 SVG 垂直自然铺开 */
+  .svg-container {
+    min-height: auto;
+    padding: 15px 0;
+  }
+  .combat-svg {
+    width: 100%;
+    height: auto;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+
+  /* 移动端专属的拼点动画方向 (上下移动) */
+  .clash-move-down { transform: translateY(15px); }
+  .clash-move-up { transform: translateY(-15px); }
+
+  /* 3. 底部 Tab 栏：增大触控面积 */
+  .tab-controller { gap: 4px; margin-bottom: 15px; }
+  .tab-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 12px 0;
+    font-size: 0.95rem;
+  }
+
+  /* 4. 文本复盘区域：增大字号和间距 */
+  .beat-log-item { padding: 12px; }
+  .beat-header { flex-wrap: wrap; gap: 8px; }
+  .beat-num { font-size: 0.8rem; padding: 3px 6px; }
+  .beat-interaction { font-size: 0.95rem; }
+  .narrative-text { font-size: 1rem; line-height: 1.5; }
+  .system-result-box { font-size: 0.9rem; padding: 10px; flex-wrap: wrap; }
+
+  /* 5. 数据面板：单列布局 */
+  .data-grid-layout { grid-template-columns: 1fr; gap: 12px; }
+  .box-header h4 { font-size: 1rem; }
+  .stats-comparison { font-size: 0.9rem; }
+  .stat-row { padding-bottom: 6px; }
+  .list-section ul { font-size: 0.9rem; }
+  .list-section ul li { margin-bottom: 6px; }
+}
 </style>
