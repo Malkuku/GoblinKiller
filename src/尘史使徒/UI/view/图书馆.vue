@@ -1,7 +1,7 @@
 <template>
   <div class="library-container">
-    <!-- 入场动画 -->
-    <BurnIntro v-if="showIntro" @complete="showIntro = false" />
+    <!-- 入场动画：绑定 handleIntroComplete 方法 -->
+    <BurnIntro v-if="showIntro" @complete="handleIntroComplete" />
 
     <!-- 顶部 Header -->
     <LibraryHeader
@@ -59,7 +59,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, inject, onMounted, onUnmounted, computed } from 'vue';
+// 引入了 watch
+import { ref, reactive, inject, onMounted, onUnmounted, computed, watch } from 'vue';
 import { MvuUtil } from '@/Utils/MvuUtil';
 import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
@@ -72,9 +73,14 @@ import SkillBuyArea from '@/尘史使徒/UI/components/library/SkillBuyArea.vue'
 import SecretBuyArea from '@/尘史使徒/UI/components/library/SecretBuyArea.vue';
 import InputArea from '@/尘史使徒/UI/components/library/InputArea.vue';
 import ExpBuyArea from '@/尘史使徒/UI/components/library/ExpBuyArea.vue';
+import { useAudioStore } from '@/尘史使徒/UI/store/AudioStore';
 
 const showToast = inject('showToast', (msg) => console.log(msg));
 const statStore = useStatStore();
+const audioStore = useAudioStore();
+
+// 1. 进模块立刻触发后台下载，不阻塞界面！
+audioStore.preloadAll();
 
 // 状态管理
 const modes = ['对话', '物品出售', '技能购买', '密传购买', '经验兑换'];
@@ -83,7 +89,7 @@ const isSending = ref(false);
 const isThinking = ref(false);
 const showIntro = ref(true);
 
-// 删除模式状态管理 (新增)
+// 删除模式状态管理
 const isDeleteMode = ref(false);
 const selectedMessages = ref([]);
 
@@ -102,7 +108,7 @@ const redDots = reactive({ '物品出售': false, '技能购买': false, '密传
 const lastRawRecords = { ItemSell: null, SkillBuy: null, SecretBuy: null };
 
 let pollingTimer = null;
-let bgmTimer = null; // 新增：用于记录 BGM 的定时器
+let bgmWatcher = null; // 用于保存 BGM 监听器
 
 const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
 
@@ -114,7 +120,7 @@ const switchMode = (mode) => {
   }
 };
 
-// ================= 核心逻辑：删除模式控制 (新增) =================
+// ================= 核心逻辑：删除模式控制 =================
 const toggleDeleteMode = () => {
   isDeleteMode.value = !isDeleteMode.value;
   if (!isDeleteMode.value) selectedMessages.value = [];
@@ -126,7 +132,7 @@ const toggleSelect = (id) => {
   else selectedMessages.value.splice(pos, 1);
 };
 
-// ================= 核心逻辑：批量删除 (修改) =================
+// ================= 核心逻辑：批量删除 =================
 const deleteSelected = async () => {
   const selectedIds = selectedMessages.value;
   if (!selectedIds || selectedIds.length === 0) return;
@@ -151,15 +157,13 @@ const deleteSelected = async () => {
     console.error(e);
     showToast("删除失败");
   } finally {
-    // 删除完成后退出删除模式并清空选择
     selectedMessages.value = [];
     isDeleteMode.value = false;
   }
 };
 
-// ================= 核心逻辑：发送消息 (修改) =================
+// ================= 核心逻辑：发送消息 =================
 const sendMessage = async (text) => {
-  // 发送消息时，如果处于删除模式，则退出
   if (isDeleteMode.value) {
     isDeleteMode.value = false;
     selectedMessages.value = [];
@@ -309,28 +313,47 @@ const fetchAll = async () => {
 };
 
 onMounted(async () => {
-  await fetchAll();
-  pollingTimer = setInterval(fetchAll, 3000);
-
-  // 新增：延迟 5 秒后播放 BGM 并设置为单曲循环
-  bgmTimer = setTimeout(() => {
-    // 1. 设置背景音乐为单曲循环
-    setAudioSettings('bgm', { mode: 'repeat_one' });
-
-    // 2. 播放指定的 BGM
-    playAudio('bgm', {
-      title: '图书馆之梦',
-      url: 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/bgm/图书馆之梦.wav'
-    });
-  }, 4000);
+  // 界面秒进，直接开始获取游戏数据
+  if (typeof fetchAll === 'function') {
+    await fetchAll();
+    pollingTimer = setInterval(fetchAll, 3000);
+  }
 });
+
+// --- 处理入场动画结束 ---
+const handleIntroComplete = () => {
+  showIntro.value = false;
+  playLibraryBgm();
+};
+
+// --- 智能播放 BGM 逻辑 ---
+const playLibraryBgm = () => {
+  // 情况 A：已经下好了，直接放
+  if (audioStore.loadStatus.libBgm === 'ready') {
+    setAudioSettings('bgm', { mode: 'repeat_one' });
+    playAudio('bgm', { title: '图书馆之梦', url: audioStore.getUrl('libBgm') });
+  }
+  // 情况 B：还没下好，盯着它，下好立刻放
+  else {
+    bgmWatcher = watch(() => audioStore.loadStatus.libBgm, (newStatus) => {
+      if (newStatus === 'ready') {
+        setAudioSettings('bgm', { mode: 'repeat_one' });
+        playAudio('bgm', { title: '图书馆之梦', url: audioStore.getUrl('libBgm') });
+
+        // 播放后立刻取消监听
+        if (bgmWatcher) {
+          bgmWatcher();
+          bgmWatcher = null;
+        }
+      }
+    });
+  }
+};
 
 onUnmounted(() => {
   if (pollingTimer) clearInterval(pollingTimer);
-
-  // 新增：如果组件在 5 秒内被销毁，清除定时器，防止在其他页面突然播放音乐
-  if (bgmTimer) clearTimeout(bgmTimer);
-
+  // 如果还没下好玩家就退出了模块，取消监听，防止在其他界面突然响起来
+  if (bgmWatcher) bgmWatcher();
   pauseAudio('bgm');
 });
 </script>

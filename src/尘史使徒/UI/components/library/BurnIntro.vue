@@ -1,5 +1,5 @@
 <template>
-  <div class="burn-overlay" v-if="visible" :class="{ 'fade-out': isBackgroundFading }">
+  <div v-if="visible" class="burn-overlay" :class="{ 'fade-out': isBackgroundFading }">
     <svg width="100%" height="100%">
       <defs>
         <filter id="paper-burn" filterUnits="userSpaceOnUse" x="-30%" y="-30%" width="160%" height="160%">
@@ -25,7 +25,6 @@
       <rect width="100%" height="100%" fill="#050505" mask="url(#holes-mask)" />
 
       <!-- 燃烧的火焰边缘 (受 isFireFading 控制，独立淡出) -->
-      <!-- 添加 class fire-group 用于控制透明度 -->
       <g filter="url(#paper-burn)" class="fire-group" :class="{ 'fire-fade-out': isFireFading }">
         <!-- 1. 焦黑边缘 -->
         <circle
@@ -60,19 +59,27 @@
 
 <script setup>
 import { ref, onMounted } from 'vue';
+import { useAudioStore } from '@/尘史使徒/UI/store/AudioStore';
 
 const emit = defineEmits(['complete']);
 const visible = ref(true);
-const isBackgroundFading = ref(false); // 控制黑幕淡出
-const isFireFading = ref(false);       // 控制火圈淡出 (新增)
+const isBackgroundFading = ref(false);
+const isFireFading = ref(false);
 const holes = ref([]);
 
+// 初始化 Store
+const audioStore = useAudioStore();
+
 onMounted(() => {
-  // --- 新增：播放火烧纸 BGM ---
-  playAudio('bgm', {
-    title: '火烧纸',
-    url: 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/bgm/火烧纸.mp3'
-  });
+
+  if (audioStore.loadStatus.burnBgm === 'ready') {
+    playAudio('bgm', {
+      title: '火烧纸',
+      url: audioStore.getUrl('burnBgm')
+    });
+  } else {
+    console.log('火烧纸BGM尚未就绪，跳过播放');
+  }
 
   const numHoles = 40 + Math.floor(Math.random() * 20);
   const vw = window.innerWidth;
@@ -104,9 +111,6 @@ onMounted(() => {
       retries++;
     }
 
-    // --- 修改点 1: 缩小尺寸 ---
-    // 原来是 8-12%，现在改为 3-7%
-    // 这样既不会太大，也能配合密集的数量
     const maxRadiusPercent = 3 + Math.random() * 4;
 
     holes.value.push({
@@ -120,11 +124,6 @@ onMounted(() => {
     });
   }
 
-  // --- 修改点 2: 时间轴调整 ---
-
-  // 2.2秒：火圈开始淡出 (此时黑幕还在！)
-  // 这样可以解决“火圈滞留不再扩大”看起来很假的问题
-  // 因为在它们完全停止前，或者刚停止时，火就灭了
   setTimeout(() => {
     isFireFading.value = true;
   }, 2000);
@@ -133,10 +132,8 @@ onMounted(() => {
     isBackgroundFading.value = true;
   }, 2500);
 
-  // 4.2秒：彻底移除
   setTimeout(() => {
     visible.value = false;
-    // --- 新增：动画结束时暂停音乐 ---
     pauseAudio('bgm');
     emit('complete');
   }, 3300);
@@ -149,16 +146,15 @@ onMounted(() => {
   top: 0; left: 0; right: 0; bottom: 0;
   z-index: 9999;
   pointer-events: none;
-  transition: opacity 1s ease-out; /* 黑幕的淡出 */
+  transition: opacity 1s ease-out;
 }
 
 .fade-out {
   opacity: 0;
 }
 
-/* --- 新增：火圈层的独立过渡 --- */
 .fire-group {
-  transition: opacity 0.8s ease-out; /* 火圈淡出稍微快一点点 */
+  transition: opacity 0.8s ease-out;
   opacity: 1;
 }
 

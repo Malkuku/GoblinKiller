@@ -86,6 +86,7 @@
     "jquery": "^3.7.1",
     "jqueryui": "^1.11.1",
     "klona": "^2.0.6",
+    "localforage": "^1.10.0",
     "lodash": "^4.17.21",
     "pinia": "^3.0.4",
     "pixi.js": "^8.14.3",

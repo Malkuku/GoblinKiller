@@ -6,6 +6,7 @@ import { router } from './router/router';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
+import { useAudioStore } from '@/尘史使徒/UI/store/AudioStore';
 
 let vueApp: VueApp | null = null;
 let mountPoint: JQuery<HTMLDivElement> | null = null;
@@ -77,5 +78,6 @@ $(() => {
   useStatStore().registerListener()
   useStatStore().initData()
   useMessageStore().getMessage();
+  useAudioStore().preloadAll();
 });
 

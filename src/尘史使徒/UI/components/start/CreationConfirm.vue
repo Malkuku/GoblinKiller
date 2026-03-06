@@ -26,7 +26,7 @@
             <div class="res-row">
               <span>缥缈异质:</span>
               <span class="val text-blue">{{ finalHeterogeneity }}</span>
-              <span class="sub">(5000 + {{ heterogeneityPoints * 100 }})</span>
+              <span class="sub">(4000 + {{ heterogeneityPoints * 100 }})</span>
             </div>
           </div>
 
@@ -121,8 +121,8 @@ const heterogeneityPoints = computed(() => {
 });
 
 const finalHeterogeneity = computed(() => {
-  if (props.isInfiniteMode) return 5000;
-  return 5000 + (heterogeneityPoints.value * 100);
+  if (props.isInfiniteMode) return 4000;
+  return 4000 + (heterogeneityPoints.value * 100);
 });
 
 const onSubmit = () => {

@@ -237,7 +237,11 @@ watch(() => formData.value.gender, (newVal) => {
 </script>
 
 <style scoped>
-/* 样式保持不变 */
+/* --- 修复点 1：全局应用 box-sizing 防止 padding 撑破宽度 --- */
+.page-container, .page-container * {
+  box-sizing: border-box;
+}
+
 .page-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; padding: 20px; overflow-y: auto; }
 .split-layout { display: flex; gap: 30px; height: 100%; }
 .split-col { flex: 1; display: flex; flex-direction: column; }
@@ -267,4 +271,40 @@ watch(() => formData.value.gender, (newVal) => {
 .text-gold { color: var(--c-gold); }
 .text-blue { color: var(--c-blue); }
 .text-gray { color: #777; }
+
+/* --- 移动端适配 --- */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 15px;
+    /* --- 修复点 2：移除 height: auto; 和 min-height: 100%; --- */
+    /* 保持 height: 100% 才能让绝对定位的容器在内部产生 overflow-y: auto 滚动条 */
+  }
+
+  .split-layout {
+    flex-direction: column;
+    gap: 20px;
+    height: auto;
+  }
+
+  .split-col {
+    width: 100%;
+    flex: none;
+  }
+
+  .input-row.two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .appearance-grid {
+    gap: 8px;
+  }
+
+  .section-title {
+    font-size: 1.1rem;
+  }
+
+  .personality-summary-box {
+    margin-top: 20px;
+  }
+}
 </style>

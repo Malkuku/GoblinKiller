@@ -310,4 +310,87 @@ onMounted(() => {
   white-space: nowrap;
 }
 .cost-val.max { color: var(--c-gold, #c5a059); border-color: var(--c-gold, #c5a059); font-weight: bold; background: rgba(197, 160, 89, 0.1); }
+
+/* --- 移动端适配 --- */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 10px;
+    overflow-y: auto; /* 确保页面可滚动 */
+  }
+
+  .arts-layout {
+    height: auto; /* 取消固定高度，允许内容撑开 */
+    display: block;
+  }
+
+  .arts-content-row {
+    flex-direction: column;
+    height: auto;
+    overflow: visible;
+    gap: 15px;
+  }
+
+  .arts-list-scroll.large,
+  .arts-preview-large {
+    flex: none;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+    max-height: none;
+  }
+
+  .points-header-large {
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px;
+    margin-bottom: 15px;
+  }
+
+  .points-info-group {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .points-label {
+    margin-bottom: 0;
+  }
+
+  .infinite-toggle {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  /* 调整列表项以适应窄屏 */
+  .art-point-item {
+    padding: 10px;
+  }
+
+  .art-icon-placeholder {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    margin-right: 10px;
+  }
+
+  .art-name {
+    font-size: 1rem;
+  }
+
+  .ctrl-btn {
+    width: 28px;
+    height: 28px;
+    font-size: 1rem;
+  }
+
+  .cost-preview {
+    min-width: 50px;
+  }
+
+  .cost-val {
+    font-size: 0.7rem;
+    padding: 2px 4px;
+  }
+}
 </style>
