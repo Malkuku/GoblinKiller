@@ -1,10 +1,11 @@
 <template>
   <div class="input-area">
+    <!-- 快捷回复 -->
     <div class="quick-replies">
       <button
         v-for="(reply, index) in quickReplies"
         :key="index"
-        class="quick-reply-btn"
+        class="rune-chip"
         @click="sendQuickReply(reply)"
         :disabled="isSending"
       >
@@ -13,36 +14,51 @@
     </div>
 
     <div class="input-wrapper">
-      <!-- 新增的左侧工具栏 -->
-      <div class="action-toolbar">
+      <!-- 工具栏 -->
+      <div class="toolbar">
         <button
-          class="icon-btn"
+          class="tool-btn"
           :class="{ active: isDeleteMode }"
           @click="$emit('toggleDeleteMode')"
-          :title="isDeleteMode ? '取消选择' : '批量删除'"
+          title="批量删除"
         >
-          🗑️
+          <!-- 垃圾桶 SVG -->
+          <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
         </button>
-        <button
-          v-if="isDeleteMode"
-          class="icon-btn danger-btn"
-          @click="$emit('deleteSelected')"
-          :disabled="selectedCount === 0"
-          title="删除选中"
-        >
-          ✓
-        </button>
+        <Transition name="scale">
+          <button
+            v-if="isDeleteMode"
+            class="tool-btn danger"
+            @click="$emit('deleteSelected')"
+            :disabled="selectedCount === 0"
+            title="确认删除"
+          >
+            <!-- 对勾 SVG -->
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+        </Transition>
       </div>
 
       <textarea
         v-model="inputText"
-        class="chat-input"
-        placeholder="与爱丽丝交谈..."
+        class="magic-input"
+        placeholder="铭刻你的话语..."
         @keydown.enter.prevent="handleSend"
         rows="1"
       ></textarea>
+
       <button class="send-btn" @click="handleSend" :disabled="isSending || !inputText.trim()">
-        <span class="btn-icon">✒️</span>
+        <!-- 羽毛笔 SVG -->
+        <svg class="svg-icon quill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
+          <line x1="16" y1="8" x2="2" y2="22"></line>
+          <line x1="17.5" y1="15" x2="9" y2="15"></line>
+        </svg>
       </button>
     </div>
   </div>
@@ -54,10 +70,7 @@ import { ref } from 'vue';
 const props = defineProps({
   isSending: Boolean,
   isDeleteMode: Boolean,
-  selectedCount: {
-    type: Number,
-    default: 0
-  }
+  selectedCount: { type: Number, default: 0 }
 });
 const emit = defineEmits(['sendMessage', 'toggleDeleteMode', 'deleteSelected']);
 
@@ -83,29 +96,77 @@ const handleSend = () => {
 </script>
 
 <style scoped>
-.input-area { padding: 15px 20px; background: linear-gradient(0deg, #111 0%, #1a1a1a 100%); border-top: 1px solid rgba(212, 175, 55, 0.3); box-shadow: 0 -4px 20px rgba(0,0,0,0.5); z-index: 10; }
-.quick-replies { max-width: 800px; margin: 0 auto 12px auto; display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
-.quick-replies::-webkit-scrollbar { height: 4px; }
-.quick-reply-btn { white-space: nowrap; background: rgba(212, 175, 55, 0.1); border: 1px solid var(--c-gold-dim); color: var(--c-gold-light); padding: 6px 12px; border-radius: 16px; font-size: 0.85rem; cursor: pointer; transition: all 0.2s ease; }
-.quick-reply-btn:hover:not(:disabled) { background: rgba(212, 175, 55, 0.25); border-color: var(--c-gold); transform: translateY(-1px); }
-.quick-reply-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.input-wrapper { max-width: 800px; margin: 0 auto; display: flex; gap: 12px; align-items: flex-end; }
+.input-area {
+  padding: 15px 20px;
+  background: #0f0f0f;
+  border-top: 1px solid #333;
+  box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+  z-index: 30;
+}
 
-/* 工具栏样式 */
-.action-toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 4px; }
-.icon-btn { width: 38px; height: 38px; border-radius: 10px; background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); color: #ddd; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: all 0.2s; font-size: 1.1rem; }
-.icon-btn:hover { background: rgba(255, 255, 255, 0.2); }
-.icon-btn.active { background: rgba(212, 175, 55, 0.2); border-color: var(--c-gold); }
-.danger-btn { background: rgba(229, 115, 115, 0.15); border-color: rgba(229, 115, 115, 0.5); color: #e57373; }
-.danger-btn:hover:not(:disabled) { background: rgba(229, 115, 115, 0.3); }
-.danger-btn:disabled { opacity: 0.5; cursor: not-allowed; filter: grayscale(1); }
+.quick-replies {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 10px;
+  scrollbar-width: none; /* Firefox */
+}
+.quick-replies::-webkit-scrollbar { display: none; }
 
-.chat-input { flex: 1; background: rgba(0, 0, 0, 0.3); border: 1px solid #444; color: var(--c-text); padding: 12px 16px; border-radius: 12px; resize: none; height: 46px; font-family: inherit; font-size: 0.95rem; line-height: 1.5; transition: border-color 0.3s, box-shadow 0.3s; }
-.chat-input:focus { outline: none; border-color: var(--c-gold); box-shadow: 0 0 8px var(--c-gold-dim); background: rgba(0, 0, 0, 0.5); }
-.chat-input::placeholder { color: #666; }
-.send-btn { background: linear-gradient(135deg, var(--c-gold) 0%, #b8860b 100%); border: none; border-radius: 12px; padding: 0 24px; height: 46px; cursor: pointer; font-weight: bold; color: #111; display: flex; align-items: center; gap: 8px; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(212, 175, 55, 0.3); }
-.send-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(212, 175, 55, 0.5); }
-.send-btn:active:not(:disabled) { transform: translateY(0); }
-.send-btn:disabled { background: #333; color: #666; box-shadow: none; cursor: not-allowed; transform: none; }
-.btn-icon { font-size: 1.1rem; }
+.rune-chip {
+  white-space: nowrap; background: rgba(255,255,255,0.05);
+  border: 1px solid #333; color: #888;
+  padding: 4px 12px; border-radius: 2px; font-size: 0.8rem;
+  cursor: pointer; transition: all 0.2s; font-family: 'Lato', sans-serif;
+}
+.rune-chip:hover:not(:disabled) {
+  border-color: var(--c-gold-dim); color: var(--c-gold);
+  background: rgba(212, 175, 55, 0.05);
+}
+
+.input-wrapper { display: flex; gap: 10px; align-items: flex-end; }
+
+.toolbar { display: flex; gap: 5px; }
+.tool-btn {
+  width: 40px; height: 40px; background: #1a1a1a; border: 1px solid #333;
+  color: #666; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; border-radius: 2px;
+}
+.tool-btn:hover { background: #222; color: #ccc; }
+.tool-btn.active { border-color: var(--c-gold); color: var(--c-gold); background: rgba(212, 175, 55, 0.1); }
+.tool-btn.danger { border-color: #e57373; color: #e57373; }
+.tool-btn.danger:hover { background: rgba(229, 115, 115, 0.1); }
+
+.magic-input {
+  flex: 1; background: #050505; border: 1px solid #333;
+  color: #e0e0e0; padding: 10px 15px; border-radius: 2px;
+  resize: none; height: 42px; font-family: 'Lato', sans-serif;
+  transition: all 0.3s;
+}
+.magic-input:focus {
+  outline: none; border-color: var(--c-gold-dim);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.1);
+}
+
+.send-btn {
+  width: 50px; height: 42px; background: linear-gradient(135deg, var(--c-gold), #b8860b);
+  border: none; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  border-radius: 2px; transition: all 0.2s;
+  color: #000; /* 确保图标颜色为黑色 */
+}
+.send-btn:hover:not(:disabled) { box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+.send-btn:disabled { background: #333; cursor: not-allowed; opacity: 0.5; color: #666; }
+
+/* SVG 图标通用样式 */
+.svg-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2; /* 线条粗细 */
+}
+
+/* 羽毛笔稍微调整一下位置，看起来更平衡 */
+.quill-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.scale-enter-active, .scale-leave-active { transition: all 0.2s; }
+.scale-enter-from, .scale-leave-to { transform: scale(0); opacity: 0; }
 </style>

@@ -1,103 +1,104 @@
 <template>
   <div class="scroll-area transaction-area arts-container">
-
-    <!-- 角色选择器 -->
-    <div class="character-selector">
-      <label>选择灌注目标：</label>
-      <select v-model="selectedCharacter">
-        <option value="user">User</option>
-        <option v-for="name in mainCharacterNames" :key="name" :value="name">
-          {{ name }}
-        </option>
-      </select>
-    </div>
-
-    <!-- 统一结算控制台 (当有待消耗异质时显示) -->
-    <div class="settlement-bar" v-if="totalPendingCost > 0">
-      <div class="settlement-info">
-        <span>当前拥有异质: <span class="val-base">{{ userHeterogeneity }}</span></span>
-        <span>本次将消耗: <span class="val-cost">-{{ totalPendingCost }}</span></span>
-        <span>结算后剩余: <span class="val-remain">{{ remainingHeterogeneity }}</span></span>
-      </div>
-      <div class="settlement-actions">
-        <button class="btn-reset" @click="resetPending">重置</button>
-        <button class="btn-confirm" @click="confirmSettlement">确认灌注</button>
+    <!-- 角色选择器：改为顶部悬浮的神秘下拉框 -->
+    <div class="selector-wrapper">
+      <div class="character-selector">
+        <span class="selector-label">⟡ 灌注目标</span>
+        <select v-model="selectedCharacter">
+          <option value="user">User</option>
+          <option v-for="name in mainCharacterNames" :key="name" :value="name">
+            {{ name }}
+          </option>
+        </select>
+        <div class="selector-arrow">▼</div>
       </div>
     </div>
 
-    <div class="arts-grid">
-      <!-- 遍历所有固定的术 (使用包含预览数据的 projectedArts) -->
-      <div v-for="(data, artName) in projectedArts" :key="artName" class="art-card" :class="getAspectClass(artName)">
-
-        <!-- 头部：图标、名称、等级 -->
-        <div class="art-header">
-          <div class="art-title-group">
-            <span class="art-icon" v-html="getAspectIcon(artName)"></span>
-            <strong class="art-name">{{ artName }}</strong>
+    <!-- 统一结算控制台 -->
+    <Transition name="fade-up">
+      <div v-if="totalPendingCost > 0" class="checkout-bar">
+        <div class="checkout-info">
+          <div class="info-row">
+            <span class="label">当前异质</span>
+            <span class="val-base">{{ userHeterogeneity }}</span>
           </div>
-          <div class="art-meta">
-            <span class="art-level-badge">
-              Lv.{{ data.baseLevel }}
-              <!-- 如果预览等级提升，则高亮显示新等级 -->
-              <span v-if="data.等级 > data.baseLevel" class="text-upgrade"> ➔ {{ data.等级 }}</span>
+          <div class="arrow">➔</div>
+          <div class="info-row">
+            <span class="label">剩余</span>
+            <span class="val-remain" :class="{ 'danger': remainingHeterogeneity < 0 }">
+              {{ remainingHeterogeneity }}
             </span>
           </div>
+          <div class="cost-tag">-{{ totalPendingCost }}</div>
         </div>
+        <div class="checkout-actions">
+          <button class="action-btn clear-btn" @click="resetPending">重置</button>
+          <button class="action-btn confirm-btn" @click="confirmSettlement">确认灌注</button>
+        </div>
+      </div>
+    </Transition>
 
-        <!-- 主体：经验信息与描述 -->
-        <div class="art-body">
-          <p class="art-desc" v-if="data.baseLevel === 0">尚未入门，无法凭空感悟</p>
-          <p class="art-desc" v-else-if="data.等级 >= 19">已触及神性，凡物不可度量</p>
-          <template v-else>
-            <div class="art-details">
-              <div class="detail-row">
-                <span class="label">经验:</span>
-                <span class="value">
-                  {{ Math.floor(data.baseExp) }}
-                  <!-- 显示本次待增加的经验 -->
-                  <span v-if="pendingExp[artName] > 0" class="text-upgrade"> +{{ pendingExp[artName] }}</span>
-                  / {{ getRequiredExp(data.等级) }}
-                </span>
-              </div>
-              <div class="detail-row cost">
-                <span class="label">距下级:</span>
-                <!-- 费用比例修改为 4:1 -->
-                <span class="value">{{ getExpNeeded(data.等级, data.经验) }} 经验 (需 {{ getExpNeeded(data.等级, data.经验) * 4 }} 异质)</span>
-              </div>
+    <div class="card-grid">
+      <!-- 遍历所有固定的术 -->
+      <div v-for="(data, artName) in projectedArts" :key="artName" class="trade-card art-card" :class="getAspectClass(artName)">
+        <div class="card-inner">
+          <!-- 头部 -->
+          <div class="card-top">
+            <div class="art-title-group">
+              <span class="art-icon" v-html="getAspectIcon(artName)"></span>
+              <span class="card-title">{{ artName }}</span>
             </div>
-          </template>
-        </div>
-
-        <!-- 底部：操作按钮 (将经验加入待处理队列) -->
-        <div class="art-action">
-          <div v-if="data.baseLevel > 0 && data.等级 < 19" class="buy-controls">
-            <button
-              class="action-btn buy-btn"
-              @click="queueExp(artName, 10)"
-              :disabled="remainingHeterogeneity < 40"
-              title="消耗 40 异质"
-            >
-              +10 经验
-            </button>
-            <button
-              class="action-btn buy-btn"
-              @click="queueExp(artName, 100)"
-              :disabled="remainingHeterogeneity < 400"
-              title="消耗 400 异质"
-            >
-              +100 经验
-            </button>
-            <button
-              class="action-btn buy-btn highlight"
-              @click="queueNextLevel(artName)"
-              :disabled="remainingHeterogeneity < getExpNeeded(data.等级, data.经验) * 4 || getExpNeeded(data.等级, data.经验) === 0"
-              title="消耗所需异质直接升至下一级"
-            >
-              升至下级
-            </button>
+            <div class="level-display">
+              <span class="lv-label">Lv.</span>
+              <span class="lv-num">{{ data.baseLevel }}</span>
+              <span v-if="data.等级 > data.baseLevel" class="lv-upgrade">➔ {{ data.等级 }}</span>
+            </div>
           </div>
-          <div v-else class="buy-controls">
-            <button class="action-btn buy-btn disabled-btn" disabled>无法灌注</button>
+
+          <!-- 主体 -->
+          <div class="card-mid">
+            <p class="desc" v-if="data.baseLevel === 0">"凡人无法凭空感悟此道..."</p>
+            <p class="desc" v-else-if="data.等级 >= 19">"已触及神性，凡物不可度量。"</p>
+            <template v-else>
+              <div class="progress-container">
+                <div class="progress-text">
+                  <span>EXP: {{ Math.floor(data.baseExp) }} <span v-if="pendingExp[artName] > 0" class="exp-plus">+{{ pendingExp[artName] }}</span></span>
+                  <span>{{ getRequiredExp(data.等级) }}</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" :style="{ width: (data.经验 / getRequiredExp(data.等级) * 100) + '%' }"></div>
+                  <!-- 预览进度条 -->
+                  <div class="progress-bar-preview"
+                       v-if="pendingExp[artName] > 0"
+                       :style="{
+                         left: ((data.baseExp / getRequiredExp(data.baseLevel)) * 100) + '%',
+                         width: ((pendingExp[artName] / getRequiredExp(data.等级)) * 100) + '%'
+                       }">
+                  </div>
+                </div>
+              </div>
+
+              <div class="cost-preview">
+                <span class="label">下一级需求:</span>
+                <span class="value">{{ getExpNeeded(data.等级, data.经验) * 4 }} <span class="unit">异质</span></span>
+              </div>
+            </template>
+          </div>
+
+          <!-- 底部操作 -->
+          <div class="card-action art-actions">
+            <template v-if="data.baseLevel > 0 && data.等级 < 19">
+              <button class="mini-btn" @click="queueExp(artName, 10)" :disabled="remainingHeterogeneity < 40" title="-40 异质">+10</button>
+              <button class="mini-btn" @click="queueExp(artName, 100)" :disabled="remainingHeterogeneity < 400" title="-400 异质">+100</button>
+              <button class="mini-btn upgrade-btn"
+                      @click="queueNextLevel(artName)"
+                      :disabled="remainingHeterogeneity < getExpNeeded(data.等级, data.经验) * 4 || getExpNeeded(data.等级, data.经验) === 0">
+                UP
+              </button>
+            </template>
+            <button v-else class="mini-btn disabled" disabled>
+              {{ data.baseLevel === 0 ? '未入门' : '已登神' }}
+            </button>
           </div>
         </div>
       </div>
@@ -113,56 +114,36 @@ import { MvuUtil } from '@/Utils/MvuUtil';
 const showToast = inject('showToast', (msg) => console.log(msg));
 const statStore = useStatStore();
 
-const username = substitudeMacros('{{user}}');
-
-// 固定的所有术的列表
 const ALL_ARTS = ["灯", "铸", "刃", "冬", "心", "杯", "蛾", "启"];
-
-// 当前选中的角色 (默认玩家自己)
 const selectedCharacter = ref('user');
+const pendingExp = ref(Object.fromEntries(ALL_ARTS.map(art => [art, 0])));
 
-// 获取主要角色列表
 const mainCharacterNames = computed(() => {
   const mainChars = statStore.stat_data?.角色?.主要角色 || {};
   return Object.keys(mainChars);
 });
 
-// 获取当前选中角色的术之等级数据
 const currentArts = computed(() => {
-  if (selectedCharacter.value === 'user') {
-    return statStore.stat_data?.角色?.user?.术之等级 || {};
-  } else {
-    return statStore.stat_data?.角色?.主要角色?.[selectedCharacter.value]?.术之等级 || {};
-  }
+  if (selectedCharacter.value === 'user') return statStore.stat_data?.角色?.user?.术之等级 || {};
+  return statStore.stat_data?.角色?.主要角色?.[selectedCharacter.value]?.术之等级 || {};
 });
 
-// 缥缈异质始终是玩家(user)的资源
 const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
 
-// 待处理的经验队列 { "灯": 0, "铸": 100, ... }
-const pendingExp = ref(Object.fromEntries(ALL_ARTS.map(art => [art, 0])));
+watch(selectedCharacter, () => resetPending());
 
-// 监听角色切换，切换时重置待处理队列，防止加错人
-watch(selectedCharacter, () => {
-  resetPending();
-});
-
-// 计算升级所需经验
 const getRequiredExp = (level) => {
   if (level <= 0) return Infinity;
   if (level >= 1 && level <= 13) return level * 200;
   if (level >= 14 && level <= 18) return Math.pow(level, 2) * 500;
-  return Infinity; // 19级及以上
+  return Infinity;
 };
 
-// 计算距离下一级还差多少经验
 const getExpNeeded = (level, currentExp) => {
   const req = getRequiredExp(level);
-  if (req === Infinity) return 0;
-  return Math.max(0, req - (currentExp || 0));
+  return req === Infinity ? 0 : Math.max(0, req - (currentExp || 0));
 };
 
-// 计算包含待处理经验后的【预览数据】
 const projectedArts = computed(() => {
   const result = {};
   ALL_ARTS.forEach(art => {
@@ -170,119 +151,59 @@ const projectedArts = computed(() => {
     const baseLevel = baseData.等级 || 0;
     const baseExp = baseData.经验 || 0;
     const addedExp = pendingExp.value[art] || 0;
-
     let level = baseLevel;
     let exp = baseExp + addedExp;
-
-    // 模拟升级过程
     while (level > 0 && level < 19 && exp >= getRequiredExp(level)) {
       exp -= getRequiredExp(level);
       level++;
     }
-
-    result[art] = {
-      baseLevel,
-      baseExp,
-      等级: level,
-      经验: exp
-    };
+    result[art] = { baseLevel, baseExp, 等级: level, 经验: exp };
   });
   return result;
 });
 
-// 计算待消耗的总异质 (比例 4:1)
-const totalPendingCost = computed(() => {
-  return Object.values(pendingExp.value).reduce((sum, exp) => sum + exp * 4, 0);
-});
+const totalPendingCost = computed(() => Object.values(pendingExp.value).reduce((sum, exp) => sum + exp * 4, 0));
+const remainingHeterogeneity = computed(() => userHeterogeneity.value - totalPendingCost.value);
 
-// 计算结算后的剩余异质
-const remainingHeterogeneity = computed(() => {
-  return Math.max(0, userHeterogeneity.value - totalPendingCost.value);
-});
-
-// 将经验加入待处理队列
 const queueExp = (artName, amount) => {
-  const cost = amount * 4; // 比例 4:1
-  if (remainingHeterogeneity.value < cost) {
-    showToast("剩余缥缈异质不足！");
-    return;
-  }
-
+  const cost = amount * 4;
+  if (remainingHeterogeneity.value < cost) { showToast("异质不足"); return; }
   const proj = projectedArts.value[artName];
-  if (proj.baseLevel === 0) {
-    showToast("0级无法通过异质提升！");
-    return;
-  }
-  if (proj.等级 >= 19) {
-    showToast("已达秘而不宣之境！");
-    return;
-  }
-
+  if (proj.baseLevel === 0 || proj.等级 >= 19) return;
   pendingExp.value[artName] += amount;
 };
 
-// 快捷加入升至下一级所需的经验
 const queueNextLevel = (artName) => {
   const proj = projectedArts.value[artName];
   const needed = getExpNeeded(proj.等级, proj.经验);
-  if (needed > 0) {
-    queueExp(artName, needed);
-  }
+  if (needed > 0) queueExp(artName, needed);
 };
 
-// 重置待处理队列
-const resetPending = () => {
-  ALL_ARTS.forEach(art => pendingExp.value[art] = 0);
-};
+const resetPending = () => ALL_ARTS.forEach(art => pendingExp.value[art] = 0);
 
-// 确认结算并写入数据库
 const confirmSettlement = async () => {
   if (totalPendingCost.value === 0) return;
-
-  // 构造基础 diff，必定扣除玩家的异质
-  const diff = {
-    角色: {
-      user: {
-        缥缈异质: userHeterogeneity.value - totalPendingCost.value
-      }
-    }
-  };
-
-  // 构造更新后的术之等级对象 (保留未修改的术)
+  const diff = { 角色: { user: { 缥缈异质: remainingHeterogeneity.value } } };
   const updatedArts = { ...currentArts.value };
   ALL_ARTS.forEach(art => {
     if (pendingExp.value[art] > 0) {
-      updatedArts[art] = {
-        等级: projectedArts.value[art].等级,
-        经验: projectedArts.value[art].经验
-      };
+      updatedArts[art] = { 等级: projectedArts.value[art].等级, 经验: projectedArts.value[art].经验 };
     }
   });
 
-  // 根据选中的角色，将术之等级写入对应的路径
-  if (selectedCharacter.value === 'user') {
-    diff.角色.user.术之等级 = updatedArts;
-  } else {
-    diff.角色.主要角色 = {
-      [selectedCharacter.value]: {
-        术之等级: updatedArts
-      }
-    };
-  }
+  if (selectedCharacter.value === 'user') diff.角色.user.术之等级 = updatedArts;
+  else diff.角色.主要角色 = { [selectedCharacter.value]: { 术之等级: updatedArts } };
 
   try {
     await MvuUtil.updateMvuDataByDiff(diff);
-    showToast(`成功消耗 ${totalPendingCost.value} 异质为 ${selectedCharacter.value === 'user' ? '自己' : selectedCharacter.value} 进行灌注！`);
-    resetPending(); // 结算成功后清空队列
-  } catch (e) {
-    showToast("灌注失败，请重试");
-    console.error(e);
-  }
+    showToast(`灌注完成，消耗 ${totalPendingCost.value} 异质`);
+    resetPending();
+  } catch (e) { showToast("灌注失败"); }
 };
 
-// --- UI 辅助方法 ---
+// 图标与样式辅助
 const getAspectIcon = (aspect) => {
-  const baseSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="aspect-svg">`;
+  const baseSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="aspect-svg">`;
   const icons = {
     '刃': `${baseSvg}<path d="M12 2v20M9 7l3-4 3 4M8 11h8"/></svg>`,
     '杯': `${baseSvg}<path d="M7 3h10M7 3v4c0 3 2.5 5.5 5 5.5s5-2.5 5-5V3M12 12.5V21M8 21h8M12 7v.01"/></svg>`,
@@ -293,335 +214,130 @@ const getAspectIcon = (aspect) => {
     '冬': `${baseSvg}<path d="M21 7.5V16.5L13.5 21H10.5L3 16.5V7.5L10.5 3H13.5L21 7.5Z"/><path d="M12 3v18M3 7.5l18 9M3 16.5l18-9"/></svg>`,
     '启': `${baseSvg}<circle cx="12" cy="9" r="4"/><path d="M10.5 12.5L9 21h6l-1.5-8.5"/></svg>`
   };
-  return icons[aspect] || `${baseSvg}<path d="M12 2l3 7 7 3-7 3-3 7-3-7-7-3 7-3z"/></svg>`;
+  return icons[aspect] || icons['灯'];
 };
-
 const getAspectClass = (aspect) => {
-  const map = {
-    '刃': 'aspect-edge', '杯': 'aspect-grail', '铸': 'aspect-forge', '蛾': 'aspect-moth',
-    '心': 'aspect-heart', '灯': 'aspect-lantern', '冬': 'aspect-winter', '启': 'aspect-knock'
-  };
-  return map[aspect] || 'aspect-generic';
+  const map = { '刃': 'edge', '杯': 'grail', '铸': 'forge', '蛾': 'moth', '心': 'heart', '灯': 'lantern', '冬': 'winter', '启': 'knock' };
+  return map[aspect] ? `aspect-${map[aspect]}` : '';
 };
 </script>
 
 <style scoped>
-.arts-container {
-  width: 100%;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  padding: 10px;
-  position: relative;
-}
+/* 继承全局变量 */
+.arts-container { padding-bottom: 80px; }
 
-/* --- 角色选择器样式 --- */
+/* 角色选择器 */
+.selector-wrapper { display: flex; justify-content: center; margin-bottom: 20px; }
 .character-selector {
-  background: rgba(20, 20, 22, 0.75);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 12px 20px;
-  margin-bottom: 16px;
+  position: relative;
+  background: linear-gradient(90deg, transparent, #1a1a1a, transparent);
+  border-bottom: 1px solid var(--c-gold-dim);
+  padding: 5px 20px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  color: #e8e8e8;
-  font-size: 0.95rem;
+  gap: 10px;
 }
-
+.selector-label { color: var(--c-gold); font-family: 'Cinzel', serif; font-size: 0.9rem; }
 .character-selector select {
-  background: rgba(0, 0, 0, 0.5);
-  color: #fff;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  padding: 6px 12px;
-  border-radius: 4px;
-  outline: none;
-  font-family: inherit;
-  cursor: pointer;
-  transition: border-color 0.2s;
-}
-
-.character-selector select:hover {
-  border-color: rgba(255, 213, 79, 0.5);
-}
-
-.character-selector select option {
-  background: #1a1a1c;
-  color: #fff;
-}
-
-/* --- 统一结算控制台样式 --- */
-.settlement-bar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: rgba(20, 20, 22, 0.95);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 213, 79, 0.3);
-  border-radius: 4px;
-  padding: 12px 20px;
-  margin-bottom: 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
-}
-
-.settlement-info {
-  display: flex;
-  gap: 20px;
-  font-size: 0.95rem;
-  color: #e8e8e8;
-  flex-wrap: wrap;
-}
-
-.val-base { color: #81c784; font-weight: bold; }
-.val-cost { color: #e57373; font-weight: bold; }
-.val-remain { color: #64b5f6; font-weight: bold; }
-
-.settlement-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.btn-confirm {
-  background: rgba(255, 213, 79, 0.15);
-  color: #fff9c4;
-  border: 1px solid rgba(255, 213, 79, 0.4);
-  padding: 6px 16px;
-  border-radius: 3px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: all 0.2s;
-}
-.btn-confirm:hover { background: rgba(255, 213, 79, 0.3); }
-
-.btn-reset {
-  background: rgba(229, 115, 115, 0.1);
-  color: #ffcdd2;
-  border: 1px solid rgba(229, 115, 115, 0.3);
-  padding: 6px 16px;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.btn-reset:hover { background: rgba(229, 115, 115, 0.2); }
-
-/* --- 升级高亮文本 --- */
-.text-upgrade {
-  color: #4fc3f7;
-  font-weight: bold;
-  text-shadow: 0 0 4px rgba(79, 195, 247, 0.4);
-}
-
-/* --- 卡片网格：响应式布局 --- */
-.arts-grid {
-  display: grid;
-  /* 使用 auto-fill 和 minmax，PC端自动排满，移动端自动折行 */
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 16px;
-}
-
-/* 卡片基础样式 */
-.art-card {
-  background: rgba(20, 20, 22, 0.75);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 4px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-}
-
-.art-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-/* 头部样式 */
-.art-header {
-  padding: 10px 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.art-title-group {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.art-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-}
-
-.art-name {
-  font-family: 'Georgia', 'Times New Roman', serif;
-  font-size: 1.15rem;
-  color: #e8e8e8;
-  letter-spacing: 1px;
-  font-weight: 500;
-}
-
-.art-meta {
-  display: flex;
-  gap: 6px;
-  font-size: 0.75rem;
-}
-
-.art-level-badge {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ddd;
-  padding: 2px 6px;
-  border-radius: 2px;
-  font-family: monospace;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* 内容区域 */
-.art-body {
-  padding: 12px 14px;
-  font-size: 0.9rem;
-  color: #bbb;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  flex-grow: 1;
-}
-
-.art-desc {
-  margin: 0;
-  line-height: 1.5;
-  font-style: italic;
-  color: #888;
-  text-align: center;
-  padding: 10px 0;
-}
-
-.art-details {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 10px;
-  border-radius: 2px;
-  border-left: 2px solid rgba(255, 255, 255, 0.1);
-}
-
-.detail-row {
-  display: flex;
-  align-items: baseline;
-  line-height: 1.4;
-}
-
-.detail-row .label {
-  flex-shrink: 0;
-  width: 55px;
-  font-weight: 600;
-  margin-right: 6px;
-  opacity: 0.7;
-  font-size: 0.85rem;
-  color: #ffd54f;
-}
-
-.detail-row.cost .label { color: #e57373; }
-.detail-row.cost .value { color: #ffcdd2; font-weight: bold; }
-
-/* 底部操作区 */
-.art-action {
-  padding: 10px 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.buy-controls {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-}
-
-.action-btn {
-  flex: 1;
-  padding: 8px 4px;
-  font-size: 0.75rem;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ddd;
-  border-radius: 3px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-}
-
-.action-btn.highlight {
-  background: rgba(229, 115, 115, 0.1);
-  border-color: rgba(229, 115, 115, 0.3);
-  color: #ffcdd2;
-}
-
-.action-btn.highlight:hover:not(:disabled) {
-  background: rgba(229, 115, 115, 0.2);
-  border-color: rgba(229, 115, 115, 0.5);
-}
-
-.action-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.disabled-btn {
+  appearance: none;
   background: transparent;
-  border-style: dashed;
+  border: none;
+  color: #e0e0e0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  padding-right: 20px;
+  cursor: pointer;
+  outline: none;
+}
+.character-selector select option { background: #111; color: #ccc; }
+.selector-arrow { color: var(--c-gold-dim); font-size: 0.8rem; pointer-events: none; }
+
+/* 结算栏 (复用 SkillBuyArea 样式逻辑) */
+.checkout-bar {
+  position: sticky; bottom: 0; z-index: 10;
+  background: rgba(15, 15, 15, 0.95); backdrop-filter: blur(10px);
+  border-top: 1px solid var(--c-gold-dim);
+  padding: 12px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
+}
+.checkout-info { display: flex; align-items: center; gap: 15px; font-family: 'Cinzel', serif; }
+.info-row { display: flex; flex-direction: column; align-items: center; }
+.info-row .label { font-size: 0.65rem; color: #666; text-transform: uppercase; }
+.val-base { color: #888; font-size: 1.1rem; }
+.val-remain { color: var(--c-gold); font-size: 1.1rem; font-weight: bold; }
+.val-remain.danger { color: #e57373; }
+.arrow { color: #444; font-size: 1.2rem; }
+.cost-tag { background: rgba(212, 175, 55, 0.1); color: #e57373; padding: 2px 6px; border-radius: 4px; font-size: 0.8rem; border: 1px solid rgba(229, 115, 115, 0.3); }
+
+.checkout-actions { display: flex; gap: 10px; }
+.action-btn { padding: 6px 16px; font-family: 'Cinzel', serif; font-weight: bold; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+.clear-btn { background: transparent; color: #888; border-color: #333; }
+.clear-btn:hover { color: #ccc; border-color: #555; }
+.confirm-btn { background: var(--c-gold); color: #000; }
+.confirm-btn:hover { background: #eec95e; box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+
+/* 卡片样式 */
+.art-card {
+  background: linear-gradient(145deg, #161616, #0f0f0f);
+  border: 1px solid #333;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.art-card:hover { transform: translateY(-2px); }
+
+/* 性相颜色定义 */
+.aspect-lantern { --a-color: #fbc02d; }
+.aspect-forge { --a-color: #f57c00; }
+.aspect-edge { --a-color: #7cb342; } /* 刃改为偏绿/锋利色 */
+.aspect-winter { --a-color: #90a4ae; }
+.aspect-heart { --a-color: #e91e63; }
+.aspect-grail { --a-color: #d32f2f; }
+.aspect-moth { --a-color: #d7ccc8; }
+.aspect-knock { --a-color: #9c27b0; }
+
+.art-card::before {
+  content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%;
+  background: var(--a-color, #555); opacity: 0.7;
+  box-shadow: 0 0 10px var(--a-color, transparent);
 }
 
-/* --- 性相配色方案 --- */
-.aspect-edge { border-top: 2px solid #2a2a2a; }
-.aspect-edge .art-header { background: linear-gradient(90deg, rgba(42, 42, 42, 0.15), transparent); }
-.aspect-edge .art-icon { color: #4a4a4a; filter: drop-shadow(0 0 4px rgba(74, 74, 74, 0.5)); }
+.card-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.art-title-group { display: flex; align-items: center; gap: 8px; }
+.art-icon { width: 20px; height: 20px; color: var(--a-color, #888); }
+.card-title { font-family: 'Cinzel', serif; font-weight: bold; color: #e0e0e0; font-size: 1.1rem; }
 
-.aspect-grail { border-top: 2px solid #d32f2f; }
-.aspect-grail .art-header { background: linear-gradient(90deg, rgba(211, 47, 47, 0.15), transparent); }
-.aspect-grail .art-icon { color: #e57373; filter: drop-shadow(0 0 4px rgba(229, 115, 115, 0.5)); }
+.level-display { font-family: 'Cinzel', serif; color: #888; }
+.lv-num { color: var(--a-color, #ccc); font-size: 1.2rem; font-weight: bold; margin: 0 2px; }
+.lv-upgrade { color: var(--c-gold-light); font-size: 0.9rem; margin-left: 4px; animation: pulse 2s infinite; }
 
-.aspect-forge { border-top: 2px solid #f57c00; }
-.aspect-forge .art-header { background: linear-gradient(90deg, rgba(245, 124, 0, 0.15), transparent); }
-.aspect-forge .art-icon { color: #ffb74d; filter: drop-shadow(0 0 4px rgba(255, 183, 77, 0.5)); }
+.desc { font-style: italic; color: #666; font-size: 0.85rem; text-align: center; margin: 10px 0; }
 
-.aspect-moth { border-top: 2px solid #a1887f; }
-.aspect-moth .art-header { background: linear-gradient(90deg, rgba(161, 136, 127, 0.15), transparent); }
-.aspect-moth .art-icon { color: #d7ccc8; filter: drop-shadow(0 0 4px rgba(215, 204, 200, 0.5)); }
+/* 进度条 */
+.progress-container { margin-bottom: 10px; }
+.progress-text { display: flex; justify-content: space-between; font-size: 0.75rem; color: #888; margin-bottom: 4px; font-family: monospace; }
+.exp-plus { color: var(--c-gold-light); }
+.progress-bar-bg { height: 4px; background: #222; border-radius: 2px; position: relative; overflow: hidden; }
+.progress-bar-fill { height: 100%; background: var(--a-color, #555); transition: width 0.3s; }
+.progress-bar-preview { position: absolute; top: 0; height: 100%; background: #fff; opacity: 0.3; animation: stripe 1s linear infinite; }
 
-.aspect-heart { border-top: 2px solid #c2185b; }
-.aspect-heart .art-header { background: linear-gradient(90deg, rgba(194, 24, 91, 0.15), transparent); }
-.aspect-heart .art-icon { color: #f06292; filter: drop-shadow(0 0 4px rgba(240, 98, 146, 0.5)); }
+.cost-preview { font-size: 0.8rem; color: #666; display: flex; justify-content: space-between; margin-top: 8px; }
+.cost-preview .value { color: #e57373; }
 
-.aspect-lantern { border-top: 2px solid #fbc02d; }
-.aspect-lantern .art-header { background: linear-gradient(90deg, rgba(251, 192, 45, 0.15), transparent); }
-.aspect-lantern .art-icon { color: #fff59d; filter: drop-shadow(0 0 4px rgba(255, 245, 157, 0.5)); }
+/* 按钮组 */
+.art-actions { display: flex; gap: 5px; margin-top: 12px; }
+.mini-btn {
+  flex: 1; background: transparent; border: 1px solid #444; color: #888;
+  padding: 4px 0; font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
+  font-family: 'Cinzel', serif;
+}
+.mini-btn:hover:not(:disabled) { border-color: var(--a-color, #888); color: var(--a-color, #ccc); background: rgba(255,255,255,0.05); }
+.mini-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+.upgrade-btn { border-color: var(--c-gold-dim); color: var(--c-gold); }
+.upgrade-btn:hover:not(:disabled) { background: var(--c-gold); color: #000; }
 
-.aspect-winter { border-top: 2px solid #78909c; }
-.aspect-winter .art-header { background: linear-gradient(90deg, rgba(120, 144, 156, 0.15), transparent); }
-.aspect-winter .art-icon { color: #cfd8dc; filter: drop-shadow(0 0 4px rgba(207, 216, 220, 0.5)); }
-
-.aspect-knock { border-top: 2px solid #7b1fa2; }
-.aspect-knock .art-header { background: linear-gradient(90deg, rgba(123, 31, 162, 0.15), transparent); }
-.aspect-knock .art-icon { color: #ce93d8; filter: drop-shadow(0 0 4px rgba(206, 147, 216, 0.5)); }
-
-.aspect-generic { border-top: 2px solid #777; }
-.aspect-generic .art-icon { color: #ccc; }
+@keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+.fade-up-enter-active, .fade-up-leave-active { transition: all 0.3s ease; }
+.fade-up-enter-from, .fade-up-leave-to { opacity: 0; transform: translateY(20px); }
 </style>
