@@ -1,6 +1,6 @@
 <template>
   <div class="scroll-area transaction-area arts-container">
-    <!-- 角色选择器：改为顶部悬浮的神秘下拉框 -->
+    <!-- 角色选择器：顶部悬浮的神秘下拉框 -->
     <div class="selector-wrapper">
       <div class="character-selector">
         <span class="selector-label">⟡ 灌注目标</span>
@@ -33,7 +33,11 @@
         </div>
         <div class="checkout-actions">
           <button class="action-btn clear-btn" @click="resetPending">重置</button>
-          <button class="action-btn confirm-btn" @click="confirmSettlement">确认灌注</button>
+          <button class="action-btn confirm-btn"
+                  @click="confirmSettlement"
+                  :disabled="remainingHeterogeneity < 0">
+            {{ remainingHeterogeneity < 0 ? '异质不足' : '确认灌注' }}
+          </button>
         </div>
       </div>
     </Transition>
@@ -51,54 +55,72 @@
             <div class="level-display">
               <span class="lv-label">Lv.</span>
               <span class="lv-num">{{ data.baseLevel }}</span>
+              <!-- 如果拖动导致升级，显示预览 -->
               <span v-if="data.等级 > data.baseLevel" class="lv-upgrade">➔ {{ data.等级 }}</span>
             </div>
           </div>
 
           <!-- 主体 -->
           <div class="card-mid">
+            <!-- 0级：无法获取经验 -->
             <p class="desc" v-if="data.baseLevel === 0">"凡人无法凭空感悟此道..."</p>
-            <p class="desc" v-else-if="data.等级 >= 19">"已触及神性，凡物不可度量。"</p>
+
+            <!-- 19级+：秘而不宣 -->
+            <p class="desc" v-else-if="data.baseLevel >= 19">"已触及神性，凡物不可度量。"</p>
+
+            <!-- 可升级状态 (1-18级) -->
             <template v-else>
+              <!-- 阶段描述 -->
+              <p class="desc phase-desc" v-if="data.baseLevel <= 13">
+                <span class="safe">✦ 模仿与练习</span> (相对安全)
+              </p>
+              <p class="desc phase-desc" v-else>
+                <span class="danger">✦ 禁忌仪式</span> (需知晓隐秘)
+              </p>
+
+              <!-- 进度条显示 -->
               <div class="progress-container">
                 <div class="progress-text">
-                  <span>EXP: {{ Math.floor(data.baseExp) }} <span v-if="pendingExp[artName] > 0" class="exp-plus">+{{ pendingExp[artName] }}</span></span>
-                  <span>{{ getRequiredExp(data.等级) }}</span>
+                  <!-- 显示：当前基础经验 + 待增加经验 -->
+                  <span>
+                    EXP: {{ Math.floor(data.baseExp) }}
+                    <span v-if="pendingExp[artName] > 0" class="exp-plus">+{{ pendingExp[artName] }}</span>
+                  </span>
+                  <!-- 显示：当前等级升级所需总经验 -->
+                  <span>/ {{ getRequiredExp(data.baseLevel) }}</span>
                 </div>
                 <div class="progress-bar-bg">
-                  <div class="progress-bar-fill" :style="{ width: (data.经验 / getRequiredExp(data.等级) * 100) + '%' }"></div>
-                  <!-- 预览进度条 -->
+                  <!-- 基础进度 -->
+                  <div class="progress-bar-fill" :style="{ width: (data.baseExp / getRequiredExp(data.baseLevel) * 100) + '%' }"></div>
+                  <!-- 预览进度 (叠加在基础进度后) -->
                   <div class="progress-bar-preview"
                        v-if="pendingExp[artName] > 0"
                        :style="{
                          left: ((data.baseExp / getRequiredExp(data.baseLevel)) * 100) + '%',
-                         width: ((pendingExp[artName] / getRequiredExp(data.等级)) * 100) + '%'
+                         width: ((pendingExp[artName] / getRequiredExp(data.baseLevel)) * 100) + '%'
                        }">
                   </div>
                 </div>
               </div>
 
-              <div class="cost-preview">
-                <span class="label">下一级需求:</span>
-                <span class="value">{{ getExpNeeded(data.等级, data.经验) * 4 }} <span class="unit">异质</span></span>
+              <!-- 拖动条控制区 -->
+              <div class="slider-control">
+                <input
+                  type="range"
+                  class="exp-slider"
+                  min="0"
+                  :max="getExpToNextLevel(data.baseLevel, data.baseExp)"
+                  step="1"
+                  v-model.number="pendingExp[artName]"
+                />
+                <div class="cost-preview">
+                  <span class="label">消耗:</span>
+                  <span class="value" :class="{ 'text-danger': userHeterogeneity < (pendingExp[artName] * 4) }">
+                    {{ pendingExp[artName] * 4 }} <span class="unit">异质</span>
+                  </span>
+                </div>
               </div>
             </template>
-          </div>
-
-          <!-- 底部操作 -->
-          <div class="card-action art-actions">
-            <template v-if="data.baseLevel > 0 && data.等级 < 19">
-              <button class="mini-btn" @click="queueExp(artName, 10)" :disabled="remainingHeterogeneity < 40" title="-40 异质">+10</button>
-              <button class="mini-btn" @click="queueExp(artName, 100)" :disabled="remainingHeterogeneity < 400" title="-400 异质">+100</button>
-              <button class="mini-btn upgrade-btn"
-                      @click="queueNextLevel(artName)"
-                      :disabled="remainingHeterogeneity < getExpNeeded(data.等级, data.经验) * 4 || getExpNeeded(data.等级, data.经验) === 0">
-                UP
-              </button>
-            </template>
-            <button v-else class="mini-btn disabled" disabled>
-              {{ data.baseLevel === 0 ? '未入门' : '已登神' }}
-            </button>
           </div>
         </div>
       </div>
@@ -116,6 +138,7 @@ const statStore = useStatStore();
 
 const ALL_ARTS = ["灯", "铸", "刃", "冬", "心", "杯", "蛾", "启"];
 const selectedCharacter = ref('user');
+// 存储每个术待增加的经验值
 const pendingExp = ref(Object.fromEntries(ALL_ARTS.map(art => [art, 0])));
 
 const mainCharacterNames = computed(() => {
@@ -130,64 +153,88 @@ const currentArts = computed(() => {
 
 const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
 
+// 切换角色时重置待处理经验
 watch(selectedCharacter, () => resetPending());
 
+/**
+ * 获取升级所需总经验公式
+ * 0级: 无法获取
+ * 1-13级: 28 + level^2 * 22
+ * 14-18级: level^2 * 300
+ * 19级+: 无法获取
+ */
 const getRequiredExp = (level) => {
-  if (level <= 0) return Infinity;
-  if (level >= 1 && level <= 13) return level * 200;
-  if (level >= 14 && level <= 18) return Math.pow(level, 2) * 500;
-  return Infinity;
+  if (level <= 0) return Infinity; // 0级锁死
+  if (level >= 1 && level <= 13) {
+    return 28 + Math.pow(level, 2) * 22;
+  }
+  if (level >= 14 && level <= 18) {
+    return Math.pow(level, 2) * 300;
+  }
+  return Infinity; // 19级及以上锁死
 };
 
-const getExpNeeded = (level, currentExp) => {
+// 计算距离下一级还需要多少经验 (用于拖动条最大值)
+const getExpToNextLevel = (level, currentExp) => {
   const req = getRequiredExp(level);
-  return req === Infinity ? 0 : Math.max(0, req - (currentExp || 0));
+  if (req === Infinity) return 0;
+  return Math.max(0, req - (currentExp || 0));
 };
 
+// 预览计算：根据当前经验 + 待增加经验计算最终状态
 const projectedArts = computed(() => {
   const result = {};
   ALL_ARTS.forEach(art => {
     const baseData = currentArts.value[art] || { 等级: 0, 经验: 0 };
     const baseLevel = baseData.等级 || 0;
     const baseExp = baseData.经验 || 0;
+
+    // 待增加的经验
     const addedExp = pendingExp.value[art] || 0;
+
     let level = baseLevel;
     let exp = baseExp + addedExp;
-    while (level > 0 && level < 19 && exp >= getRequiredExp(level)) {
-      exp -= getRequiredExp(level);
+
+    // 简单的升级预览逻辑 (虽然拖动条限制了只能升一级，但保留循环逻辑以防万一)
+    const req = getRequiredExp(level);
+    if (req !== Infinity && exp >= req) {
+      exp -= req;
       level++;
     }
-    result[art] = { baseLevel, baseExp, 等级: level, 经验: exp };
+
+    result[art] = {
+      baseLevel,
+      baseExp,
+      等级: level,
+      经验: exp
+    };
   });
   return result;
 });
 
+// 总消耗计算 (1 EXP = 4 异质)
 const totalPendingCost = computed(() => Object.values(pendingExp.value).reduce((sum, exp) => sum + exp * 4, 0));
 const remainingHeterogeneity = computed(() => userHeterogeneity.value - totalPendingCost.value);
-
-const queueExp = (artName, amount) => {
-  const cost = amount * 4;
-  if (remainingHeterogeneity.value < cost) { showToast("异质不足"); return; }
-  const proj = projectedArts.value[artName];
-  if (proj.baseLevel === 0 || proj.等级 >= 19) return;
-  pendingExp.value[artName] += amount;
-};
-
-const queueNextLevel = (artName) => {
-  const proj = projectedArts.value[artName];
-  const needed = getExpNeeded(proj.等级, proj.经验);
-  if (needed > 0) queueExp(artName, needed);
-};
 
 const resetPending = () => ALL_ARTS.forEach(art => pendingExp.value[art] = 0);
 
 const confirmSettlement = async () => {
   if (totalPendingCost.value === 0) return;
+  if (remainingHeterogeneity.value < 0) {
+    showToast("异质不足，无法完成灌注");
+    return;
+  }
+
   const diff = { 角色: { user: { 缥缈异质: remainingHeterogeneity.value } } };
   const updatedArts = { ...currentArts.value };
+
   ALL_ARTS.forEach(art => {
     if (pendingExp.value[art] > 0) {
-      updatedArts[art] = { 等级: projectedArts.value[art].等级, 经验: projectedArts.value[art].经验 };
+      // 使用预览计算出的新等级和新经验
+      updatedArts[art] = {
+        等级: projectedArts.value[art].等级,
+        经验: projectedArts.value[art].经验
+      };
     }
   });
 
@@ -252,7 +299,7 @@ const getAspectClass = (aspect) => {
 .character-selector select option { background: #111; color: #ccc; }
 .selector-arrow { color: var(--c-gold-dim); font-size: 0.8rem; pointer-events: none; }
 
-/* 结算栏 (复用 SkillBuyArea 样式逻辑) */
+/* 结算栏 */
 .checkout-bar {
   position: sticky; bottom: 0; z-index: 10;
   background: rgba(15, 15, 15, 0.95); backdrop-filter: blur(10px);
@@ -275,7 +322,8 @@ const getAspectClass = (aspect) => {
 .clear-btn { background: transparent; color: #888; border-color: #333; }
 .clear-btn:hover { color: #ccc; border-color: #555; }
 .confirm-btn { background: var(--c-gold); color: #000; }
-.confirm-btn:hover { background: #eec95e; box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+.confirm-btn:hover:not(:disabled) { background: #eec95e; box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
+.confirm-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
 
 /* 卡片样式 */
 .art-card {
@@ -290,7 +338,7 @@ const getAspectClass = (aspect) => {
 /* 性相颜色定义 */
 .aspect-lantern { --a-color: #fbc02d; }
 .aspect-forge { --a-color: #f57c00; }
-.aspect-edge { --a-color: #7cb342; } /* 刃改为偏绿/锋利色 */
+.aspect-edge { --a-color: #7cb342; }
 .aspect-winter { --a-color: #90a4ae; }
 .aspect-heart { --a-color: #e91e63; }
 .aspect-grail { --a-color: #d32f2f; }
@@ -313,29 +361,44 @@ const getAspectClass = (aspect) => {
 .lv-upgrade { color: var(--c-gold-light); font-size: 0.9rem; margin-left: 4px; animation: pulse 2s infinite; }
 
 .desc { font-style: italic; color: #666; font-size: 0.85rem; text-align: center; margin: 10px 0; }
+.phase-desc { font-style: normal; font-size: 0.8rem; }
+.phase-desc .safe { color: #81c784; }
+.phase-desc .danger { color: #e57373; }
 
 /* 进度条 */
-.progress-container { margin-bottom: 10px; }
+.progress-container { margin-bottom: 15px; }
 .progress-text { display: flex; justify-content: space-between; font-size: 0.75rem; color: #888; margin-bottom: 4px; font-family: monospace; }
 .exp-plus { color: var(--c-gold-light); }
 .progress-bar-bg { height: 4px; background: #222; border-radius: 2px; position: relative; overflow: hidden; }
 .progress-bar-fill { height: 100%; background: var(--a-color, #555); transition: width 0.3s; }
 .progress-bar-preview { position: absolute; top: 0; height: 100%; background: #fff; opacity: 0.3; animation: stripe 1s linear infinite; }
 
-.cost-preview { font-size: 0.8rem; color: #666; display: flex; justify-content: space-between; margin-top: 8px; }
-.cost-preview .value { color: #e57373; }
-
-/* 按钮组 */
-.art-actions { display: flex; gap: 5px; margin-top: 12px; }
-.mini-btn {
-  flex: 1; background: transparent; border: 1px solid #444; color: #888;
-  padding: 4px 0; font-size: 0.75rem; cursor: pointer; transition: all 0.2s;
-  font-family: 'Cinzel', serif;
+/* 拖动条控制区 */
+.slider-control { margin-top: 10px; padding: 0 5px; }
+.exp-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: #333;
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
 }
-.mini-btn:hover:not(:disabled) { border-color: var(--a-color, #888); color: var(--a-color, #ccc); background: rgba(255,255,255,0.05); }
-.mini-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-.upgrade-btn { border-color: var(--c-gold-dim); color: var(--c-gold); }
-.upgrade-btn:hover:not(:disabled) { background: var(--c-gold); color: #000; }
+.exp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--a-color, #888);
+  border: 2px solid #111;
+  cursor: pointer;
+  transition: transform 0.1s;
+}
+.exp-slider::-webkit-slider-thumb:hover { transform: scale(1.2); }
+
+.cost-preview { font-size: 0.8rem; color: #666; display: flex; justify-content: space-between; margin-top: 8px; align-items: center; }
+.cost-preview .value { color: #e57373; font-weight: bold; }
+.cost-preview .value.text-danger { color: #ff5252; text-decoration: line-through; opacity: 0.7; }
 
 @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 .fade-up-enter-active, .fade-up-leave-active { transition: all 0.3s ease; }

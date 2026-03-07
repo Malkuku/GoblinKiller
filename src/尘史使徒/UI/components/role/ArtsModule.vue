@@ -187,16 +187,17 @@ const getArtDetails = (name) => {
 // --- 新增：根据规则计算下一级所需经验 ---
 const calculateNextLevelXp = (level) => {
   const lvl = level || 0;
-  if (lvl === 0) return -1;
+  if (lvl >= 19 || lvl <= 0) return -1; // 秘而不宣: 未知领域，涉及神性存在，无法获取经验值
 
-  // 初阶 (1-13级): 当前等级 * 200
-  if (lvl >= 1 && lvl <= 13) return lvl * 200;
-
-  // 高阶 (14-18级): 当前等级^2 * 500
-  if (lvl >= 14 && lvl <= 18) return Math.pow(lvl, 2) * 500;
-
-  // 秘而不宣 (19级+): 无法获取经验
-  return -1;
+  if (lvl <= 13) {
+    // 初阶 (1-13级): 靠模仿与练习积累经验，相对安全。也可通过特殊结晶，会有危险
+    // 公式: 28 + 当前等级^2 * 22
+    return 28 + Math.pow(lvl, 2) * 22;
+  } else {
+    // 高阶 (14-18级): 模仿与练习无效，需知晓禁忌知识或举行仪式/献祭
+    // 公式: 当前等级^2 * 300
+    return Math.pow(lvl, 2) * 300;
+  }
 };
 
 const calculateXpPercent = (art) => {
