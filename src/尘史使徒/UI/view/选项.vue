@@ -581,6 +581,11 @@ const checkTavernBusy = (btn: HTMLElement) => {
   }
 };
 
+watch(userInput, (newVal) => {
+  uiStore.setPendingInput(newVal);
+});
+
+
 // --- 监听 messageStore.message ---
 watch(
   [
