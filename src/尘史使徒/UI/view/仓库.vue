@@ -123,19 +123,25 @@
               <div class="checkbox-inner"></div>
             </div>
 
+            <!-- 卡片背景特效 -->
+            <div class="card-bg-effect"></div>
+
             <!-- 卡片头部 -->
             <div class="card-inner">
-              <div class="item-icon">{{ item.name[0] }}</div>
-              <div class="item-info">
-                <div class="item-name">{{ item.name }}</div>
-                <div class="item-meta">
-                  <span class="item-type">{{ item.raw.类型 || '杂物' }}</span>
-                  <span class="item-durability" v-if="item.durability > 0">
-                    <div class="dur-bar" :style="{ width: Math.min(item.durability, 100) + '%' }"></div>
-                  </span>
+              <div class="card-top">
+                <span class="type-tag">{{ item.raw.类型 || '杂物' }}</span>
+                <span class="count-badge">x{{ item.quantity }}</span>
+              </div>
+              <div class="card-body">
+                <div class="item-name-visual" :style="{ fontSize: getNameFontSize(item.name) }">
+                  {{ item.name }}
                 </div>
               </div>
-              <div class="item-qty">x{{ item.quantity }}</div>
+              <div class="card-bottom">
+                <span class="durability-text" v-if="item.durability > 0">
+                  Dur: {{ item.durability }}
+                </span>
+              </div>
             </div>
 
             <!-- 展开区域 (仅在非删除模式下显示) -->
@@ -216,19 +222,25 @@
               <div class="checkbox-inner"></div>
             </div>
 
+            <!-- 卡片背景特效 -->
+            <div class="card-bg-effect"></div>
+
             <!-- 卡片头部 -->
             <div class="card-inner">
-              <div class="item-icon">{{ item.name[0] }}</div>
-              <div class="item-info">
-                <div class="item-name">{{ item.name }}</div>
-                <div class="item-meta">
-                  <span class="item-type">{{ item.raw.类型 || '杂物' }}</span>
-                  <span class="item-durability" v-if="item.durability > 0">
-                    <div class="dur-bar" :style="{ width: Math.min(item.durability, 100) + '%' }"></div>
-                  </span>
+              <div class="card-top">
+                <span class="type-tag">{{ item.raw.类型 || '杂物' }}</span>
+                <span class="count-badge">x{{ item.quantity }}</span>
+              </div>
+              <div class="card-body">
+                <div class="item-name-visual" :style="{ fontSize: getNameFontSize(item.name) }">
+                  {{ item.name }}
                 </div>
               </div>
-              <div class="item-qty">x{{ item.quantity }}</div>
+              <div class="card-bottom">
+                <span class="durability-text" v-if="item.durability > 0">
+                  Dur: {{ item.durability }}
+                </span>
+              </div>
             </div>
 
             <!-- 展开区域 -->
@@ -329,20 +341,16 @@ const formatItemText = (text, currentItem) => {
   if (!text || typeof text !== 'string') return text;
 
   return text.replace(/\$\{([^}]+)\}/g, (match, key) => {
-    // 1. 物品自身属性替换 (例如 ${数量}, ${耐久})
     if (key === '数量' && currentItem) return `数量[${currentItem.quantity}]`;
     if (key === '耐久' && currentItem) return `耐久[${currentItem.durability}]`;
 
-    // 2. 全局属性替换 (从 statStore 获取)
     const stats = statStore.stat_data;
     if (!stats) return match;
 
-    // 检查 基础数值
     if (stats['基础数值'] && stats['基础数值'][key] !== undefined) {
       return `${key}[${stats['基础数值'][key]}]`;
     }
 
-    // 检查 术之等级
     if (stats['术之等级'] && stats['术之等级'][key]) {
       const artData = stats['术之等级'][key];
       if (typeof artData === 'object' && artData['等级'] !== undefined) {
@@ -353,7 +361,6 @@ const formatItemText = (text, currentItem) => {
       }
     }
 
-    // 检查 生命状态
     if (stats['生命状态'] && stats['生命状态'][key]) {
       const status = stats['生命状态'][key];
       if (typeof status === 'object' && status['当前'] !== undefined) {
@@ -361,7 +368,7 @@ const formatItemText = (text, currentItem) => {
       }
     }
 
-    return match; // 如果都没找到，保持原样
+    return match;
   });
 };
 
@@ -412,24 +419,47 @@ const processList = sourceObj => {
 const backpackList = computed(() => processList(localBackpack.value));
 const warehouseList = computed(() => processList(localWarehouse.value));
 
+// --- 样式与字号逻辑 ---
+const getNameFontSize = (name) => {
+  const len = name.length;
+  if (len <= 4) return '1.4rem';
+  if (len <= 7) return '1.15rem';
+  if (len <= 10) return '1rem';
+  return '0.85rem';
+};
+
 const getItemStyle = item => {
-  const type = item.raw.类型 || '';
-  const name = item.name || '';
-  if (name.includes('刃') || type === '武器') return 'style-weapon';
-  if (name.includes('书') || type === '密传') return 'style-lore';
-  if (name.includes('币') || type === '货币') return 'style-currency';
+  const n = (item.name || '').toLowerCase();
+  const t = (item.raw.类型 || '').toLowerCase();
+
+  if (n.includes('蛾')) return 'style-moth';
+
+  if (
+    n.includes('证明') || n.includes('证书') || n.includes('执照') ||
+    n.includes('徽') || n.includes('印') || n.includes('章') ||
+    n.includes('钥') || n.includes('令') || n.includes('邀请') ||
+    t === '证明' || t === '信物'
+  ) return 'style-proof';
+
+  if (n.includes('书') || n.includes('录') || n.includes('篇') || t === '密传') return 'style-lore';
+  if (n.includes('刃') || n.includes('剑') || n.includes('刀') || n.includes('枪') || n.includes('斧') || t === '武器') return 'style-weapon';
+  if (n.includes('仪式') || n.includes('阵') || n.includes('祭') || t === '仪式') return 'style-ritual';
+  if (n.includes('币') || n.includes('金') || n.includes('银') || t === '货币') return 'style-currency';
+  if (n.includes('药') || n.includes('剂') || n.includes('水') || n.includes('露') || t === '药食') return 'style-medicine';
+  if (n.includes('杯') || n.includes('血')) return 'style-grail';
+  if (n.includes('镜') || n.includes('灯') || n.includes('光')) return 'style-lantern';
+  if (t === '器具') return 'style-tool';
+
   return 'style-default';
 };
 
 // --- 交互逻辑 ---
-
 function toggleDeleteMode() {
   isDeleteMode.value = !isDeleteMode.value;
   closeTransfer();
-  selectedItems.value.clear(); // 切换模式时清空选中
+  selectedItems.value.clear();
 }
 
-// 统一处理点击：区分模式
 function handleItemClick(item, direction, prefix) {
   if (isDeleteMode.value) {
     toggleSelection(prefix, item.name);
@@ -439,7 +469,6 @@ function handleItemClick(item, direction, prefix) {
 }
 
 // --- 批量选择逻辑 ---
-
 function getUniqueId(prefix, name) {
   return `${prefix}-${name}`;
 }
@@ -480,27 +509,22 @@ function toggleSelectAll(prefix) {
 function confirmBatchDelete() {
   if (selectedItems.value.size === 0) return;
 
-  // 遍历选中项进行删除
   selectedItems.value.forEach(id => {
     const [prefix, ...nameParts] = id.split('-');
-    const name = nameParts.join('-'); // 防止名字里有横杠
+    const name = nameParts.join('-');
 
     const sourceObj = prefix === 'bag' ? localBackpack.value : localWarehouse.value;
 
     if (sourceObj[name]) {
       delete sourceObj[name];
-      // 标记为修改（虽然delete了，但为了触发保存逻辑，我们需要确保diff能检测到）
-      // 注意：generateDiff 是对比 local 和 remote，只要 local 没了，remote 有，就会生成 delete payload
     }
   });
 
   hasUnsavedChanges.value = true;
   selectedItems.value.clear();
-  // 保持在删除模式，方便继续操作，或者可以 isDeleteMode.value = false;
 }
 
-// --- 原有逻辑 ---
-
+// --- 转移逻辑 ---
 function toggleItemExpand(item, direction, prefix) {
   const id = `${prefix}-${item.name}`;
   if (activeItemId.value === id) {
@@ -559,8 +583,7 @@ function confirmTransfer() {
   }
 }
 
-// --- 保存逻辑 (保持不变) ---
-
+// --- 保存逻辑 ---
 function cleanData(item) {
   const { isModified, ...rest } = item;
   return rest;
@@ -587,13 +610,10 @@ function generateDiff(localObj, remoteObj, pathArr, payload) {
     const remoteItem = remoteObj[key];
 
     if (remoteItem && !localItem) {
-      // 远程有，本地没有 -> 删除 (值为 null)
       addToPayload(payload, pathArr, key, null);
     } else if (localItem && !remoteItem) {
-      // 本地有，远程没有 -> 新增
       addToPayload(payload, pathArr, key, cleanData(localItem));
     } else if (localItem && remoteItem) {
-      // 都有 -> 检查差异
       const cleanLocal = cleanData(localItem);
       if (JSON.stringify(cleanLocal) !== JSON.stringify(remoteItem)) {
         addToPayload(payload, pathArr, key, cleanLocal);
@@ -607,23 +627,17 @@ async function saveAllChanges() {
   isSaving.value = true;
 
   try {
-    // 1. 创建单一的 payload 对象
     const mergedPayload = {};
-
     const remoteBackpack = statStore.stat_data?.角色?.user?.物品 || {};
     const remoteWarehouse = statStore.stat_data?.仓库 || {};
 
-    // 2. 直接将差异写入 mergedPayload
-    // addToPayload 会自动处理深层路径合并，不会发生覆盖
     generateDiff(localBackpack.value, remoteBackpack, ['角色', 'user', '物品'], mergedPayload);
     generateDiff(localWarehouse.value, remoteWarehouse, ['仓库'], mergedPayload);
 
-    // 3. 如果有变更，直接提交
     if (Object.keys(mergedPayload).length > 0) {
       await MvuUtil.updateMvuDataByDiff(mergedPayload);
     }
 
-    // --- 以下是日志逻辑 (保持不变) ---
     const exchangeLogs = [];
     const allNames = new Set([
       ...Object.keys(remoteBackpack),
@@ -676,11 +690,22 @@ async function saveAllChanges() {
   --c-gold-dim: rgba(212, 175, 55, 0.3);
   --c-bg: #0f0f13;
   --c-bg-panel: #16161a;
+  --c-card-bg: #1a1a1f;
   --c-text: #e0e0e0;
   --c-danger: #ff4d4d;
   --c-danger-dim: rgba(255, 77, 77, 0.3);
   --font-title: 'Cinzel', serif;
   --font-body: 'EB Garamond', serif;
+
+  /* 物品主题颜色变量 */
+  --rgb-lore: 189, 178, 255;
+  --rgb-ritual: 255, 100, 100;
+  --rgb-curr: 255, 214, 165;
+  --rgb-med: 155, 246, 255;
+  --rgb-weapon: 255, 80, 80;
+  --rgb-tool: 160, 196, 255;
+  --rgb-proof: 255, 160, 50;
+  --rgb-def: 140, 140, 140;
 
   display: flex;
   flex-direction: column;
@@ -1005,9 +1030,9 @@ async function saveAllChanges() {
   padding: 10px;
   overflow-y: auto;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  grid-auto-rows: minmax(70px, auto);
-  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  grid-auto-rows: minmax(100px, auto);
+  gap: 12px;
   align-content: start;
   min-height: 0;
 }
@@ -1020,151 +1045,194 @@ async function saveAllChanges() {
   border-radius: 3px;
 }
 
-/* --- 卡片样式 --- */
+/* --- 卡片样式重构 --- */
 .item-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid transparent;
+  background: var(--c-card-bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
   position: relative;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 70px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
 }
 
 .item-card:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  z-index: 2;
 }
 
 .item-card.is-expanded {
-  background: rgba(0, 0, 0, 0.5);
   border-color: var(--c-gold);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), 0 0 15px rgba(212, 175, 55, 0.15);
   z-index: 10;
+  transform: translateY(0);
 }
 
-.item-card.is-modified {
-  border-left: 3px solid var(--c-gold);
-  background: linear-gradient(90deg, rgba(212, 175, 55, 0.05), transparent);
+.item-card.is-modified::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0;
+  width: 0; height: 0;
+  border-top: 16px solid var(--c-gold);
+  border-left: 16px solid transparent;
+  z-index: 5;
+  pointer-events: none;
 }
 
 /* 选中状态样式 */
-.item-card.mode-select {
-  padding-left: 30px; /* 为复选框留空间 */
-}
 .item-card.is-selected {
   border-color: var(--c-danger);
-  background: rgba(255, 77, 77, 0.1);
+  box-shadow: 0 0 15px rgba(255, 77, 77, 0.3);
 }
 
 .selection-indicator {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 30px;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 4;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.2);
-  border-right: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
 }
 
 .checkbox-inner {
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
   border: 2px solid #666;
-  border-radius: 2px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.8);
+  position: relative;
   transition: 0.2s;
 }
 
 .item-card.is-selected .checkbox-inner {
   background: var(--c-danger);
   border-color: var(--c-danger);
-  box-shadow: 0 0 5px var(--c-danger);
+  box-shadow: 0 0 10px var(--c-danger);
+}
+.item-card.is-selected .checkbox-inner::after {
+  content: '✓';
+  position: absolute;
+  color: #fff;
+  font-size: 16px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
 }
 
+/* 卡片内部布局 */
 .card-inner {
   display: flex;
-  align-items: center;
-  padding: 0 10px;
-  height: 70px;
-  flex-shrink: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100px;
+  padding: 6px 8px;
+  position: relative;
+  z-index: 2;
 }
 
-.item-icon {
-  width: 40px;
-  height: 40px;
-  background: #222;
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.type-tag {
+  opacity: 0.5;
+  font-size: 0.6rem;
+  text-transform: uppercase;
+  color: #ccc;
+}
+.count-badge {
+  background: rgba(255,255,255,0.1);
+  padding: 0 4px;
+  border-radius: 2px;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: bold;
+}
+
+.card-body {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
+}
+.item-name-visual {
   font-family: var(--font-title);
-  font-size: 1.2rem;
-  color: #666;
-  margin-right: 10px;
-  border: 1px solid #333;
-  flex-shrink: 0;
-}
-
-.item-info {
-  flex: 1;
-  overflow: hidden;
-  min-width: 0;
-}
-.item-name {
-  font-weight: bold;
+  font-weight: 600;
+  color: #eee;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 0.95rem;
+  width: 100%;
+  text-align: center;
 }
-.item-meta {
+
+.card-bottom {
+  height: 16px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  justify-content: flex-end;
+  align-items: flex-end;
 }
-.item-type {
-  font-size: 0.7rem;
+.durability-text {
+  font-size: 0.65rem;
   color: #888;
-  text-transform: uppercase;
+  font-family: monospace;
 }
-.item-durability {
-  flex: 1;
-  height: 3px;
-  background: #333;
-  max-width: 50px;
+
+/* 卡片背景特效 */
+.card-bg-effect {
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 100px;
+  opacity: 0.1;
+  z-index: 1;
+  transition: opacity 0.3s;
+  pointer-events: none;
 }
-.dur-bar {
-  height: 100%;
-  background: #888;
+.item-card:hover .card-bg-effect {
+  opacity: 0.25;
 }
-.item-qty {
-  font-family: var(--font-title);
-  color: var(--c-gold);
-  font-size: 1.1rem;
-  margin-left: 10px;
-  flex-shrink: 0;
-}
+
+/* --- 物品主题样式类 --- */
+.style-moth { --theme-color: #888888; border-color: var(--theme-color); }
+.style-moth .item-name-visual { color: var(--theme-color); text-shadow: 1px 1px 1px rgba(0,0,0,0.5); animation: art-moth-glitch-strong 1.5s infinite steps(1); }
+.style-moth .card-bg-effect { background: repeating-linear-gradient(45deg, #0001, #0001 1px, transparent 1px, transparent 5px); opacity: 0.15; }
+@keyframes art-moth-glitch-strong { 0% { transform: translate(0, 0) skew(0); } 10% { transform: translate(-5px, 3px) skew(-5deg); } 20% { transform: translate(5px, -3px) skew(5deg); } 30% { transform: translate(-8px, 5px) skew(-2deg); } 40% { transform: translate(8px, -5px) skew(2deg); } 50% { transform: translate(-5px, 3px) skew(-5deg); } 60% { transform: translate(5px, -3px) skew(5deg); } 70% { transform: translate(-8px, 5px) skew(-2deg); } 80% { transform: translate(0, 0) skew(0); } 100% { transform: translate(0, 0) skew(0); } }
+
+.style-lore { border-color: rgba(var(--rgb-lore), 0.4); } .style-lore .card-bg-effect { background: radial-gradient(circle at center, rgba(var(--rgb-lore), 0.8), transparent 90%); } .style-lore .item-name-visual { color: rgb(var(--rgb-lore)); }
+.style-weapon { border-color: rgba(var(--rgb-weapon), 0.4); } .style-weapon .card-bg-effect { background: linear-gradient(135deg, rgba(var(--rgb-weapon), 0.1), transparent); } .style-weapon .item-name-visual { color: rgb(var(--rgb-weapon)); }
+.style-ritual { border-color: rgba(var(--rgb-ritual), 0.4); } .style-ritual .card-bg-effect { background: radial-gradient(circle at center, rgba(var(--rgb-ritual), 0.8), transparent 90%); } .style-ritual .item-name-visual { color: rgb(var(--rgb-ritual)); }
+.style-currency { border-color: rgba(var(--rgb-curr), 0.4); } .style-currency .card-bg-effect { background: radial-gradient(circle at center, rgba(var(--rgb-curr), 0.8), transparent 90%); } .style-currency .item-name-visual { color: rgb(var(--rgb-curr)); }
+.style-medicine { border-color: rgba(var(--rgb-med), 0.4); } .style-medicine .card-bg-effect { background: radial-gradient(circle at center, rgba(var(--rgb-med), 0.8), transparent 90%); } .style-medicine .item-name-visual { color: rgb(var(--rgb-med)); }
+.style-tool { border-color: rgba(var(--rgb-tool), 0.4); } .style-tool .card-bg-effect { background: radial-gradient(circle at center, rgba(var(--rgb-tool), 0.8), transparent 90%); } .style-tool .item-name-visual { color: rgb(var(--rgb-tool)); }
+.style-proof { border-color: rgba(var(--rgb-proof), 0.6); } .style-proof .card-bg-effect { background: radial-gradient(circle at center, transparent 30%, rgba(var(--rgb-proof), 0.15) 100%); border: 1px solid rgba(var(--rgb-proof), 0.1); inset: 2px; } .style-proof .item-name-visual { color: rgb(var(--rgb-proof)); letter-spacing: 1px; }
+.style-default { border-color: rgba(var(--rgb-def), 0.3); } .style-default .card-bg-effect { background: linear-gradient(to bottom, rgba(255,255,255,0.05), transparent); }
 
 /* --- 展开面板 --- */
 .expanded-panel {
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.3);
-  padding: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  animation: slideDown 0.2s ease-out;
+  gap: 12px;
+  animation: slideDown 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: inset 0 4px 8px rgba(0,0,0,0.2);
+  position: relative;
+  z-index: 3;
 }
 
 @keyframes slideDown {
   from {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-5px);
   }
   to {
     opacity: 1;
@@ -1174,56 +1242,63 @@ async function saveAllChanges() {
 
 .item-details {
   font-size: 0.85rem;
-  color: #aaa;
-  line-height: 1.4;
-  padding: 0 5px;
+  color: #bbb;
+  line-height: 1.5;
+  padding: 4px 6px;
   word-break: break-word;
+  background: rgba(255,255,255,0.02);
+  border-radius: 4px;
+  border-left: 2px solid rgba(255,255,255,0.1);
 }
 .detail-desc {
   font-style: italic;
-  margin: 0 0 6px 0;
-  color: #888;
+  margin: 0 0 8px 0;
+  color: #999;
 }
 .detail-effect {
   margin: 0;
-  color: #ccc;
+  color: #ddd;
 }
 .detail-effect .bullet {
   color: var(--c-gold);
-  margin-right: 4px;
+  margin-right: 6px;
+  font-size: 0.8rem;
 }
 
 .transfer-action-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 5px;
+  gap: 12px;
+  margin-top: 4px;
 }
 
 .slider-wrapper {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 4px 8px;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 10px;
   border-radius: 4px;
-  height: 32px;
+  height: 36px;
   min-width: 0;
+  border: 1px solid rgba(255,255,255,0.05);
 }
 
 .qty-label {
   color: var(--c-gold);
   font-family: var(--font-title);
   font-weight: bold;
-  min-width: 20px;
+  min-width: 24px;
   text-align: center;
+  font-size: 1.1rem;
 }
 .qty-static {
   color: #888;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   flex: 1;
   text-align: center;
+  letter-spacing: 1px;
 }
 .mini-slider {
   flex: 1;
@@ -1231,42 +1306,51 @@ async function saveAllChanges() {
   height: 4px;
   cursor: pointer;
   min-width: 0;
+  background: #333;
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+}
+.mini-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--c-gold);
+  border-radius: 50%;
+  cursor: pointer;
+  box-shadow: 0 0 5px var(--c-gold);
 }
 .qty-max {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: #666;
+  font-family: var(--font-title);
 }
 
 .mini-confirm-btn {
-  background: var(--c-gold);
+  background: linear-gradient(135deg, var(--c-gold), #b8962e);
   color: #000;
   border: none;
-  padding: 6px 12px;
-  font-size: 0.8rem;
+  padding: 0 16px;
+  font-size: 0.85rem;
   font-weight: bold;
   cursor: pointer;
-  border-radius: 2px;
+  border-radius: 4px;
   white-space: nowrap;
-  transition: 0.2s;
-  height: 32px;
+  transition: all 0.2s;
+  height: 36px;
   flex-shrink: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
 }
 .mini-confirm-btn:hover {
-  background: #fff;
-  box-shadow: 0 0 10px var(--c-gold);
+  background: linear-gradient(135deg, #fff, var(--c-gold));
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.6);
+  transform: translateY(-1px);
 }
-
-.style-weapon .item-icon {
-  color: #ff6b6b;
-  border-color: rgba(255, 107, 107, 0.3);
-}
-.style-lore .item-icon {
-  color: #a29bfe;
-  border-color: rgba(162, 155, 254, 0.3);
-}
-.style-currency .item-icon {
-  color: #ffeaa7;
-  border-color: rgba(255, 234, 167, 0.3);
+.mini-confirm-btn:active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.3);
 }
 
 /* Vue Transition */
@@ -1321,7 +1405,17 @@ async function saveAllChanges() {
     height: 100%;
   }
   .item-grid {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    grid-auto-rows: minmax(90px, auto);
+  }
+  .card-inner {
+    height: 90px;
+  }
+  .card-bg-effect {
+    height: 90px;
+  }
+  .item-name-visual {
+    font-size: 0.9rem !important;
   }
 
   .header-title h2 {

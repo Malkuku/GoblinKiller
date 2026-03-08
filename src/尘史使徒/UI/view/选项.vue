@@ -11,7 +11,27 @@
       </div>
     </transition>
 
-    <!-- 顶部工具栏 -->
+    <!-- 顶部状态栏 (时间/地点) -->
+    <div class="world-status-bar" v-show="!isInitializing">
+      <div class="status-group">
+        <!-- 优化：使用 SVG 替换 Emoji -->
+        <svg class="status-svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+        </svg>
+        <span class="status-text">{{ currentWorldLocation || '未知地点' }}</span>
+      </div>
+      <div class="status-divider"></div>
+      <div class="status-group">
+        <!-- 优化：使用 SVG 替换 Emoji -->
+        <svg class="status-svg" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4z"/>
+        </svg>
+        <!-- 优化：使用 v-html 渲染带样式的 HTML 时间字符串 -->
+        <span class="status-text time-display" v-html="formattedWorldTime"></span>
+      </div>
+    </div>
+
+    <!-- 顶部工具栏 (字体控制) -->
     <div class="text-controls" v-show="!isInitializing">
       <div class="font-control-group">
         <button class="control-icon" @click="changeFontSize(-1)">A-</button>
@@ -203,6 +223,10 @@ const userLifeStatus = ref<any>({
 const combatStrategy = ref('节省体力');
 const combatStrategyCustom = ref(''); // 新增：自定义策略内容
 
+// --- 世界状态 (时间/地点) ---
+const currentWorldTime = ref('');
+const currentWorldLocation = ref('');
+
 // --- 正则 ---
 const OPTIONS_BLOCK_REGEX = /<options>([\s\S]*?)<\/options>/i;
 const OP_TAG_REGEX = /<op>([\s\S]*?)<\/op>/gi;
@@ -232,6 +256,43 @@ const displayHtml = computed(() => {
     content = content.slice(1, -1);
   }
   return content;
+});
+
+// --- 计算属性：格式化时间 (优化版) ---
+const formattedWorldTime = computed(() => {
+  if (!currentWorldTime.value) return '??-??-??T??:??[?]';
+
+  try {
+    // 尝试解析日期字符串
+    const date = new Date(currentWorldTime.value);
+
+    // 如果解析失败(Invalid Date)，直接返回原始字符串
+    if (isNaN(date.getTime())) return currentWorldTime.value;
+
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const year = date.getFullYear().toString().padStart(4, '0');
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+
+    // 星期处理: getDay() 返回 0(周日) - 6(周六)
+    // 转换逻辑: 0->7, 1->1, ... 6->6
+    let weekDay = date.getDay();
+    if (weekDay === 0) weekDay = 7;
+
+    // 定义分隔符 HTML
+    const dSep = `<span class="d-sep">-</span>`;
+    const dtSep = `<span class="dt-sep">♦</span>`; // 用菱形代替 T
+    const tSep = `<span class="t-sep">:</span>`;
+    const wOpen = `<span class="w-sep">[</span>`;
+    const wClose = `<span class="w-sep">]</span>`;
+
+    // 返回 HTML 字符串
+    return `${year}${dSep}${month}${dSep}${day} ${dtSep} ${hours}${tSep}${minutes} ${wOpen}${weekDay}${wClose}`;
+  } catch (e) {
+    return currentWorldTime.value;
+  }
 });
 
 // --- 监听器 ---
@@ -293,6 +354,11 @@ const syncStatData = () => {
         if (mvuData.stat_data['system']?.['战斗策略自定义内容'] !== undefined) {
           combatStrategyCustom.value = mvuData.stat_data['system']['战斗策略自定义内容'];
         }
+        // 同步世界状态 (时间与地点)
+        if (mvuData.stat_data['世界']) {
+          currentWorldTime.value = mvuData.stat_data['世界']['时间'];
+          currentWorldLocation.value = mvuData.stat_data['世界']['地点'];
+        }
       }
     }
   } catch (e) {
@@ -348,7 +414,7 @@ const fetchLatestMessage = () => {
     // 2. 同步原始消息
     messageStore.getMessage();
 
-    // 3. 同步状态数据 (生命值/策略)
+    // 3. 同步状态数据 (生命值/策略/世界信息)
     syncStatData();
 
     // 4. 检查消息内容
@@ -616,6 +682,46 @@ onUnmounted(() => {
 .loading-text {
   font-family: 'Cinzel', serif; color: var(--c-gold); letter-spacing: 2px;
   font-size: 0.9rem; animation: blink 1s infinite;
+}
+
+/* --- World Status Bar (Time & Location) --- */
+.world-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 10px 20px;
+  padding-right: 120px; /* 避免遮挡右侧字体控制 */
+  background: rgba(0, 0, 0, 0.4);
+  border-bottom: 1px solid rgba(164, 139, 87, 0.2);
+  font-family: 'Cinzel', serif;
+  color: var(--c-gold);
+  font-size: 0.9rem;
+  z-index: 5;
+  flex-shrink: 0;
+}
+.status-group {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 增加一点间距 */
+}
+
+/* 新增：SVG 图标样式 */
+.status-svg {
+  width: 18px;
+  height: 18px;
+  color: var(--c-gold);
+  opacity: 0.9;
+  filter: drop-shadow(0 0 2px rgba(164, 139, 87, 0.5));
+}
+
+.status-text {
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+.status-divider {
+  width: 1px;
+  height: 14px;
+  background: rgba(164, 139, 87, 0.4);
 }
 
 /* --- Controls --- */
@@ -1048,4 +1154,21 @@ onUnmounted(() => {
 .fade-input-enter-active, .fade-input-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-input-enter-from { opacity: 0; transform: translateY(5px); }
 .fade-input-leave-to { opacity: 0; transform: translateY(-5px); }
+
+/* --- 新增：时间格式化样式 --- */
+.time-display :deep(.d-sep),
+.time-display :deep(.t-sep),
+.time-display :deep(.w-sep) {
+  color: rgba(164, 139, 87, 0.6);
+  margin: 0 1px;
+  font-weight: normal;
+}
+
+.time-display :deep(.dt-sep) {
+  color: var(--c-gold);
+  margin: 0 6px;
+  font-size: 0.7em;
+  vertical-align: middle;
+  opacity: 0.8;
+}
 </style>
