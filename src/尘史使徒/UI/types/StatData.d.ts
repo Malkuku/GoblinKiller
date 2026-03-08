@@ -21,6 +21,7 @@ export interface StatData {
  */
 export interface LibraryData {
   "玩家输入": string;
+  "爱丽丝设定": "女儿爱丽丝" | "妹妹爱丽丝" | "妈妈爱丽丝"
 }
 
 /**

@@ -10,6 +10,16 @@
     />
 
     <div class="main-content-area">
+      <!-- 设定切换下拉框 -->
+      <div v-show="currentMode === '对话'" class="alice-selector-container">
+        <label>设定：</label>
+        <select v-model="aliceSetting" @change="handleAliceChange">
+          <option value="女儿爱丽丝">女儿爱丽丝</option>
+          <option value="妹妹爱丽丝">妹妹爱丽丝</option>
+          <option value="妈妈爱丽丝">妈妈爱丽丝</option>
+        </select>
+      </div>
+
       <ChatArea
         v-show="currentMode === '对话'"
         ref="chatAreaRef"
@@ -18,6 +28,7 @@
         :isThinking="isThinking"
         :isDeleteMode="isDeleteMode"
         :selectedMessages="selectedMessages"
+        :aliceSetting="aliceSetting"
         @toggleSelect="toggleSelect"
       />
 
@@ -57,7 +68,7 @@ import { ref, reactive, inject, onMounted, onUnmounted, computed, watch } from '
 import { MvuUtil } from '@/Utils/MvuUtil';
 import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
-import { welcomeMessage } from '@/尘史使徒/UI/components/start/开场白';
+import { welcomeMessage } from '@/尘史使徒/UI/components/library/开场白';
 import LibraryHeader from '@/尘史使徒/UI/components/library/LibraryHeader.vue';
 import BurnIntro from '@/尘史使徒/UI/components/library/BurnIntro.vue';
 import ChatArea from '@/尘史使徒/UI/components/library/ChatArea.vue';
@@ -93,6 +104,34 @@ let pollingTimer = null;
 let bgmWatcher = null;
 
 const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
+
+// 爱丽丝设定状态
+const aliceSetting = ref('女儿爱丽丝');
+let isSettingInitialized = false;
+
+// 监听并初始化爱丽丝设定
+watch(() => statStore.stat_data?.['图书馆']?.['爱丽丝设定'], (newVal) => {
+  if (newVal && !isSettingInitialized) {
+    aliceSetting.value = newVal;
+    isSettingInitialized = true;
+  }
+}, { immediate: true });
+
+// 切换爱丽丝设定
+const handleAliceChange = async () => {
+  const newSetting = aliceSetting.value;
+  chatContents.value = [];
+  welcomeContent.value = '';
+  try {
+    await WorldInfoUtil.updateEntryContent('<图书馆>聊天记录', '');
+    await MvuUtil.updateMvuDataByDiff({ "图书馆": { "爱丽丝设定": newSetting } });
+    showToast(`已切换为：${newSetting}，聊天记录已清空`);
+    await syncChatRecord();
+  } catch (error) {
+    console.error("切换设定失败:", error);
+    showToast("切换设定失败");
+  }
+};
 
 const switchMode = (mode) => {
   currentMode.value = mode;
@@ -177,8 +216,23 @@ const syncChatRecord = async () => {
     let needsUpdate = false;
     let newMessages = [...parsedMessages];
     if (newMessages.length > 10) { newMessages = newMessages.slice(newMessages.length - 10); needsUpdate = true; }
-    if (newMessages.length === 0 && currentWelcome !== welcomeMessage.welcome1) { currentWelcome = welcomeMessage.welcome1; needsUpdate = true; }
-    else if (newMessages.length > 0 && currentWelcome !== welcomeMessage.welcome2) { currentWelcome = welcomeMessage.welcome2; needsUpdate = true; }
+
+    // 根据当前设定匹配开场白
+    let w1, w2;
+    if (aliceSetting.value === '妹妹爱丽丝') {
+      w1 = welcomeMessage.sisterWelcome1;
+      w2 = welcomeMessage.sisterWelcome2;
+    } else if (aliceSetting.value === '妈妈爱丽丝') {
+      w1 = welcomeMessage.motherWelcome1;
+      w2 = welcomeMessage.motherWelcome2;
+    } else {
+      w1 = welcomeMessage.daughterWelcome1;
+      w2 = welcomeMessage.daughterWelcome2;
+    }
+
+    if (newMessages.length === 0 && currentWelcome !== w1) { currentWelcome = w1; needsUpdate = true; }
+    else if (newMessages.length > 0 && currentWelcome !== w2) { currentWelcome = w2; needsUpdate = true; }
+
     if (needsUpdate) {
       let newRaw = newMessages.map(m => `<${m.type === 'user' ? 'user_say' : 'content'}>\n${m.text}\n</${m.type === 'user' ? 'user_say' : 'content'}>`).join('\n');
       if (currentWelcome) newRaw += `\n<welcome>\n${currentWelcome}\n</welcome>`;
@@ -265,6 +319,40 @@ onUnmounted(() => { if (pollingTimer) clearInterval(pollingTimer); if (bgmWatche
   overflow: hidden;
   /* 添加微弱的噪点或纹理背景 */
   background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000 100%);
+}
+
+/* 设定切换下拉框样式 */
+.alice-selector-container {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(20, 20, 20, 0.8);
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--c-gold-dim);
+  font-size: 0.9rem;
+}
+
+.alice-selector-container label {
+  color: var(--c-gold-light);
+}
+
+.alice-selector-container select {
+  background: transparent;
+  color: var(--c-gold);
+  border: none;
+  outline: none;
+  cursor: pointer;
+  font-family: 'Lato', sans-serif;
+}
+
+.alice-selector-container select option {
+  background: var(--c-bg-card);
+  color: var(--c-text);
 }
 
 /* 滚动条样式 */
