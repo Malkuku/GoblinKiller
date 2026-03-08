@@ -71,14 +71,23 @@ const holes = ref([]);
 const audioStore = useAudioStore();
 
 onMounted(() => {
-
+  // 2. 增加监听逻辑，防止直接跳过
   if (audioStore.loadStatus.burnBgm === 'ready') {
     playAudio('bgm', {
       title: '火烧纸',
       url: audioStore.getUrl('burnBgm')
     });
   } else {
-    console.log('火烧纸BGM尚未就绪，跳过播放');
+    console.log('火烧纸BGM尚未就绪，等待下载...');
+    const unwatch = watch(() => audioStore.loadStatus.burnBgm, (newStatus) => {
+      if (newStatus === 'ready') {
+        playAudio('bgm', {
+          title: '火烧纸',
+          url: audioStore.getUrl('burnBgm')
+        });
+        unwatch(); // 播放后取消监听
+      }
+    });
   }
 
   const numHoles = 40 + Math.floor(Math.random() * 20);

@@ -4,7 +4,7 @@ export const useAudioStore = defineStore('audio-resources', {
   state: () => ({
     resources: {
       burnBgm: 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/bgm/火烧纸.mp3',
-      libBgm: 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/bgm/图书馆之梦.wav'
+      libBgm: 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/bgm/图书馆之梦.mp3'
     },
     _cache: {},
     // 记录加载状态：'idle' | 'loading' | 'ready' | 'error'
