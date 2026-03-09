@@ -37,7 +37,7 @@
         <div class="svg-container" @click="advanceCombat" v-if="phase !== 'finished'">
           <div class="grid-bg"></div>
 
-          <!-- 动态 viewBox，适配移动端垂直布局与电脑端横向布局 -->
+          <!-- 动态 viewBox，适配移动端与电脑端 -->
           <svg :viewBox="layout.viewBox" class="combat-svg">
             <defs>
               <filter id="glow-red" x="-20%" y="-20%" width="140%" height="140%">
@@ -110,16 +110,16 @@
                 </g>
               </g>
 
-              <!-- 拼点总值与 VS -->
+              <!-- 拼点总值与 VS (统一使用左右横向碰撞) -->
               <g v-if="phase === 'clashing' || phase === 'beat-result'">
                 <g class="total-group"
-                   :class="{ 'clash-move-right': phase === 'clashing' && !isMobile, 'clash-move-down': phase === 'clashing' && isMobile }"
+                   :class="{ 'clash-move-right': phase === 'clashing' }"
                    :transform="`translate(${layout.clash.atkTotalX}, ${layout.clash.atkTotalY})`">
                   <polygon points="0,-20 20,0 0,20 -20,0" fill="rgba(255,51,51,0.15)" stroke="#ff3333" stroke-width="1" filter="url(#glow-red)"/>
                   <text x="0" y="5" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.攻方.攻击总值 }}</text>
                 </g>
                 <g class="total-group"
-                   :class="{ 'clash-move-left': phase === 'clashing' && !isMobile, 'clash-move-up': phase === 'clashing' && isMobile }"
+                   :class="{ 'clash-move-left': phase === 'clashing' }"
                    :transform="`translate(${layout.clash.defTotalX}, ${layout.clash.defTotalY})`">
                   <polygon points="0,-20 20,0 0,20 -20,0" fill="rgba(212, 175, 55, 0.15)" stroke="#d4af37" stroke-width="1" filter="url(#glow-gold)"/>
                   <text x="0" y="5" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.防方.防御总值 }}</text>
@@ -250,7 +250,7 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 
 // 1. 注入符合新规则的 JSON 数据
-const rawJson =  $1
+const rawJson = $1
 
 const combatLog = rawJson.交锋推演;
 const finalSettlement = rawJson.最终结算;
@@ -273,7 +273,7 @@ const currentAtkRolls = ref([]);
 const currentDefRolls = ref([]);
 const isAnimating = ref(false);
 
-// --- 新增：响应式布局检测 ---
+// --- 响应式布局检测 ---
 const isMobile = ref(false);
 const checkMobile = () => {
   isMobile.value = window.innerWidth <= 768;
@@ -288,39 +288,40 @@ onUnmounted(() => {
   window.removeEventListener('resize', checkMobile);
 });
 
-// --- 新增：动态 SVG 坐标系 (电脑端横向，移动端垂直) ---
+// --- 动态 SVG 坐标系 ---
 const layout = computed(() => {
   if (isMobile.value) {
+    // 移动端：紧凑型横向布局 [a] --vs-- [b]
     return {
-      viewBox: "0 0 400 500",
+      viewBox: "0 0 400 220",
       atk: {
-        line: { x1: 20, y1: 30, x2: 380, y2: 30 },
-        title: { x: 200, y: 20 },
-        sub: { x: 200, y: 45 },
-        rect: { x: 40, y: 55, w: 320, h: 24 },
-        form: { x: 200, y: 72 }
+        line: { x1: 10, y1: 20, x2: 190, y2: 20 },
+        title: { x: 100, y: 15 },
+        sub: { x: 100, y: 35 },
+        rect: { x: 10, y: 45, w: 180, h: 20 },
+        form: { x: 100, y: 59 }
       },
       def: {
-        line: { x1: 20, y1: 490, x2: 380, y2: 490 },
-        title: { x: 200, y: 480 },
-        sub: { x: 200, y: 455 },
-        rect: { x: 40, y: 415, w: 320, h: 24 },
-        form: { x: 200, y: 432 }
+        line: { x1: 210, y1: 20, x2: 390, y2: 20 },
+        title: { x: 300, y: 15 },
+        sub: { x: 300, y: 35 },
+        rect: { x: 210, y: 45, w: 180, h: 20 },
+        form: { x: 300, y: 59 }
       },
       dice: {
-        atkY: 100, defY: 370,
-        atkCenterX: 200, defCenterX: 200
+        atkY: 90, defY: 90,
+        atkCenterX: 100, defCenterX: 300
       },
       clash: {
-        atkTotalX: 200, atkTotalY: 170,
-        defTotalX: 200, defTotalY: 330,
-        vsX: 200, vsY: 246,
-        lineX1: 100, lineX2: 300, lineY: 240,
-        promptX: 130, promptY: 265, promptW: 140, promptH: 24, promptTextX: 200, promptTextY: 281
+        atkTotalX: 130, atkTotalY: 150,
+        defTotalX: 270, defTotalY: 150,
+        vsX: 200, vsY: 156,
+        lineX1: 150, lineX2: 250, lineY: 150,
+        promptX: 130, promptY: 185, promptW: 140, promptH: 20, promptTextX: 200, promptTextY: 199
       }
     };
   } else {
-    // 电脑端：保持原版坐标 100% 不变
+    // 电脑端：宽屏横向布局
     return {
       viewBox: "0 0 800 190",
       atk: {
@@ -540,7 +541,7 @@ const replayCombat = () => {
   background-size: 40px 40px; opacity: 0.15;
 }
 .combat-svg { width: 100%; height: auto; display: block; position: relative; z-index: 2; }
-.svg-trans { transition: all 0.3s ease; } /* 坐标切换时的平滑过渡 */
+.svg-trans { transition: all 0.3s ease; }
 
 .role-title { font-size: 14px; font-weight: bold; }
 .sub-info { font-size: 11px; font-family: var(--ac-font-mono); }
@@ -659,38 +660,32 @@ const replayCombat = () => {
 .fade-slide-leave-to { opacity: 0; transform: translateX(-10px); }
 
 /* ==========================================
-   移动端深度优化 (完全重构，不影响电脑端)
+   移动端深度优化 (紧凑型横向布局)
 ========================================== */
 @media (max-width: 768px) {
-  .animus-theme { padding: 10px 5px; }
+  .animus-theme { padding: 5px; } /* 减小外边距 */
   .gallery-card { border-radius: 6px; }
 
-  /* 1. 头部排版优化：上下堆叠，信息清晰 */
+  /* 1. 头部排版优化：紧凑换行 */
   .card-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px;
-  }
-  .header-title {
-    font-size: 1.1rem;
+    flex-direction: row;
     flex-wrap: wrap;
-    line-height: 1.4;
+    gap: 6px;
+    padding: 8px 10px;
   }
+  .header-title { font-size: 0.95rem; }
   .status-indicator {
     width: 100%;
     justify-content: space-between;
-    font-size: 0.85rem;
-  }
-  .replay-btn {
-    padding: 6px 10px;
     font-size: 0.8rem;
+    margin-top: 2px;
   }
+  .replay-btn { padding: 4px 8px; font-size: 0.75rem; }
 
-  /* 2. SVG 区域：取消强行放大和横向滚动，让 SVG 垂直自然铺开 */
+  /* 2. SVG 区域：高度压缩，取消多余留白 */
   .svg-container {
     min-height: auto;
-    padding: 15px 0;
+    padding: 5px 0;
   }
   .combat-svg {
     width: 100%;
@@ -699,33 +694,32 @@ const replayCombat = () => {
     margin: 0 auto;
   }
 
-  /* 移动端专属的拼点动画方向 (上下移动) */
-  .clash-move-down { transform: translateY(15px); }
-  .clash-move-up { transform: translateY(-15px); }
-
-  /* 3. 底部 Tab 栏：增大触控面积 */
-  .tab-controller { gap: 4px; margin-bottom: 15px; }
+  /* 3. 底部 Tab 栏：紧凑排列 */
+  .result-panel { padding: 10px; }
+  .tab-controller { gap: 4px; margin-bottom: 10px; }
   .tab-btn {
     flex: 1;
     justify-content: center;
-    padding: 12px 0;
-    font-size: 0.95rem;
+    padding: 8px 0;
+    font-size: 0.85rem;
   }
 
-  /* 4. 文本复盘区域：增大字号和间距 */
-  .beat-log-item { padding: 12px; }
-  .beat-header { flex-wrap: wrap; gap: 8px; }
-  .beat-num { font-size: 0.8rem; padding: 3px 6px; }
-  .beat-interaction { font-size: 0.95rem; }
-  .narrative-text { font-size: 1rem; line-height: 1.5; }
-  .system-result-box { font-size: 0.9rem; padding: 10px; flex-wrap: wrap; }
+  /* 4. 文本复盘区域：减小间距，字体微调 */
+  .beat-log-item { padding: 8px 10px; margin-bottom: 6px; }
+  .beat-header { gap: 6px; margin-bottom: 4px; }
+  .beat-num { font-size: 0.75rem; padding: 2px 4px; }
+  .beat-interaction { font-size: 0.85rem; }
+  .narrative-text { font-size: 0.85rem; line-height: 1.4; margin-bottom: 6px; }
+  .system-result-box { font-size: 0.8rem; padding: 6px 8px; }
 
-  /* 5. 数据面板：单列布局 */
-  .data-grid-layout { grid-template-columns: 1fr; gap: 12px; }
-  .box-header h4 { font-size: 1rem; }
-  .stats-comparison { font-size: 0.9rem; }
-  .stat-row { padding-bottom: 6px; }
-  .list-section ul { font-size: 0.9rem; }
-  .list-section ul li { margin-bottom: 6px; }
+  /* 5. 数据面板：单列紧凑布局 */
+  .data-grid-layout { grid-template-columns: 1fr; gap: 8px; }
+  .data-box { padding: 8px 10px; }
+  .box-header { margin-bottom: 6px; padding-bottom: 2px; }
+  .box-header h4 { font-size: 0.9rem; }
+  .stats-comparison { font-size: 0.85rem; }
+  .stat-row { padding-bottom: 4px; }
+  .list-section ul { font-size: 0.85rem; }
+  .list-section ul li { margin-bottom: 4px; }
 }
 </style>
