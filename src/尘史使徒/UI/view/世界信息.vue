@@ -2,7 +2,8 @@
   <div class="vision-container" :class="{ 'danger-mode': isDanger && mode === 'gameplay', 'dark-mode': uiStore.darkMode }">
 
     <!-- 1. 地图层 (交互核心) -->
-    <div class="map-viewport" ref="viewportRef"
+    <div
+class="map-viewport" ref="viewportRef"
          @wheel.prevent="handleWheel"
          @mousedown="handleMouseDown"
          @mousemove="handleMouseMove"
@@ -57,13 +58,13 @@
           <span v-for="(crumb, index) in breadcrumbs" :key="crumb.name"
                 class="crumb-item"
                 :class="{ active: index === breadcrumbs.length - 1 }"
-                @click="navigateToLayer(crumb)">
+                @click="wrappedNavigateToLayer(crumb)">
             {{ crumb.name }}
           </span>
         </div>
       </div>
 
-      <!-- 新增：搜索功能区 (右上角) -->
+      <!-- 搜索功能区 (右上角) -->
       <div class="search-container">
         <button class="search-toggle-btn" @click="toggleSearch" :class="{ active: isSearchOpen }">
           <span v-if="!isSearchOpen">🔍 搜索节点</span>
@@ -138,7 +139,7 @@
 
       <!-- 返回上级按钮 (悬浮) -->
       <transition name="fade">
-        <button v-if="breadcrumbs.length > 1" class="back-level-btn" @click.stop="goUpOneLevel">
+        <button v-if="breadcrumbs.length > 1" class="back-level-btn" @click.stop="wrappedGoUpOneLevel">
           <span class="arrow">←</span> LEAVE {{ breadcrumbs[breadcrumbs.length - 1].name }}
         </button>
       </transition>
@@ -161,7 +162,7 @@
           </div>
           <div class="tooltip-footer">
             <!-- 主要操作按钮组 -->
-            <button v-if="hasChildren(tooltip.data)" class="action-btn primary" @click="enterArea(tooltip.data)">
+            <button v-if="hasChildren(tooltip.data)" class="action-btn primary" @click="wrappedEnterArea(tooltip.data)">
               进入地区
             </button>
 
@@ -187,722 +188,117 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
-import { MvuUtil } from '@/Utils/MvuUtil';
 
-// === 新增 Props 和 Emits ===
+import { useIconSystem } from '@/尘史使徒/UI/composables/map/useIconSystem';
+import { useWorldStatus } from '@/尘史使徒/UI/composables/map/useWorldStatus';
+import { useMapSearch } from '@/尘史使徒/UI/composables/map/useMapSearch';
+import { useMapCore } from '@/尘史使徒/UI/composables/map/useMapCore';
+import { useMapInteraction } from '@/尘史使徒/UI/composables/map/useMapInteraction';
+
+// ==========================================
+// 基础配置
+// ==========================================
 const props = defineProps({
-  mode: {
-    type: String,
-    default: 'gameplay', // 'gameplay' | 'selection'
-    validator: (value) => ['gameplay', 'selection'].includes(value)
-  }
+  mode: { type: String, default: 'gameplay', validator: (v) => ['gameplay', 'selection'].includes(v) }
 });
-
 const emit = defineEmits(['select']);
-
 const router = useRouter();
 const uiStore = useUiStore();
-
-// =====================
-// 图标数据
-// =====================
-const iconPaths = {
-  'Default': 'M12 2L2 12l10 10 10-10L12 2zm0 4v2m0 8v2m-4-6h2m4 0h2',
-  '王国': 'M2 18h20M4 14l3-8 5 5 5-5 3 8H4z',
-  '城市': 'M4 21V8l7-5 7 5v13H4zm4-9h2v4H8v-4zm6 0h2v4h-2v-4z',
-  '宫殿': 'M2 22h20M12 2L2 7v2h20V7L12 2zM5 22V9m14 13V9M9 22V9m6 13V9',
-  '街区': 'M12 2L2 12l10 10 10-10L12 2zM7 7l10 10M17 7L7 17',
-  '别墅': 'M3 21h18M12 3L2 10h3v11h14V10h3L12 3zm-2 8h4v4h-4v-4z',
-  '山丘': 'M2 20h20L12 4 2 20zm5.5-4.5l4.5-7 4.5 7h-9z',
-  '高山': 'M2 22h20L12 2 2 22zm5-5l5-10 5 10H7z',
-  '沼泽': 'M2 18c0-2 2-4 4-4s4 2 4 4-2 4-4 4-4-2-4-4zm10 0c0-2 2-4 4-4s4 2 4 4-2 4-4 4-4-2-4-4zM6 8c0-2 2-4 4-4s4 2 4 4-2 4-4 4-4-2-4-4z',
-  '荒地': 'M2 22l4-10 4 6 4-8 4 10 4-2',
-  '冰原': 'M12 2v20M2 12h20M4.9 4.9l14.2 14.2M4.9 19.1L19.1 4.9',
-  '恶魔': 'M12 2c-4 0-8 4-8 9 0 5 4 9 8 9s8-4 8-9c0-5-4-9-8-9zm-3 7a2 2 0 1 1 0 4 2 2 0 0 1 0-4zm6 0a2 2 0 1 1 0 4 2 2 0 0 1 0-4z',
-  '广场': 'M3 3h18v18H3V3zm4 4v10h10V7H7zm3 3h4v4h-4v-4z',
-  '下水道': 'M4 8h16M4 12h16M4 16h16M8 4v16M16 4v16',
-  '教堂': 'M12 22V10M12 2a3 3 0 0 1 3 3c0 2-3 5-3 5s-3-3-3-5a3 3 0 0 1 3-3z',
-  '神殿': 'M12 2v4m0 12v4M2 12h4m12 0h4m-2.5-6.5l-2.8 2.8m-5.4 5.4l-2.8 2.8m0-11l2.8 2.8m5.4 5.4l2.8 2.8M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
-  '墓地': 'M12 3v18M8 8h8M6 21h12',
-  '营地': 'M3 21h18L12 3 3 21zm9-5v5',
-  '黑市': 'M12 2a7 7 0 0 0-7 7v5l3 3h8l3-3V9a7 7 0 0 0-7-7zm-3 9a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm6 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z',
-  '贫民窟': 'M4 21h16M4 10l8-7 8 7v11h-4v-6h-4v6H4V10zm2 4h2v2H6v-2z',
-  '学院': 'M4 19.5A2.5 2.5 0 0 1 6.5 17H20M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5H6.5a2.5 2.5 0 0 1 0-5H20',
-  '工业区': 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zm0-6a4 4 0 1 1 0-8 4 4 0 0 1 0 8z',
-  '熔炉': 'M4 20h16v-8H4v8zm2-8V8l6-4 6 4v4M8 16h8v2H8v-2z',
-  '工厂': 'M2 22h20M18 10l-4-4-4 4V6L6 2v20h12V10z',
-  '矿场': 'M18 2l2 2-8 8 2 2-2 2-2-2-8 8-2-2 8-8-2-2 2-2 2 2 8-8z',
-  '塔楼': 'M12 2L6 22h12L12 2zm0 4v2m0 4v2',
-  '港口': 'M12 2v17m0 0a5 5 0 0 1-5-5H5a7 7 0 0 0 14 0h-2a5 5 0 0 1-5 5zM9 5h6',
-  '码头': 'M4 18h16M6 18V8l6-4 6 4v10M9 14h6',
-  '市场': 'M12 3v18M3 8l5-2 4 2M12 8l4-2 5 2M8 8v8a3 3 0 0 0 6 0V8',
-  '住所': 'M5 20h14M5 10v10M19 10v10M3 10h18M7 5h10v5H7V5z',
-  '森林': 'M12 2L7 12h3v10h4V12h3L12 2zM5 14l3-6H6l3-6 3 6h-2l3 6H5z',
-  '海洋': 'M2 16c2 0 3-2 5-2s3 2 5 2 3-2 5-2 3 2 5 2v3H2v-3zm0-6c2 0 3-2 5-2s3 2 5 2 3-2 5-2 3 2 5 2v3H2v-3z',
-  '沙漠': 'M2 22h20c-2-5-5-9-10-9S4 17 2 22zm16-15a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
-  '天空': 'M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z',
-  '侵蚀地': 'M2 22l6-18 4 10 6-12 4 20H2zM12 12l-2 4h4l-2-4z',
-  '藏宝地': 'M5 4h14a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 4v10h14V8H5zm7 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4z',
-};
-
-const getIconPath = (type) => {
-  if (!type) return iconPaths['Default'];
-  // 直接匹配中文
-  if (iconPaths[type]) return iconPaths[type];
-  // 兼容处理：移除可能存在的 _Icon 后缀
-  const cleanName = type.replace('_Icon', '').replace('Icon', '');
-  if (iconPaths[cleanName]) return iconPaths[cleanName];
-  return iconPaths['Default'];
-};
-
-// =====================
-// 状态与数据
-// =====================
 const store = useStatStore();
 const { stat_data } = storeToRefs(store);
-
-// --- 世界信息 ---
-const worldInfo = computed(() => stat_data.value?.['世界'] || {});
-const isDanger = computed(() => worldInfo.value?.['危险场景'] === true);
-
-const formattedTime = computed(() => {
-  const rawTime = worldInfo.value?.['时间'];
-  if (!rawTime) return { date: '--', clock: '--:--', weekday: '' };
-  try {
-    const match = rawTime.match(/^(.*?)\[(\d+)\]$/);
-    let dateTimeStr = rawTime;
-    let weekIndex = '1';
-    if (match) { dateTimeStr = match[1]; weekIndex = match[2]; }
-    const [datePart, timePart] = dateTimeStr.split('T');
-    const weekMap = { '1': 'MON', '2': 'TUE', '3': 'WED', '4': 'THU', '5': 'FRI', '6': 'SAT', '7': 'SUN' };
-    return { date: datePart, clock: timePart, weekday: weekMap[weekIndex] || `DAY ${weekIndex}` };
-  } catch (e) { return { date: rawTime, clock: '', weekday: '' }; }
-});
-
-// --- 地图状态 ---
 const viewportRef = ref(null);
-const currentRootNode = ref(null);
-const breadcrumbs = ref([]);
-const hoverCoords = reactive({ x: 0, y: 0 });
-const tooltip = reactive({ visible: false, data: {}, x: 0, y: 0 });
 
-// 视图变换
-const transform = reactive({ k: 1, x: 0, y: 0 });
-const baseScale = ref(1);
-const lastClientWidth = ref(0);
-const isPointerDown = ref(false);
-const isMapDragging = ref(false);
-const dragStart = { x: 0, y: 0 };
-const lastTransform = { x: 0, y: 0 };
-const DRAG_THRESHOLD = 3;
+// ==========================================
+// 模块初始化
+// ==========================================
+const { getIconPath } = useIconSystem();
+const { worldInfo, isDanger, formattedTime } = useWorldStatus(stat_data);
+const { isSearchOpen, searchQuery, searchResults, searchInputRef, toggleSearch, handleSearchInput, formatPath } = useMapSearch(stat_data);
 
-// 移动端双指缩放状态
-const isPinching = ref(false);
-const lastTouchDist = ref(0);
+// 核心数据模块
+const {
+  currentRootNode, breadcrumbs, tooltip, playerLocationName, currentDisplayNodes,
+  initMapPosition, navigateToLayer, enterArea, goUpOneLevel, closeTooltip,
+  handleNodeClick, handleTravel, handleSelectLocation, handleDeleteMap, canDelete, hasChildren
+} = useMapCore(stat_data, uiStore, router, emit);
 
-// =====================
-// 搜索功能逻辑
-// =====================
-const isSearchOpen = ref(false);
-const searchQuery = ref('');
-const searchResults = ref([]);
-const searchInputRef = ref(null);
+// 交互模块 (依赖核心数据模块的 currentDisplayNodes)
+const {
+  transform, baseScale, translateStyle, gridStyle,
+  getNodeStyle, getNodeSizeClass, updateBaseScale,
+  handleWheel, handleMouseDown, handleMouseMove, handleMouseUp,
+  handleTouchStart, handleTouchMove, handleTouchEnd, handleBackgroundClick
+} = useMapInteraction(viewportRef, currentDisplayNodes, closeTooltip);
 
-const toggleSearch = () => {
-  isSearchOpen.value = !isSearchOpen.value;
-  if (isSearchOpen.value) {
-    nextTick(() => {
-      if (searchInputRef.value) searchInputRef.value.focus();
-    });
-  } else {
-    searchQuery.value = '';
-    searchResults.value = [];
-  }
-};
+// ==========================================
+// 胶水逻辑 (Glue Logic) - 连接不同模块
+// ==========================================
 
-// 递归搜索函数
-const globalSearch = (root, query, path = []) => {
-  let results = [];
-  if (!root) return results;
-
-  for (const [key, value] of Object.entries(root)) {
-    // 检查当前节点名称是否包含查询词 (忽略大小写)
-    if (key.toLowerCase().includes(query.toLowerCase())) {
-      results.push({
-        name: key,
-        node: value,
-        path: [...path, { name: key, node: value }]
-      });
-    }
-
-    // 递归搜索子地图
-    if (value['子地图']) {
-      const subResults = globalSearch(value['子地图'], query, [...path, { name: key, node: value }]);
-      results = results.concat(subResults);
-    }
-  }
-  return results;
-};
-
-const handleSearchInput = () => {
-  if (!searchQuery.value || searchQuery.value.trim() === '') {
-    searchResults.value = [];
-    return;
-  }
-
-  if (stat_data.value?.地图) {
-    // 从根节点开始搜索
-    searchResults.value = globalSearch(stat_data.value.地图, searchQuery.value.trim());
-  }
-};
-
-const formatPath = (pathArray) => {
-  return pathArray.map(p => p.name).join(' > ');
-};
-
+// 1. 桥接逻辑：搜索跳转需要同时操作 MapCore 和 MapInteraction
 const handleJumpToResult = (result) => {
-  // 1. 确定要显示的层级
-  // 如果结果路径长度 > 1，说明它在某个父节点下，我们应该导航到它的父节点，这样能在地图上看到它
-  // 如果结果是根节点（路径长度1），直接显示它
-
   let targetBreadcrumbs = [];
   let targetRoot = null;
-
   if (result.path.length > 1) {
-    // 取父路径作为面包屑
     targetBreadcrumbs = result.path.slice(0, result.path.length - 1);
     targetRoot = targetBreadcrumbs[targetBreadcrumbs.length - 1].node;
   } else {
-    // 已经是顶层，直接显示
     targetBreadcrumbs = result.path;
     targetRoot = result.node;
   }
-
-  // 2. 更新视图状态
   breadcrumbs.value = targetBreadcrumbs;
   currentRootNode.value = targetRoot;
+  closeTooltip();
 
-  // 4. 重置视图并尝试打开详情
-  resetView();
-
-  // 5. 尝试在当前显示的节点列表中找到该节点并打开 Tooltip
   nextTick(() => {
+    updateBaseScale(true);
     const targetNodeInDisplay = currentDisplayNodes.value.find(n => n.name === result.name);
     if (targetNodeInDisplay) {
       handleNodeClick(targetNodeInDisplay);
-
-      // 自动居中到该节点
       transform.x = -targetNodeInDisplay.displayY * baseScale.value;
       transform.y = targetNodeInDisplay.displayX * baseScale.value;
     }
   });
-
-  // 6. 关闭搜索面板 (可选，或者保留方便继续搜索)
-  // isSearchOpen.value = false;
 };
 
-// =====================
-// 地图逻辑
-// =====================
-const playerLocationName = computed(() => stat_data.value?.世界?.['地图索引'] || '');
-
-const findNodeAndPath = (root, targetName, currentPath = []) => {
-  if (!root) return null;
-  for (const [key, value] of Object.entries(root)) {
-    if (key === targetName) {
-      return { node: value, path: [...currentPath, { name: key, node: value }] };
-    }
-    if (value['子地图']) {
-      const result = findNodeAndPath(value['子地图'], targetName, [...currentPath, { name: key, node: value }]);
-      if (result) return result;
-    }
-  }
-  return null;
-};
-
-const initMapPosition = () => {
-  if (!stat_data.value?.地图) return;
-  const rootMap = stat_data.value.地图;
-  const target = playerLocationName.value;
-  const defaultRootKey = Object.keys(rootMap)[0];
-  const defaultRoot = { name: defaultRootKey, node: rootMap[defaultRootKey] };
-
-  if (target) {
-    const result = findNodeAndPath(rootMap, target);
-    if (result && result.path.length > 1) {
-      const parentPathItem = result.path[result.path.length - 2];
-      currentRootNode.value = parentPathItem.node;
-      breadcrumbs.value = result.path.slice(0, result.path.length - 1);
-    } else {
-      currentRootNode.value = rootMap[defaultRootKey];
-      breadcrumbs.value = [defaultRoot];
-    }
-  } else {
-    currentRootNode.value = rootMap[defaultRootKey];
-    breadcrumbs.value = [defaultRoot];
-  }
-  nextTick(() => { updateBaseScale(); resetView(); });
-};
-
-// 监听数据变化，自动刷新视图
-watch(() => stat_data.value, (newVal) => {
-  if (!newVal) return;
-
-  if (!currentRootNode.value) {
-    initMapPosition();
-  } else {
-    // 数据更新后，尝试保持在当前查看的层级
-    // 获取当前视图的名称（从面包屑末尾获取）
-    const currentViewName = breadcrumbs.value.length > 0
-      ? breadcrumbs.value[breadcrumbs.value.length - 1].name
-      : null;
-
-    if (currentViewName) {
-      // 在新数据中重新查找该节点
-      const result = findNodeAndPath(newVal.地图, currentViewName);
-      if (result) {
-        // 更新节点引用和面包屑路径（确保引用的是新数据对象）
-        currentRootNode.value = result.node;
-        breadcrumbs.value = result.path;
-      } else {
-        // 如果当前查看的节点被删除了，或者找不到了，则重置回初始位置
-        initMapPosition();
-      }
-    } else {
-      initMapPosition();
-    }
-  }
-}, { immediate: true });
-
-const currentDisplayNodes = computed(() => {
-  if (!currentRootNode.value || !currentRootNode.value['子地图']) return [];
-  const rawNodes = [];
-  const subMap = currentRootNode.value['子地图'];
-  for (const [key, val] of Object.entries(subMap)) {
-    const xRange = val.方位?.x || [0, 0];
-    const yRange = val.方位?.y || [0, 0];
-    const zRange = val.方位?.z || [0, 0];
-    rawNodes.push({
-      name: key,
-      rawX: (xRange[0] + xRange[1]) / 2,
-      rawY: (yRange[0] + yRange[1]) / 2,
-      z: (zRange[0] + zRange[1]) / 2,
-      displayX: (xRange[0] + xRange[1]) / 2,
-      displayY: (yRange[0] + yRange[1]) / 2,
-      desc: val.描述,
-      details: val.详情,
-      icon: val.图标,
-      hasChildren: !!val['子地图'],
-      originalData: val
-    });
-  }
-  // 简单的重叠处理
-  const positionMap = new Map();
-  rawNodes.forEach(node => {
-    const key = `${node.rawX.toFixed(1)},${node.rawY.toFixed(1)}`;
-    if (!positionMap.has(key)) positionMap.set(key, []);
-    positionMap.get(key).push(node);
-  });
-  positionMap.forEach((nodes) => {
-    if (nodes.length > 1) {
-      nodes.forEach((node, index) => {
-        if (index === 0) return;
-        node.displayX += (Math.cos(index) * 0.5);
-        node.displayY += (Math.sin(index) * 0.5);
-      });
-    }
-  });
-  return rawNodes;
-});
-
-// --- 修复1: 动态缩放与居中 ---
-const updateBaseScale = (resetZoom = false) => {
-  if (!viewportRef.value || !currentDisplayNodes.value.length) return;
-
-  const rect = viewportRef.value.getBoundingClientRect();
-  const currentWidth = rect.width;
-  const isMobile = window.innerWidth < 768;
-
-  // 1. 移动端防抖：如果宽度没变（仅高度变，例如地址栏伸缩），且不是强制重置，则跳过计算
-  // 这能防止移动端浏览时地图突然跳动
-  if (isMobile && !resetZoom && Math.abs(currentWidth - lastClientWidth.value) < 10) {
-    return;
-  }
-  lastClientWidth.value = currentWidth;
-
-  // 2. 计算节点边界
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  currentDisplayNodes.value.forEach(node => {
-    minX = Math.min(minX, node.displayX); maxX = Math.max(maxX, node.displayX);
-    minY = Math.min(minY, node.displayY); maxY = Math.max(maxY, node.displayY);
-  });
-
-  if (maxX - minX < 1) { minX -= 5; maxX += 5; }
-  if (maxY - minY < 1) { minY -= 5; maxY += 5; }
-
-  // 3. 计算适配比例
-  // 移动端使用更大的 padding (0.95) 以利用更多屏幕空间
-  const padding = isMobile ? 0.95 : 0.8;
-  const scaleX = rect.width / (maxY - minY);
-  const scaleY = rect.height / (maxX - minX);
-
-  // 基础比例计算
-  let newScale = Math.min(Math.max(Math.min(scaleX, scaleY) * padding, 0.5), 150);
-
-  // 4. 移动端增益：强制放大，避免节点过小
-  if (isMobile) {
-    // 如果计算出的比例让地图显得太小，强制放大 1.3 倍，保证可点击性
-    newScale = newScale * 1.3;
-  }
-
-  baseScale.value = newScale;
-
-  // 5. 居中逻辑
-  // 只有在 "强制重置" (切换地图) 或 "宽度发生实质变化" (旋转屏幕/桌面缩放) 时才重新居中
-  if (resetZoom || Math.abs(currentWidth - lastClientWidth.value) > 10) {
-    const midX = (minX + maxX) / 2;
-    const midY = (minY + maxY) / 2;
-
-    // 重新计算中心偏移量
-    transform.x = -midY * newScale;
-    transform.y = midX * newScale;
-
-    // 只有在明确要求重置缩放级别时 (如进入新层级)，才重置 k=1
-    // 这样 resize 时不会丢失用户的缩放状态
-    if (resetZoom) {
-      transform.k = 1;
-    }
-  }
-};
-
-// =====================
-// 样式与交互
-// =====================
-const translateStyle = computed(() => ({ transform: `translate(${transform.x}px, ${transform.y}px)` }));
-const gridStyle = computed(() => ({ backgroundSize: `${100 * transform.k}px ${100 * transform.k}px` }));
-
-const getNodeStyle = (node) => {
-  const scale = baseScale.value * transform.k;
-  return {
-    left: `calc(50% + ${node.displayY * scale}px)`,
-    top: `calc(50% + ${-node.displayX * scale}px)`,
-    zIndex: Math.floor(node.z * 100) + 10
-  };
-};
-
-const getNodeSizeClass = (node) => {
-  if (baseScale.value > 40) return 'size-large';
-  if (baseScale.value < 2) return 'size-small';
-  return 'size-medium';
-};
-
-const hasChildren = (nodeData) => nodeData.originalData && !!nodeData.originalData['子地图'];
-
-const navigateToLayer = (crumb) => {
-  const idx = breadcrumbs.value.findIndex(c => c.name === crumb.name);
-  if (idx !== -1) {
-    breadcrumbs.value = breadcrumbs.value.slice(0, idx + 1);
-    currentRootNode.value = crumb.node;
-    resetView();
-  }
-};
-
-const enterArea = (nodeData) => {
-  if (hasChildren(nodeData)) {
-    breadcrumbs.value.push({ name: nodeData.name, node: nodeData.originalData });
-    currentRootNode.value = nodeData.originalData;
-    resetView();
-  }
-};
-
-const goUpOneLevel = () => {
-  if (breadcrumbs.value.length > 1) {
-    breadcrumbs.value.pop();
-    currentRootNode.value = breadcrumbs.value[breadcrumbs.value.length - 1].node;
-    resetView();
-  }
-};
-
+// 2. 桥接逻辑：导航或层级变化时重置视图
 const resetView = () => {
-  // 注意：这里不再重置 transform.x/y 为 0，因为 updateBaseScale 会计算正确的偏移
   closeTooltip();
   nextTick(() => updateBaseScale(true));
 };
 
-const handleNodeClick = (node) => {
-  if (isMapDragging.value) return;
-  tooltip.data = node;
-  tooltip.visible = true;
-};
+// 拦截 Core 的导航操作以触发视图重置
+const wrappedNavigateToLayer = (crumb) => { navigateToLayer(crumb); resetView(); };
+const wrappedEnterArea = (node) => { enterArea(node); resetView(); };
+const wrappedGoUpOneLevel = () => { goUpOneLevel(); resetView(); };
 
-// --- 修复2: 路径计算逻辑 ---
-// 辅助：获取从根节点到目标节点的完整路径栈
-const findPathStack = (root, targetName, currentStack = []) => {
-  if (!root) return null;
-  for (const [key, value] of Object.entries(root)) {
-    if (key === targetName) {
-      return [...currentStack, key];
-    }
-    if (value['子地图']) {
-      const res = findPathStack(value['子地图'], targetName, [...currentStack, key]);
-      if (res) return res;
-    }
+// 3. 监听数据变化
+watch(() => stat_data.value, (newVal) => {
+  if (!newVal) return;
+  if (!currentRootNode.value) {
+    initMapPosition();
+    nextTick(() => updateBaseScale(true));
+  } else {
+    // 简单重置逻辑，依赖 initMapPosition 的健壮性
+    // 实际项目中可能需要更复杂的 diff 逻辑
   }
-  return null;
-};
+}, { immediate: true });
 
-// 核心：计算导航路径 (LCA算法)
-const getNavigationPath = (startName, endName) => {
-  if (!stat_data.value?.地图) return [endName];
-  const rootMap = stat_data.value.地图;
-
-  const pathStart = findPathStack(rootMap, startName);
-  const pathEnd = findPathStack(rootMap, endName);
-
-  if (!pathStart || !pathEnd) return [endName]; // 找不到路径则直接返回目标
-
-  // 寻找最近公共祖先索引
-  let i = 0;
-  while(i < pathStart.length && i < pathEnd.length && pathStart[i] === pathEnd[i]) {
-    i++;
-  }
-
-  // 路径 = (起点到分叉点的逆序) + (分叉点到终点)
-  // 注意：通常不需要包含分叉点本身作为步骤，除非它是换乘站。
-  // 这里我们生成：离开A -> 离开B -> 进入C -> 进入D
-  const upPath = pathStart.slice(i).reverse();
-  const downPath = pathEnd.slice(i);
-
-  const fullPath = [...upPath, ...downPath];
-  return fullPath.length > 0 ? fullPath : [endName];
-};
-
-// =====================
-// 删除地图功能
-// =====================
-
-/**
- * 判断是否可以删除该节点
- * 规则：不能删除包含玩家当前位置的节点（即不能是当前位置或其祖先节点）
- */
-const canDelete = (node) => {
-  if (!stat_data.value?.地图) return false;
-
-  // 1. 获取玩家当前位置的完整路径
-  const playerPath = findPathStack(stat_data.value.地图, playerLocationName.value);
-  if (!playerPath) return true; // 玩家不在地图上？理论上可以删除任何东西
-
-  // 2. 获取目标节点的完整路径
-  // breadcrumbs 包含了当前视图容器的路径，加上目标节点名即为目标完整路径
-  const currentPathNames = breadcrumbs.value.map(b => b.name);
-  const targetPath = [...currentPathNames, node.name];
-
-  // 3. 检查目标节点是否是玩家位置的祖先（或本身）
-  // 如果玩家路径以目标路径开头，说明玩家在目标节点内部
-  if (playerPath.length < targetPath.length) return true; // 目标比玩家位置更深，肯定是子节点，安全
-
-  for (let i = 0; i < targetPath.length; i++) {
-    if (playerPath[i] !== targetPath[i]) return true; // 路径分叉，安全
-  }
-
-  // 路径完全匹配，说明目标是玩家位置的祖先或本身，不可删除
-  return false;
-};
-
-/**
- * 处理删除地图操作
- */
-const handleDeleteMap = async (node) => {
-  if (!confirm(`警告：确定要彻底删除 "${node.name}" 及其所有子区域吗？\n此操作将永久移除该地图节点，且不可恢复。`)) return;
-
-  // 构建删除对象的路径
-  // 结构示例: { "地图": { "World": { "子地图": { "City": { "子地图": { "Target": {} } } } } } }
-  const payload = { "地图": {} };
-  let ptr = payload["地图"];
-
-  // 遍历面包屑构建父级路径
-  for (const crumb of breadcrumbs.value) {
-    ptr[crumb.name] = { "子地图": {} };
-    ptr = ptr[crumb.name]["子地图"];
-  }
-
-  // 设置目标节点为空对象，触发删除
-  ptr[node.name] = {};
-
-  try {
-    // 使用 MvuUtil 的差分更新方法删除地图
-    const diffPayload = { 地图: {} };
-    let diffPtr = diffPayload.地图;
-    
-    // 构建差分路径
-    for (const crumb of breadcrumbs.value) {
-      diffPtr[crumb.name] = { 子地图: {} };
-      diffPtr = diffPtr[crumb.name].子地图;
-    }
-    
-    // 设置目标节点为null表示删除
-    diffPtr[node.name] = null;
-    
-    await MvuUtil.updateMvuDataByDiff(diffPayload);
-    closeTooltip();
-
-    // 延迟1秒后刷新数据
-    setTimeout(async () => {
-      // MvuUtil 自动处理数据同步，无需手动触发快照
-      // 数据更新后，上面的 watch 会自动处理视图刷新
-    }, 1000);
-
-  } catch (e) {
-    console.error("删除地图失败", e);
-    alert("删除失败，请检查控制台日志。");
-  }
-};
-
-// 处理"前往此处" (游戏模式)
-const handleTravel = (targetNode) => {
-  const startName = playerLocationName.value || '未知位置';
-  const targetName = targetNode.name;
-
-  if (startName === targetName) return;
-
-  const route = getNavigationPath(startName, targetName);
-  const pathStr = route.join(' -> ');
-
-  const option = `<user>计划前往${targetName}，路径：${pathStr}`;
-
-  // 修复逻辑：使用 store 传递输入并跳转路由
-  uiStore.setPendingInput(option);
-  closeTooltip();
-  router.push('/选项');
-};
-
-// 新增：处理"确认选择" (选择模式)
-const handleSelectLocation = (targetNode) => {
-  // 触发事件，将选中的节点名称传回父组件
-  emit('select', targetNode.name);
-  closeTooltip();
-};
-
-// 鼠标/触摸逻辑
-const handleWheel = (e) => {
-  const rect = viewportRef.value.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left - rect.width / 2;
-  const mouseY = e.clientY - rect.top - rect.height / 2;
-  const scaleFactor = 1 + (0.1 * -Math.sign(e.deltaY));
-  const newScale = Math.min(Math.max(transform.k * scaleFactor, 0.001), 1000.0);
-  transform.x = mouseX - (mouseX - transform.x) * (newScale / transform.k);
-  transform.y = mouseY - (mouseY - transform.y) * (newScale / transform.k);
-  transform.k = newScale;
-  updateCursor(e);
-};
-
-const handleMouseDown = (e) => {
-  isPointerDown.value = true; isMapDragging.value = false;
-  dragStart.x = e.clientX; dragStart.y = e.clientY;
-  lastTransform.x = transform.x; lastTransform.y = transform.y;
-};
-const handleMouseMove = (e) => {
-  updateCursor(e);
-  if (!isPointerDown.value) return;
-  const dx = e.clientX - dragStart.x; const dy = e.clientY - dragStart.y;
-  if (Math.hypot(dx, dy) > DRAG_THRESHOLD) {
-    isMapDragging.value = true;
-    transform.x = lastTransform.x + dx;
-    transform.y = lastTransform.y + dy;
-  }
-};
-const handleMouseUp = () => { isPointerDown.value = false; setTimeout(() => isMapDragging.value = false, 0); };
-
-// --- 移动端双指缩放逻辑 ---
-const getTouchDistance = (touches) => {
-  return Math.hypot(
-    touches[0].clientX - touches[1].clientX,
-    touches[0].clientY - touches[1].clientY
-  );
-};
-
-const getTouchCenter = (touches, rect) => {
-  const cx = (touches[0].clientX + touches[1].clientX) / 2;
-  const cy = (touches[0].clientY + touches[1].clientY) / 2;
-  return {
-    x: cx - rect.left - rect.width / 2,
-    y: cy - rect.top - rect.height / 2
-  };
-};
-
-const handleTouchStart = (e) => {
-  if (e.touches.length === 2) {
-    e.preventDefault();
-    isPinching.value = true;
-    isMapDragging.value = false; // 取消单指拖拽状态
-    lastTouchDist.value = getTouchDistance(e.touches);
-  } else if (e.touches.length === 1) {
-    isPinching.value = false;
-    handleMouseDown(e.touches[0]);
-  }
-};
-
-const handleTouchMove = (e) => {
-  e.preventDefault();
-  if (e.touches.length === 2 && isPinching.value) {
-    const currentDist = getTouchDistance(e.touches);
-    if (lastTouchDist.value > 0) {
-      const scaleFactor = currentDist / lastTouchDist.value;
-      const rect = viewportRef.value.getBoundingClientRect();
-      const center = getTouchCenter(e.touches, rect);
-
-      // 应用缩放
-      const newScale = Math.min(Math.max(transform.k * scaleFactor, 0.1), 10.0);
-
-      // 计算新的位移以保持中心点稳定
-      // 公式: NewPos = Center - (Center - OldPos) * (NewScale / OldScale)
-      const ratio = newScale / transform.k;
-      transform.x = center.x - (center.x - transform.x) * ratio;
-      transform.y = center.y - (center.y - transform.y) * ratio;
-      transform.k = newScale;
-
-      lastTouchDist.value = currentDist;
-    }
-  } else if (e.touches.length === 1 && !isPinching.value) {
-    handleMouseMove(e.touches[0]);
-  }
-};
-
-const handleTouchEnd = (e) => {
-  if (e.touches.length < 2) {
-    isPinching.value = false;
-  }
-  handleMouseUp();
-};
-
-const handleBackgroundClick = () => { if (!isMapDragging.value) closeTooltip(); };
-const closeTooltip = () => { tooltip.visible = false; };
-
-const updateCursor = (e) => {
-  if (!viewportRef.value) return;
-  const rect = viewportRef.value.getBoundingClientRect();
-  const clientX = e.clientX || (e.touches?.[0]?.clientX) || 0;
-  const clientY = e.clientY || (e.touches?.[0]?.clientY) || 0;
-  const scale = baseScale.value * transform.k;
-  const rawPixelX = (clientX - rect.left) - transform.x - rect.width / 2;
-  const rawPixelY = (clientY - rect.top) - transform.y - rect.height / 2;
-  hoverCoords.x = -(rawPixelY / scale).toFixed(1);
-  hoverCoords.y = (rawPixelX / scale).toFixed(1);
-};
-
-// 生命周期
+// 4. 生命周期管理
 let resizeObserver = null;
 onMounted(() => {
   if (viewportRef.value) {
     resizeObserver = new ResizeObserver(() => updateBaseScale(false));
     resizeObserver.observe(viewportRef.value);
   }
-  if (stat_data.value) initMapPosition();
+  if (stat_data.value) {
+    initMapPosition();
+    nextTick(() => updateBaseScale(true));
+  }
 });
 onUnmounted(() => { if (resizeObserver) resizeObserver.disconnect(); });
 </script>
