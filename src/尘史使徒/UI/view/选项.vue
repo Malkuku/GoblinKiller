@@ -750,7 +750,7 @@ onUnmounted(() => {
   flex: 1; overflow-y: auto; padding: 20px 0;
   scrollbar-width: thin; scrollbar-color: var(--c-gold) transparent;
 }
-.message-paper { max-width: 800px; margin: 0 auto; padding: 0 30px; }
+.message-paper { max-width: 1024px; margin: 0 auto; padding: 0 30px; }
 .message-content {
   line-height: 1.8; color: var(--c-text-main);
   font-family: 'EB Garamond', serif; transition: font-size 0.2s ease;
