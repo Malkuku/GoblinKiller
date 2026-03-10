@@ -102,7 +102,7 @@ const currentPage = ref(0);
 const transitionName = ref('page-next');
 
 // 爱丽丝头像URL
-const aliceAvatarUrl = 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/爱丽丝/头像.png';
+const aliceAvatarUrl = 'https://gitgud.io/mouse789/dust-laden-obdurant/-/raw/main/女儿爱丽丝/头像.webp';
 
 // 提前加载图片资源
 onMounted(() => {

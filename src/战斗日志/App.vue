@@ -48,6 +48,14 @@
                 <feGaussianBlur stdDeviation="3" result="blur" />
                 <feComposite in="SourceGraphic" in2="blur" operator="over" />
               </filter>
+              <filter id="glow-red-sm" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+              <filter id="glow-gold-sm" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="1.5" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
             </defs>
 
             <!-- 攻方基础信息 -->
@@ -86,13 +94,17 @@
               <g v-if="phase === 'ready' || phase === 'switching'">
                 <g v-for="(_, index) in expectedAtkDice" :key="'atk-placeholder'+index"
                    :transform="`translate(${layout.dice.atkCenterX - (expectedAtkDice * 35) / 2 + index * 35}, ${layout.dice.atkY})`" class="svg-trans">
-                  <rect width="26" height="26" fill="transparent" stroke="rgba(255,51,51,0.3)" stroke-width="1" stroke-dasharray="2 2" />
-                  <text x="13" y="18" fill="rgba(255,51,51,0.5)" font-size="13" font-family="monospace" text-anchor="middle">?</text>
+                  <g class="placeholder-pulse">
+                    <rect width="26" height="26" fill="transparent" stroke="rgba(255,51,51,0.4)" stroke-width="1" stroke-dasharray="3 3" rx="4" />
+                    <text x="13" y="18" fill="rgba(255,51,51,0.6)" font-size="14" font-family="monospace" text-anchor="middle">?</text>
+                  </g>
                 </g>
                 <g v-for="(_, index) in expectedDefDice" :key="'def-placeholder'+index"
                    :transform="`translate(${layout.dice.defCenterX - (expectedDefDice * 35) / 2 + index * 35}, ${layout.dice.defY})`" class="svg-trans">
-                  <rect width="26" height="26" fill="transparent" stroke="rgba(212, 175, 55, 0.3)" stroke-width="1" stroke-dasharray="2 2" />
-                  <text x="13" y="18" fill="rgba(212, 175, 55, 0.5)" font-size="13" font-family="monospace" text-anchor="middle">?</text>
+                  <g class="placeholder-pulse">
+                    <rect width="26" height="26" fill="transparent" stroke="rgba(212, 175, 55, 0.4)" stroke-width="1" stroke-dasharray="3 3" rx="4" />
+                    <text x="13" y="18" fill="rgba(212, 175, 55, 0.6)" font-size="14" font-family="monospace" text-anchor="middle">?</text>
+                  </g>
                 </g>
               </g>
 
@@ -100,29 +112,33 @@
               <g v-else>
                 <g v-for="(dice, index) in currentAtkRolls" :key="'atk'+index"
                    :transform="`translate(${layout.dice.atkCenterX - (currentAtkRolls.length * 35) / 2 + index * 35}, ${layout.dice.atkY})`" class="svg-trans">
-                  <rect width="26" height="26" fill="rgba(255,51,51,0.1)" stroke="#ff3333" stroke-width="1" />
-                  <text x="13" y="18" fill="#fff" font-size="13" font-family="monospace" text-anchor="middle">{{ dice }}</text>
+                  <g class="dice-enter-left" :style="{ animationDelay: `${index * 0.1}s` }">
+                    <rect width="26" height="26" fill="rgba(255,51,51,0.15)" stroke="#ff3333" stroke-width="1.5" rx="4" filter="url(#glow-red-sm)" />
+                    <text x="13" y="18" fill="#fff" font-size="14" font-family="monospace" font-weight="bold" text-anchor="middle">{{ dice }}</text>
+                  </g>
                 </g>
                 <g v-for="(dice, index) in currentDefRolls" :key="'def'+index"
                    :transform="`translate(${layout.dice.defCenterX - (currentDefRolls.length * 35) / 2 + index * 35}, ${layout.dice.defY})`" class="svg-trans">
-                  <rect width="26" height="26" fill="rgba(212, 175, 55, 0.1)" stroke="#d4af37" stroke-width="1" />
-                  <text x="13" y="18" fill="#fff" font-size="13" font-family="monospace" text-anchor="middle">{{ dice }}</text>
+                  <g class="dice-enter-right" :style="{ animationDelay: `${index * 0.1}s` }">
+                    <rect width="26" height="26" fill="rgba(212, 175, 55, 0.15)" stroke="#d4af37" stroke-width="1.5" rx="4" filter="url(#glow-gold-sm)" />
+                    <text x="13" y="18" fill="#fff" font-size="14" font-family="monospace" font-weight="bold" text-anchor="middle">{{ dice }}</text>
+                  </g>
                 </g>
               </g>
 
               <!-- 拼点总值与 VS (统一使用左右横向碰撞) -->
               <g v-if="phase === 'clashing' || phase === 'beat-result'">
-                <g class="total-group"
-                   :class="{ 'clash-move-right': phase === 'clashing' }"
-                   :transform="`translate(${layout.clash.atkTotalX}, ${layout.clash.atkTotalY})`">
-                  <polygon points="0,-20 20,0 0,20 -20,0" fill="rgba(255,51,51,0.15)" stroke="#ff3333" stroke-width="1" filter="url(#glow-red)"/>
-                  <text x="0" y="5" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.攻方.攻击总值 }}</text>
+                <g :transform="`translate(${layout.clash.atkTotalX}, ${layout.clash.atkTotalY})`" class="svg-trans">
+                  <g class="total-group" :class="{ 'clash-move-right': phase === 'clashing' }">
+                    <polygon points="0,-20 20,0 0,20 -20,0" fill="rgba(255,51,51,0.15)" stroke="#ff3333" stroke-width="1.5" filter="url(#glow-red)"/>
+                    <text x="0" y="5" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.攻方.攻击总值 }}</text>
+                  </g>
                 </g>
-                <g class="total-group"
-                   :class="{ 'clash-move-left': phase === 'clashing' }"
-                   :transform="`translate(${layout.clash.defTotalX}, ${layout.clash.defTotalY})`">
-                  <polygon points="0,-20 20,0 0,20 -20,0" fill="rgba(212, 175, 55, 0.15)" stroke="#d4af37" stroke-width="1" filter="url(#glow-gold)"/>
-                  <text x="0" y="5" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.防方.防御总值 }}</text>
+                <g :transform="`translate(${layout.clash.defTotalX}, ${layout.clash.defTotalY})`" class="svg-trans">
+                  <g class="total-group" :class="{ 'clash-move-left': phase === 'clashing' }">
+                    <polygon points="0,-20 20,0 0,20 -20,0" fill="rgba(212, 175, 55, 0.15)" stroke="#d4af37" stroke-width="1.5" filter="url(#glow-gold)"/>
+                    <text x="0" y="5" fill="#fff" font-size="16" font-family="monospace" font-weight="bold" text-anchor="middle">{{ currentBeat.防方.防御总值 }}</text>
+                  </g>
                 </g>
                 <line :x1="layout.clash.lineX1" :y1="layout.clash.lineY" :x2="layout.clash.lineX2" :y2="layout.clash.lineY" stroke="#fff" stroke-width="1" stroke-dasharray="4 4" opacity="0.3" class="clash-line svg-trans"/>
                 <text :x="layout.clash.vsX" :y="layout.clash.vsY" fill="#fff" font-size="18" font-family="monospace" letter-spacing="2" text-anchor="middle" class="vs-text svg-trans">VS</text>
@@ -385,7 +401,7 @@ const phaseText = computed(() => {
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// 3. 核心动画逻辑
+// 3. 核心动画逻辑 (已升级：一次性结算并轻微延长动画)
 const advanceCombat = async () => {
   if (isAnimating.value || phase.value === 'finished') return;
 
@@ -411,22 +427,35 @@ const advanceCombat = async () => {
     isAnimating.value = true;
     phase.value = 'rolling';
 
-    const targetAtk = combatLog[currentBeatIndex.value].攻方.骰点详情;
-    const targetDef = combatLog[currentBeatIndex.value].防方.骰点详情;
+    const targetAtk = combatLog[currentBeatIndex.value].攻方.骰点详情 || [];
+    const targetDef = combatLog[currentBeatIndex.value].防方.骰点详情 || [];
+    const totalAtk = targetAtk.length;
+    const totalDef = targetDef.length;
 
-    const rollInterval = setInterval(() => {
-      currentAtkRolls.value = targetAtk.map(() => Math.floor(Math.random() * 20) + 1);
-      currentDefRolls.value = targetDef.map(() => Math.floor(Math.random() * 20) + 1);
-    }, 50);
+    // 辅助函数：执行指定时长的滚动动画
+    const animateRoll = async (duration) => {
+      return new Promise(resolve => {
+        const rollInterval = setInterval(() => {
+          currentAtkRolls.value = Array.from({ length: totalAtk }, () => Math.floor(Math.random() * 20) + 1);
+          currentDefRolls.value = Array.from({ length: totalDef }, () => Math.floor(Math.random() * 20) + 1);
+        }, 50);
 
-    await delay(600);
-    clearInterval(rollInterval);
+        setTimeout(() => {
+          clearInterval(rollInterval);
+          resolve();
+        }, duration);
+      });
+    };
 
+    // 一次性结算所有骰子，轻微延长动画时间 (1500ms)
+    await animateRoll(1500);
+
+    // 确保最终状态完全一致
     currentAtkRolls.value = [...targetAtk];
     currentDefRolls.value = [...targetDef];
 
     phase.value = 'clashing';
-    await delay(600);
+    await delay(1000); // 稍微延长一点冲突展示时间
 
     phase.value = 'beat-result';
     isAnimating.value = false;
@@ -458,7 +487,7 @@ const replayCombat = () => {
   --ac-font-main: 'Rajdhani', 'Microsoft YaHei', sans-serif;
   --ac-font-mono: 'Fira Code', monospace;
 
-  background-color: var(--ac-bg-dark);
+  background-color: transparent;
   color: var(--ac-white);
   font-family: var(--ac-font-main);
   padding: 15px 10px;
@@ -549,15 +578,47 @@ const replayCombat = () => {
 
 /* 动画组 */
 .anim-group { transition: all 0.3s ease-in-out; }
-.total-group { transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-.clash-move-right { transform: translateX(15px); }
-.clash-move-left { transform: translateX(-15px); }
+.total-group { transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+.clash-move-right { transform: translateX(25px); }
+.clash-move-left { transform: translateX(-25px); }
 .fade-out { opacity: 0; transform: translateY(-5px); filter: grayscale(100%); pointer-events: none; }
 .side-attacker.fade-out, .side-defender.fade-out { opacity: 0.15; transform: translateY(0); }
 
 .clash-line { animation: drawLine 0.3s ease forwards; }
 .vs-text { animation: glitchPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 .click-continue-hint { animation: blink 1.5s infinite; pointer-events: none; font-family: var(--ac-font-mono); }
+
+/* 骰子入场动画 */
+.dice-enter-left {
+  opacity: 0;
+  transform-origin: 13px 13px;
+  animation: diceFlyInLeft 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+.dice-enter-right {
+  opacity: 0;
+  transform-origin: 13px 13px;
+  animation: diceFlyInRight 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes diceFlyInLeft {
+  0% { transform: translateX(-80px) rotate(-180deg) scale(0.3); opacity: 0; }
+  100% { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
+}
+
+@keyframes diceFlyInRight {
+  0% { transform: translateX(80px) rotate(180deg) scale(0.3); opacity: 0; }
+  100% { transform: translateX(0) rotate(0) scale(1); opacity: 1; }
+}
+
+/* 占位符呼吸动画 */
+.placeholder-pulse {
+  animation: placeholderPulse 1.5s infinite alternate ease-in-out;
+  transform-origin: 13px 13px;
+}
+@keyframes placeholderPulse {
+  0% { opacity: 0.3; transform: scale(0.95); }
+  100% { opacity: 0.8; transform: scale(1.05); }
+}
 
 /* 底部面板 */
 .result-panel { padding: 12px 15px; background: linear-gradient(to bottom, rgba(212, 175, 55, 0.03), transparent); min-height: 160px; }
