@@ -71,25 +71,14 @@ const holes = ref([]);
 const audioStore = useAudioStore();
 
 onMounted(() => {
-  // 2. 增加监听逻辑，防止直接跳过
-  if (audioStore.loadStatus.burnBgm === 'ready') {
-    playAudio('bgm', {
-      title: '火烧纸',
-      url: audioStore.getUrl('burnBgm')
-    });
-  } else {
-    console.log('火烧纸BGM尚未就绪，等待下载...');
-    const unwatch = watch(() => audioStore.loadStatus.burnBgm, (newStatus) => {
-      if (newStatus === 'ready') {
-        playAudio('bgm', {
-          title: '火烧纸',
-          url: audioStore.getUrl('burnBgm')
-        });
-        unwatch(); // 播放后取消监听
-      }
-    });
+  // 1. 直接获取音频配置并播放，无需监听 loadStatus
+  // 底层 API 会自动处理“未下载完先缓冲，缓冲好再播放”的逻辑
+  const track = audioStore.getTrack('burnBgm');
+  if (track && track.url) {
+    playAudio('bgm', track);
   }
 
+  // 2. 动画计算逻辑 (保持不变)
   const numHoles = 40 + Math.floor(Math.random() * 20);
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -143,6 +132,7 @@ onMounted(() => {
 
   setTimeout(() => {
     visible.value = false;
+    // 3. 动画结束，暂停火烧纸音效，触发 complete 事件让父组件接管 BGM
     pauseAudio('bgm');
     emit('complete');
   }, 3300);

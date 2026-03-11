@@ -63,6 +63,7 @@
   </div>
 </template>
 
+
 <script setup>
 import { ref, reactive, inject, onMounted, onUnmounted, computed, watch } from 'vue';
 import { MvuUtil } from '@/Utils/MvuUtil';
@@ -83,7 +84,8 @@ const showToast = inject('showToast', (msg) => console.log(msg));
 const statStore = useStatStore();
 const audioStore = useAudioStore();
 
-audioStore.preloadAll();
+// 1. 初始化音频资源（将列表注入底层 API）
+audioStore.initAudioResources();
 
 const modes = ['对话', '物品出售', '技能购买', '密传购买', '经验兑换'];
 const currentMode = ref('对话');
@@ -101,7 +103,6 @@ const secretBuys = ref({});
 const redDots = reactive({ '物品出售': false, '技能购买': false, '密传购买': false });
 const lastRawRecords = { ItemSell: null, SkillBuy: null, SecretBuy: null };
 let pollingTimer = null;
-let bgmWatcher = null;
 
 const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
 
@@ -280,14 +281,30 @@ onMounted(async () => {
   if (typeof fetchAll === 'function') { await fetchAll(); pollingTimer = setInterval(fetchAll, 3000); }
 });
 
-const handleIntroComplete = () => { showIntro.value = false; playLibraryBgm(); };
-const playLibraryBgm = () => {
-  if (audioStore.loadStatus.libBgm === 'ready') { setAudioSettings('bgm', { mode: 'repeat_one' }); playAudio('bgm', { title: '图书馆之梦', url: audioStore.getUrl('libBgm') }); }
-  else { bgmWatcher = watch(() => audioStore.loadStatus.libBgm, (newStatus) => { if (newStatus === 'ready') { setAudioSettings('bgm', { mode: 'repeat_one' }); playAudio('bgm', { title: '图书馆之梦', url: audioStore.getUrl('libBgm') }); if (bgmWatcher) { bgmWatcher(); bgmWatcher = null; } } }); }
+// 2. 播放背景音乐逻辑极度简化
+const handleIntroComplete = () => {
+  showIntro.value = false;
+  playLibraryBgm();
 };
 
-onUnmounted(() => { if (pollingTimer) clearInterval(pollingTimer); if (bgmWatcher) bgmWatcher(); pauseAudio('bgm'); });
+const playLibraryBgm = () => {
+  // 直接从 Store 获取音频信息
+  const track = audioStore.getTrack('libBgm');
+  if (track && track.url) {
+    // 设置单曲循环
+    setAudioSettings('bgm', { mode: 'repeat_one' });
+    // 直接调用 API 播放，底层会自动处理加载和缓冲
+    playAudio('bgm', track);
+  }
+};
+
+onUnmounted(() => {
+  if (pollingTimer) clearInterval(pollingTimer);
+  // 3. 退出时暂停音乐
+  pauseAudio('bgm');
+});
 </script>
+
 
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Lato:wght@400;700&display=swap');

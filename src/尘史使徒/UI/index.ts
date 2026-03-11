@@ -78,6 +78,6 @@ $(() => {
   useStatStore().registerListener()
   useStatStore().initData()
   useMessageStore().getMessage();
-  useAudioStore().preloadAll();
+  useAudioStore().initAudioResources();
 });
 
