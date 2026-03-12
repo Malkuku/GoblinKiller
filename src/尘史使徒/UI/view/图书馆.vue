@@ -45,7 +45,6 @@
     </div>
 
     <InputArea
-      :isSending="isSending"
       :isDeleteMode="isDeleteMode"
       :selectedCount="selectedMessages.length"
       @sendMessage="sendMessage"

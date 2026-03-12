@@ -7,7 +7,7 @@
         :key="index"
         class="rune-chip"
         @click="sendQuickReply(reply)"
-        :disabled="isSending"
+        :disabled="isTavernBusy"
       >
         {{ reply }}
       </button>
@@ -64,13 +64,24 @@
         v-model="inputText"
         class="magic-input"
         placeholder="铭刻你的话语..."
-        @keydown.enter.prevent="handleSend"
+        @keydown.enter.prevent="handleSendOrStop"
         rows="1"
       ></textarea>
 
-      <button class="send-btn" @click="handleSend" :disabled="isSending || !inputText.trim()">
+      <button
+        class="send-btn"
+        :class="{ 'is-busy': isTavernBusy }"
+        @click="handleSendOrStop"
+        :disabled="!isTavernBusy && !inputText.trim()"
+        :title="isTavernBusy ? '停止生成' : '发送'"
+      >
+        <!-- 停止 SVG -->
+        <svg v-if="isTavernBusy" class="svg-icon stop-icon" viewBox="0 0 24 24" fill="currentColor">
+          <rect x="6" y="6" width="12" height="12" rx="2" ry="2"></rect>
+        </svg>
+
         <!-- 羽毛笔 SVG -->
-        <svg class="svg-icon quill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg v-else class="svg-icon quill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
           <line x1="16" y1="8" x2="2" y2="22"></line>
           <line x1="17.5" y1="15" x2="9" y2="15"></line>
@@ -81,16 +92,19 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 
 const props = defineProps({
-  isSending: Boolean,
   isDeleteMode: Boolean,
   selectedCount: { type: Number, default: 0 }
 });
 const emit = defineEmits(['sendMessage', 'toggleDeleteMode', 'deleteSelected', 'truncate']);
 
 const inputText = ref('');
+const isTavernBusy = ref(false);
+let sendButtonObserver = null;
+let pollingInterval = null;
+
 const quickReplies = [
   "请爱丽丝锐评最近发生的事情",
   "希望出售有价值的物品/技能",
@@ -98,14 +112,94 @@ const quickReplies = [
   "希望购买适合的秘传"
 ];
 
-const sendQuickReply = (text) => {
-  inputText.value = text;
-  handleSend();
+// --- 监听酒馆状态逻辑 ---
+const checkTavernBusy = (btn) => {
+  if (!btn) return;
+  const style = window.getComputedStyle(btn);
+  const isHidden = style.display === 'none' || style.visibility === 'hidden';
+  const isDisabled = btn.hasAttribute('disabled');
+  // 兼容 ST 的停止图标状态 (fa-circle-stop 或 fa-stop)
+  const isStopIcon = btn.classList.contains('fa-circle-stop') || btn.classList.contains('fa-stop');
+
+  const busy = isHidden || isDisabled || isStopIcon;
+
+  if (isTavernBusy.value !== busy) {
+    isTavernBusy.value = busy;
+  }
 };
 
-const handleSend = () => {
+const setupTavernObserver = () => {
+  try {
+    const parentDoc = window.parent.document;
+    const tavernSendBtn = parentDoc.getElementById('send_but');
+
+    if (tavernSendBtn) {
+      // 初始检查
+      checkTavernBusy(tavernSendBtn);
+
+      if (sendButtonObserver) sendButtonObserver.disconnect();
+
+      sendButtonObserver = new MutationObserver((mutations) => {
+        const currentBtn = parentDoc.getElementById('send_but');
+        if (currentBtn) checkTavernBusy(currentBtn);
+      });
+
+      sendButtonObserver.observe(tavernSendBtn, {
+        attributes: true,
+        attributeFilter: ['style', 'class', 'disabled']
+      });
+    }
+
+    // 增加轮询作为兜底，防止 MutationObserver 漏掉某些情况（如节点被替换）
+    pollingInterval = setInterval(() => {
+      const currentBtn = parentDoc.getElementById('send_but');
+      if (currentBtn) checkTavernBusy(currentBtn);
+    }, 500);
+
+  } catch (e) {
+    console.warn('InputArea: 无法连接到父窗口监听发送按钮', e);
+  }
+};
+
+onMounted(() => {
+  setupTavernObserver();
+});
+
+onUnmounted(() => {
+  if (sendButtonObserver) sendButtonObserver.disconnect();
+  if (pollingInterval) clearInterval(pollingInterval);
+});
+
+// --- 发送与停止逻辑 ---
+
+const sendQuickReply = (text) => {
+  inputText.value = text;
+  handleSendOrStop();
+};
+
+const handleSendOrStop = (e) => {
+  if (isTavernBusy.value) {
+    // 如果是按回车触发的，且正在生成，忽略以防止误触停止
+    if (e && e.type === 'keydown') return;
+
+    // 触发停止逻辑
+    try {
+      const parentWin = window.parent;
+      const stopBtn = parentWin.document.querySelector('#form_sheld .mes_stop');
+      if (stopBtn) {
+        const eventOpts = { bubbles: true, cancelable: true, view: parentWin };
+        stopBtn.dispatchEvent(new MouseEvent('mousedown', eventOpts));
+        stopBtn.dispatchEvent(new MouseEvent('click', eventOpts));
+      }
+    } catch (err) {
+      console.warn('停止生成失败', err);
+    }
+    return;
+  }
+
+  // 发送逻辑
   const text = inputText.value.trim();
-  if (!text || props.isSending) return;
+  if (!text) return;
   emit('sendMessage', text);
   inputText.value = '';
 };
@@ -170,6 +264,19 @@ const handleSend = () => {
 .send-btn:hover:not(:disabled) { box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
 .send-btn:disabled { background: #333; cursor: not-allowed; opacity: 0.5; color: #666; }
 
+/* 正在回复中按钮样式（覆盖默认的 disabled 样式，变为停止按钮） */
+.send-btn.is-busy {
+  background: rgba(139, 0, 0, 0.2);
+  border: 1px solid #8b0000;
+  color: #ff4d4d;
+  opacity: 1;
+  cursor: pointer;
+}
+.send-btn.is-busy:hover {
+  background: rgba(139, 0, 0, 0.4);
+  box-shadow: 0 0 15px rgba(139, 0, 0, 0.5);
+}
+
 /* SVG 图标通用样式 */
 .svg-icon {
   width: 20px;
@@ -181,6 +288,12 @@ const handleSend = () => {
 .quill-icon {
   width: 22px;
   height: 22px;
+}
+
+/* 停止图标 */
+.stop-icon {
+  width: 18px;
+  height: 18px;
 }
 
 .scale-enter-active, .scale-leave-active { transition: all 0.2s; }
