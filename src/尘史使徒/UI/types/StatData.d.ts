@@ -53,12 +53,9 @@ export interface RolesData {
 export interface UserCharacterData {
   "年龄": string;
   "当前身份": string;
-  "当前行动"?: string;
-  "当前想法"?: string;
   "外貌": string[];
   "背景": string[];
   "性格": PersonalityData;
-  "语料": Record<string, string[]>;
   "人际关系": Record<string, RelationshipData>;
   "性经验": Record<string, number>;
   "基础数值": BaseStats;

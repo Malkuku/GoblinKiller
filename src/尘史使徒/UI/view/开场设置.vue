@@ -27,8 +27,6 @@
 
           <!-- 详情区域 (点击选中后显示) -->
           <div class="scenario-details" v-show="selectedScenario === item.id">
-            <!-- 标签区域已移除 -->
-
             <p class="scenario-desc" v-html="item.desc"></p>
 
             <!-- 启程按钮 / 开发中按钮 -->
@@ -57,6 +55,12 @@
         </div>
       </div>
     </div>
+
+    <!-- 快速基础设定弹窗 -->
+    <QuickCharacterSetup
+      v-model:visible="showQuickSetup"
+      @complete="onQuickSetupComplete"
+    />
   </div>
 </template>
 
@@ -66,10 +70,12 @@ import { WorldInfoUtil } from '@/Utils/WorldInfoUtil';
 import { router } from '@/尘史使徒/UI/router/router';
 import { ScenariosMetadata } from '@/尘史使徒/UI/types/剧本数据';
 import { MvuUtil } from '@/Utils/MvuUtil';
+import QuickCharacterSetup from '@/尘史使徒/UI/components/start/QuickCharacterSetup.vue';
 
 const selectedScenario = ref('');
 const loading = ref(false);
 const loadingId = ref('');
+const showQuickSetup = ref(false);
 
 const scenarios = ScenariosMetadata;
 
@@ -102,8 +108,8 @@ const confirmStart = async (item) => {
       // 如果是“被遗忘者”，跳转到角色创建页
       await router.push('/人物创建');
     } else {
-      // 其他剧本直接进入游戏选项
-      await router.push('/选项');
+      // 其他剧本弹出基础设置确认框
+      showQuickSetup.value = true;
     }
 
   } catch (e) {
@@ -113,6 +119,11 @@ const confirmStart = async (item) => {
     loading.value = false;
     loadingId.value = '';
   }
+};
+
+const onQuickSetupComplete = async () => {
+  showQuickSetup.value = false;
+  await router.push('/选项');
 };
 
 /**
