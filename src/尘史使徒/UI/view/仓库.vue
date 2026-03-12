@@ -441,7 +441,7 @@ const getItemStyle = item => {
     t === '证明' || t === '信物'
   ) return 'style-proof';
 
-  if (n.includes('书') || n.includes('录') || n.includes('篇') || t === '密传') return 'style-lore';
+  if (n.includes('书') || n.includes('录') || n.includes('篇') || t === '秘传') return 'style-lore';
   if (n.includes('刃') || n.includes('剑') || n.includes('刀') || n.includes('枪') || n.includes('斧') || t === '武器') return 'style-weapon';
   if (n.includes('仪式') || n.includes('阵') || n.includes('祭') || t === '仪式') return 'style-ritual';
   if (n.includes('币') || n.includes('金') || n.includes('银') || t === '货币') return 'style-currency';

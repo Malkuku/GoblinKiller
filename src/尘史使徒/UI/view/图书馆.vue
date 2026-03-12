@@ -6,20 +6,12 @@
       :modes="modes"
       :redDots="redDots"
       :userHeterogeneity="userHeterogeneity"
+      :aliceSetting="aliceSetting"
       @switchMode="switchMode"
+      @changeSetting="handleAliceChange"
     />
 
     <div class="main-content-area">
-      <!-- 设定切换下拉框 -->
-      <div v-show="currentMode === '对话'" class="alice-selector-container">
-        <label>设定：</label>
-        <select v-model="aliceSetting" @change="handleAliceChange">
-          <option value="女儿爱丽丝">女儿爱丽丝</option>
-          <option value="妹妹爱丽丝">妹妹爱丽丝</option>
-          <option value="妈妈爱丽丝">妈妈爱丽丝</option>
-        </select>
-      </div>
-
       <ChatArea
         v-show="currentMode === '对话'"
         ref="chatAreaRef"
@@ -45,7 +37,7 @@
       />
 
       <SecretBuyArea
-        v-show="currentMode === '密传购买'"
+        v-show="currentMode === '秘传购买'"
         :secretBuys="secretBuys"
       />
 
@@ -59,6 +51,7 @@
       @sendMessage="sendMessage"
       @toggleDeleteMode="toggleDeleteMode"
       @deleteSelected="deleteSelected"
+      @truncate="truncateChat"
     />
   </div>
 </template>
@@ -87,7 +80,7 @@ const audioStore = useAudioStore();
 // 1. 初始化音频资源（将列表注入底层 API）
 audioStore.initAudioResources();
 
-const modes = ['对话', '物品出售', '技能购买', '密传购买', '经验兑换'];
+const modes = ['对话', '物品出售', '技能购买', '秘传购买', '经验兑换'];
 const currentMode = ref('对话');
 const isSending = ref(false);
 const isThinking = ref(false);
@@ -100,7 +93,7 @@ const chatAreaRef = ref(null);
 const itemSells = ref({});
 const skillBuys = ref({});
 const secretBuys = ref({});
-const redDots = reactive({ '物品出售': false, '技能购买': false, '密传购买': false });
+const redDots = reactive({ '物品出售': false, '技能购买': false, '秘传购买': false });
 const lastRawRecords = { ItemSell: null, SkillBuy: null, SecretBuy: null };
 let pollingTimer = null;
 
@@ -119,8 +112,11 @@ watch(() => statStore.stat_data?.['图书馆']?.['爱丽丝设定'], (newVal) =>
 }, { immediate: true });
 
 // 切换爱丽丝设定
-const handleAliceChange = async () => {
-  const newSetting = aliceSetting.value;
+
+const handleAliceChange = async (newSetting) => {
+  if (aliceSetting.value === newSetting) return; // 防止重复触发
+
+  aliceSetting.value = newSetting;
   chatContents.value = [];
   welcomeContent.value = '';
   try {
@@ -151,17 +147,91 @@ const toggleSelect = (id) => {
   else selectedMessages.value.splice(pos, 1);
 };
 
+// 手动截断聊天记录 (带 Alert 提示)
+const truncateChat = async () => {
+  try {
+    const entryName = '<图书馆>聊天记录';
+    const rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
+
+    // 提取外层区块
+    const outerRegex = /<(content|user_say)>([\s\S]*?)<\/\1>/g;
+    const outerBlocks = [];
+    let match;
+    while ((match = outerRegex.exec(rawText)) !== null) {
+      outerBlocks.push({
+        tag: match[1],
+        innerRaw: match[2].trim(),
+        fullRaw: match[0]
+      });
+    }
+
+    const MAX_TURNS = 30;
+    if (outerBlocks.length <= MAX_TURNS) {
+      window.alert(`当前记录共 ${outerBlocks.length} 条，未超过 ${MAX_TURNS} 条，无需清理。`);
+      return;
+    }
+
+    // 弹出确认框防止误触
+    const isConfirm = window.confirm(`当前记录共 ${outerBlocks.length} 条，确定要清理旧记录吗？\n（清理后将仅保留最近 ${MAX_TURNS} 条）`);
+    if (!isConfirm) return;
+
+    // 执行截断：保留最后 MAX_TURNS 条
+    outerBlocks.splice(0, outerBlocks.length - MAX_TURNS);
+
+    // 重组内容
+    let newRaw = outerBlocks.map(b => b.fullRaw).join('\n');
+
+    // 保留开场白
+    const welcomeMatch = rawText.match(/<welcome>([\s\S]*?)<\/welcome>/);
+    if (welcomeMatch) {
+      newRaw += `\n${welcomeMatch[0]}`;
+    }
+
+    await WorldInfoUtil.updateEntryContent(entryName, newRaw);
+    window.alert(`清理成功！已保留最近 ${MAX_TURNS} 条记录。`);
+    await syncChatRecord(); // 刷新界面
+  } catch (error) {
+    console.error("清理记录失败:", error);
+    window.alert("清理失败，请查看控制台报错。");
+  }
+};
+
 const deleteSelected = async () => {
   const selectedIds = selectedMessages.value;
   if (!selectedIds || selectedIds.length === 0) return;
+
+  // 过滤掉被选中的消息
   const newMessages = chatContents.value.filter(msg => !selectedIds.includes(msg.id));
   chatContents.value = newMessages;
+
   const entryName = '<图书馆>聊天记录';
-  let newRaw = newMessages.map(m => {
-    const tag = m.type === 'user' ? 'user_say' : 'content';
-    return `<${tag}>\n${m.text}\n</${tag}>`;
-  }).join('\n');
+  let newRaw = '';
+  let currentContentBlock = []; // 用于收集连续的 npc/aside
+
+  // 辅助函数：将收集到的 npc/aside 打包成一个 <content>
+  const flushContentBlock = () => {
+    if (currentContentBlock.length > 0) {
+      newRaw += `<content>\n${currentContentBlock.join('\n')}\n</content>\n`;
+      currentContentBlock = [];
+    }
+  };
+
+  // 遍历剩余消息，重组 XML
+  for (const m of newMessages) {
+    if (m.type === 'user') {
+      flushContentBlock(); // 遇到玩家发言，先结算之前的 content 块
+      newRaw += `<user_say>\n${m.text}\n</user_say>\n`;
+    } else if (m.type === 'aside') {
+      currentContentBlock.push(`<旁白>${m.text}</旁白>`);
+    } else if (m.type === 'npc') {
+      currentContentBlock.push(`<对话>${m.text}</对话>`);
+    }
+  }
+  flushContentBlock(); // 循环结束，结算最后剩余的 content 块
+
+  newRaw = newRaw.trim();
   if (welcomeContent.value) newRaw += `\n<welcome>\n${welcomeContent.value}\n</welcome>`;
+
   try {
     await WorldInfoUtil.updateEntryContent(entryName, newRaw);
     showToast("删除成功");
@@ -200,60 +270,96 @@ const sendMessage = async (text) => {
   }
 };
 
+
 const syncChatRecord = async () => {
   if (isDeleteMode.value) return;
   try {
     const entryName = '<图书馆>聊天记录';
     const rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
-    const regex = /<(content|user_say)>([\s\S]*?)<\/\1>/g;
+
+    // 1. 提取外层区块 (保留原始结构)
+    const outerRegex = /<(content|user_say)>([\s\S]*?)<\/\1>/g;
+    const outerBlocks = [];
     let match;
-    const parsedMessages = [];
-    while ((match = regex.exec(rawText)) !== null) {
-      parsedMessages.push({ type: match[1] === 'user_say' ? 'user' : 'npc', text: match[2].trim() });
+    while ((match = outerRegex.exec(rawText)) !== null) {
+      outerBlocks.push({
+        tag: match[1],         // 'content' 或 'user_say'
+        innerRaw: match[2].trim(), // 标签内部的文本
+        fullRaw: match[0]      // 完整的标签字符串 (例如 <content>...</content>)
+      });
     }
+
+    // 2. 处理开场白逻辑
     let currentWelcome = '';
     const welcomeMatch = rawText.match(/<welcome>([\s\S]*?)<\/welcome>/);
     if (welcomeMatch) currentWelcome = welcomeMatch[1].trim();
-    let needsUpdate = false;
-    let newMessages = [...parsedMessages];
-    if (newMessages.length > 10) { newMessages = newMessages.slice(newMessages.length - 10); needsUpdate = true; }
 
-    // 根据当前设定匹配开场白
     let w1, w2;
     if (aliceSetting.value === '妹妹爱丽丝') {
-      w1 = welcomeMessage.sisterWelcome1;
-      w2 = welcomeMessage.sisterWelcome2;
+      w1 = welcomeMessage.sisterWelcome1; w2 = welcomeMessage.sisterWelcome2;
     } else if (aliceSetting.value === '妈妈爱丽丝') {
-      w1 = welcomeMessage.motherWelcome1;
-      w2 = welcomeMessage.motherWelcome2;
+      w1 = welcomeMessage.motherWelcome1; w2 = welcomeMessage.motherWelcome2;
     } else {
-      w1 = welcomeMessage.daughterWelcome1;
-      w2 = welcomeMessage.daughterWelcome2;
+      w1 = welcomeMessage.daughterWelcome1; w2 = welcomeMessage.daughterWelcome2;
     }
 
-    if (newMessages.length === 0 && currentWelcome !== w1) { currentWelcome = w1; needsUpdate = true; }
-    else if (newMessages.length > 0 && currentWelcome !== w2) { currentWelcome = w2; needsUpdate = true; }
+    let needsUpdate = false;
 
+    // 检查开场白是否需要更新
+    if (outerBlocks.length === 0 && currentWelcome !== w1) { currentWelcome = w1; needsUpdate = true; }
+    else if (outerBlocks.length > 0 && currentWelcome !== w2) { currentWelcome = w2; needsUpdate = true; }
+
+    // 4. 如果发生截断或开场白更新，按原格式写回 WorldInfo
     if (needsUpdate) {
-      let newRaw = newMessages.map(m => `<${m.type === 'user' ? 'user_say' : 'content'}>\n${m.text}\n</${m.type === 'user' ? 'user_say' : 'content'}>`).join('\n');
+      // 直接使用 fullRaw 拼接，完美保留原始的 <对话> 和 <旁白> 嵌套结构
+      let newRaw = outerBlocks.map(b => b.fullRaw).join('\n');
       if (currentWelcome) newRaw += `\n<welcome>\n${currentWelcome}\n</welcome>`;
       await WorldInfoUtil.updateEntryContent(entryName, newRaw);
     }
-    newMessages.forEach((m) => {
+
+    // 5. 将外层区块解析为 UI 需要的扁平消息数组
+    const parsedMessages = [];
+    for (const block of outerBlocks) {
+      if (block.tag === 'user_say') {
+        parsedMessages.push({ type: 'user', text: block.innerRaw });
+      } else {
+        // 解析 <content> 内部的 <对话> 和 <旁白>
+        const innerRegex = /<(对话|旁白)>([\s\S]*?)<\/\1>/g;
+        let innerMatch;
+        let hasInnerTags = false;
+        while ((innerMatch = innerRegex.exec(block.innerRaw)) !== null) {
+          hasInnerTags = true;
+          parsedMessages.push({
+            type: innerMatch[1] === '对话' ? 'npc' : 'aside',
+            text: innerMatch[2].trim()
+          });
+        }
+        // 兼容旧格式：如果没有内部标签，整体视为对话
+        if (!hasInnerTags && block.innerRaw) {
+          parsedMessages.push({ type: 'npc', text: block.innerRaw });
+        }
+      }
+    }
+
+    // 6. ID 匹配与 UI 更新
+    parsedMessages.forEach((m) => {
       const oldMsg = chatContents.value.find(old => old.text === m.text && old.type === m.type && !old._used);
       if (oldMsg) { m.id = oldMsg.id; oldMsg._used = true; }
       else { m.id = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
     });
+
     chatContents.value.forEach(old => delete old._used);
-    const isNewMessage = chatContents.value.length !== newMessages.length;
-    chatContents.value = newMessages;
+    const isNewMessage = chatContents.value.length !== parsedMessages.length;
+    chatContents.value = parsedMessages;
     welcomeContent.value = currentWelcome;
+
     if (isNewMessage) {
-      const lastMsg = newMessages[newMessages.length - 1];
-      if (lastMsg && lastMsg.type === 'npc') isThinking.value = false;
+      const lastMsg = parsedMessages[parsedMessages.length - 1];
+      if (lastMsg && (lastMsg.type === 'npc' || lastMsg.type === 'aside')) isThinking.value = false;
     }
   } catch (error) { console.error("同步聊天记录失败:", error); }
 };
+
 
 const syncTransactionRecord = async () => {
   try {
@@ -271,7 +377,7 @@ const syncTransactionRecord = async () => {
     };
     update('ItemSell', '物品出售', itemSells);
     update('SkillBuy', '技能购买', skillBuys);
-    update('SecretBuy', '密传购买', secretBuys);
+    update('SecretBuy', '秘传购买', secretBuys);
   } catch (e) { console.error(e); }
 };
 
@@ -298,10 +404,28 @@ const playLibraryBgm = () => {
   }
 };
 
+const recordExitTime = async () => {
+  try {
+    const entryName = '<图书馆>聊天记录';
+    let rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
+    // 删除旧标签（包括前导空白）
+    rawText = rawText.replace(/\s*<上次访问时间>[\s\S]*?<\/上次访问时间>/g, '');
+
+    const now = new Date().toLocaleString();
+    // 在最后插入
+    rawText = rawText.trim() + `\n<上次访问时间>${now}</上次访问时间>`;
+
+    await WorldInfoUtil.updateEntryContent(entryName, rawText);
+  } catch (error) {
+    console.error("记录退出时间失败:", error);
+  }
+};
+
 onUnmounted(() => {
   if (pollingTimer) clearInterval(pollingTimer);
   // 3. 退出时暂停音乐
   pauseAudio('bgm');
+  recordExitTime();
 });
 </script>
 
@@ -336,22 +460,6 @@ onUnmounted(() => {
   overflow: hidden;
   /* 添加微弱的噪点或纹理背景 */
   background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000 100%);
-}
-
-/* 设定切换下拉框样式 */
-.alice-selector-container {
-  position: absolute;
-  top: 10px;
-  right: 20px;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(20, 20, 20, 0.8);
-  padding: 5px 10px;
-  border-radius: 6px;
-  border: 1px solid var(--c-gold-dim);
-  font-size: 0.9rem;
 }
 
 .alice-selector-container label {

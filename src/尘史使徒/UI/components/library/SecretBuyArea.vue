@@ -95,9 +95,9 @@ const showToast = inject('showToast', msg => console.log(msg));
 const statStore = useStatStore();
 
 const pendingCart = ref({});
-const localHiddenSecrets = ref(new Set()); // 本地临时隐藏已买密传
+const localHiddenSecrets = ref(new Set()); // 本地临时隐藏已买秘传
 
-// 过滤掉本地已隐藏的密传
+// 过滤掉本地已隐藏的秘传
 const displaySecrets = computed(() => {
   const result = {};
   for (const [key, val] of Object.entries(props.secretBuys)) {
@@ -160,7 +160,7 @@ const confirmCheckout = async () => {
     acquiredNames.push(finalName);
 
     diff.角色.user.物品[finalName] = {
-      类型: '密传',
+      类型: '秘传',
       数量: 1,
       耐久: 100,
       描述: cartItem.details.描述 || '一份神秘的记录',
@@ -172,7 +172,7 @@ const confirmCheckout = async () => {
     // 1. 更新玩家数据
     await MvuUtil.updateMvuDataByDiff(diff);
 
-    // 2. 修改世界书：从交易记录中移除已购买的密传
+    // 2. 修改世界书：从交易记录中移除已购买的秘传
     const entryName = '<图书馆>交易记录';
     const rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
 
@@ -185,7 +185,7 @@ const confirmCheckout = async () => {
       try {
         secretData = JSON.parse(match[1]);
       } catch (e) {
-        console.error("解析密传交易记录失败", e);
+        console.error("解析秘传交易记录失败", e);
       }
 
       let hasChange = false;
@@ -204,14 +204,14 @@ const confirmCheckout = async () => {
     }
 
     // 3. UI 反馈与日志
-    showToast(`成功购买 ${totalCartCount.value} 份密传`);
+    showToast(`成功购买 ${totalCartCount.value} 份秘传`);
 
     // 立即在本地隐藏，触发消失动画
     boughtKeys.forEach(name => localHiddenSecrets.value.add(name));
 
     const vagueDesc = getVagueYizhiDesc(totalCartCost.value);
     const namesStr = acquiredNames.map(n => `【${n}】`).join('、');
-    const logText = `\n<systemLog>\n<user>散去了${vagueDesc}。随着异质的流失，隐秘的知识在现实中凝结，你获得了密传线索：${namesStr}。原本记录它们的虚影已消散无踪。\n</systemLog>\n`;
+    const logText = `\n<systemLog>\n<user>散去了${vagueDesc}。随着异质的流失，隐秘的知识在现实中凝结，你获得了秘传线索：${namesStr}。原本记录它们的虚影已消散无踪。\n</systemLog>\n`;
     const lastMsgId = typeof getLastMessageId === 'function' ? getLastMessageId() : -1;
     await MessageUtil.mergeContentToMessage(lastMsgId, logText, 'none');
 

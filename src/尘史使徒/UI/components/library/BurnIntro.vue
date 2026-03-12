@@ -75,7 +75,7 @@ onMounted(() => {
   // 底层 API 会自动处理“未下载完先缓冲，缓冲好再播放”的逻辑
   const track = audioStore.getTrack('burnBgm');
   if (track && track.url) {
-    playAudio('bgm', track);
+    playAudio('ambient', track);
   }
 
   // 2. 动画计算逻辑 (保持不变)
@@ -133,7 +133,7 @@ onMounted(() => {
   setTimeout(() => {
     visible.value = false;
     // 3. 动画结束，暂停火烧纸音效，触发 complete 事件让父组件接管 BGM
-    pauseAudio('bgm');
+    pauseAudio('ambient');
     emit('complete');
   }, 3300);
 });

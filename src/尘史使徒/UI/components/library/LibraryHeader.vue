@@ -5,7 +5,7 @@
         <span class="title-icon">◩</span> 漫宿书库
       </h2>
 
-      <!-- 异质展示区：星云魔导器 -->
+      <!-- 异质展示区：星云魔导器 (非对话模式显示) -->
       <div v-if="currentMode !== '对话'" class="asset-display tooltip-container">
         <div class="nebula-wrapper">
           <svg class="nebula-icon" viewBox="0 0 24 24">
@@ -33,6 +33,16 @@
         </div>
       </div>
 
+      <!-- 新增：设定切换下拉框 (仅对话模式显示) -->
+      <div v-if="currentMode === '对话'" class="alice-selector-container">
+        <label>设定：</label>
+        <select :value="aliceSetting" @change="$emit('changeSetting', $event.target.value)">
+          <option value="女儿爱丽丝">女儿爱丽丝</option>
+          <option value="妹妹爱丽丝">妹妹爱丽丝</option>
+          <option value="妈妈爱丽丝">妈妈爱丽丝</option>
+        </select>
+      </div>
+
       <!-- 导航栏 -->
       <div class="nav-tabs">
         <div
@@ -57,10 +67,12 @@ const props = defineProps({
   currentMode: String,
   modes: Array,
   redDots: Object,
-  userHeterogeneity: Number
+  userHeterogeneity: Number,
+  aliceSetting: String // 新增接收设定属性
 });
 
-defineEmits(['switchMode']);
+// 新增 changeSetting 事件
+defineEmits(['switchMode', 'changeSetting']);
 
 const indicatorStyle = computed(() => {
   const index = props.modes.indexOf(props.currentMode);
@@ -118,6 +130,27 @@ const indicatorStyle = computed(() => {
 }
 .tooltip-title { color: var(--c-gold); font-family: 'Cinzel', serif; margin-bottom: 5px; border-bottom: 1px solid #333; padding-bottom: 3px; }
 .asset-display:hover .tooltip-content { opacity: 1; visibility: visible; transform: translateY(0); }
+
+/* --- 新增：设定切换下拉框样式 (与异质展示框位置和风格统一) --- */
+.alice-selector-container {
+  position: absolute; top: 0; right: 0;
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(20, 20, 20, 0.8);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid #333;
+  font-size: 0.9rem;
+  transition: border-color 0.3s;
+}
+.alice-selector-container:hover { border-color: var(--c-gold-dim); }
+.alice-selector-container label { color: #888; font-family: 'Cinzel', serif; }
+.alice-selector-container select {
+  background: transparent; color: var(--c-gold-light);
+  border: none; outline: none; cursor: pointer;
+  font-family: 'Lato', sans-serif; font-weight: bold;
+}
+.alice-selector-container select option { background: #111; color: #eee; }
+/* ----------------------------------------------------------- */
 
 /* 导航 */
 .nav-tabs { display: flex; position: relative; border-bottom: 1px solid rgba(255,255,255,0.05); }

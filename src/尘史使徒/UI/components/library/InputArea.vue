@@ -28,6 +28,22 @@
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
           </svg>
         </button>
+
+        <!-- 手动截断按钮 -->
+        <button
+          class="tool-btn"
+          @click="$emit('truncate')"
+          title="清理旧记录(保留最近30条)"
+        >
+          <!-- 扫帚 SVG -->
+          <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 17.5L3 6V3h3l11.5 11.5"></path>
+            <path d="M13 19l6-6"></path>
+            <path d="M16 16l4 4"></path>
+            <path d="M19 21l2-2"></path>
+          </svg>
+        </button>
+
         <Transition name="scale">
           <button
             v-if="isDeleteMode"
@@ -72,14 +88,14 @@ const props = defineProps({
   isDeleteMode: Boolean,
   selectedCount: { type: Number, default: 0 }
 });
-const emit = defineEmits(['sendMessage', 'toggleDeleteMode', 'deleteSelected']);
+const emit = defineEmits(['sendMessage', 'toggleDeleteMode', 'deleteSelected', 'truncate']);
 
 const inputText = ref('');
 const quickReplies = [
   "请爱丽丝锐评最近发生的事情",
   "希望出售有价值的物品/技能",
   "希望购买适合的技能",
-  "希望购买适合的密传"
+  "希望购买适合的秘传"
 ];
 
 const sendQuickReply = (text) => {
