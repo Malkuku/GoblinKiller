@@ -821,7 +821,7 @@ onUnmounted(() => {
 /* --- Dashboard 控制台 (包含状态栏和工具栏) --- */
 .dashboard-console {
   width: 100%;
-  max-width: 800px;
+  max-width: 1024px;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -877,7 +877,7 @@ onUnmounted(() => {
 
 /* --- Input Wrapper --- */
 .input-wrapper {
-  position: relative; width: 100%; max-width: 800px;
+  position: relative; width: 100%; max-width: 1024px;
   display: flex; align-items: flex-end; gap: 12px;
 }
 
