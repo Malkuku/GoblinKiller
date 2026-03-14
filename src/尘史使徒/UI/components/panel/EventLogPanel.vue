@@ -1,4 +1,4 @@
-<<template>
+<template>
   <transition name="slide-down-log">
     <div class="log-panel">
       <div class="log-header">
@@ -7,7 +7,6 @@
       </div>
       <ul class="log-list" ref="logListRef">
         <li v-for="log in logMessages" :key="log.id" class="log-item">
-          <span class="log-timestamp">[{{ log.timestamp }}]</span>
           <span class="log-text" v-html="formatLogText(log.text)"></span>
         </li>
         <li v-if="logMessages.length === 0" class="log-empty">
@@ -20,7 +19,7 @@
 
 <script setup lang="ts">
 defineProps<{
-  logMessages: { id: number; text: string; timestamp: string }[];
+  logMessages: { id: number; text: string }[];
   formatLogText: (text: string) => string;
   logListRef: (el: any) => void; // To connect ref from parent
 }>();
@@ -46,7 +45,6 @@ defineEmits<{
 .close-log { background: none; border: none; color: var(--c-text-dim); cursor: pointer; font-size: 1.2rem; }
 .log-list { list-style: none; margin: 0; padding: 10px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--c-gold) transparent; }
 .log-item { padding: 6px 4px; font-size: 0.9rem; color: var(--c-text-main); border-bottom: 1px solid rgba(255,255,255,0.05); display: flex; gap: 8px; }
-.log-timestamp { color: var(--c-text-dim); }
 .log-text :deep(.log-positive) { color: #4CAF50; font-weight: bold; }
 .log-text :deep(.log-negative) { color: #F44336; font-weight: bold; }
 .log-empty { text-align: center; padding: 20px; color: var(--c-text-dim); font-style: italic; }

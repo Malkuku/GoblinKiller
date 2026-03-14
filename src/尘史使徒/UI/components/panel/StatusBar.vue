@@ -105,10 +105,56 @@ const formattedWorldTime = computed(() => {
 .log-badge { position: absolute; top: 0; right: 0; background: #8b0000; color: #fff; font-size: 0.7rem; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.5); border: 1px solid #1a1a1a; }
 .time-display :deep(.d-sep), .time-display :deep(.t-sep), .time-display :deep(.w-sep) { color: rgba(164, 139, 87, 0.6); margin: 0 1px; font-weight: normal; }
 .time-display :deep(.dt-sep) { color: var(--c-gold); margin: 0 6px; font-size: 0.7em; vertical-align: middle; opacity: 0.8; }
-
 @media (max-width: 768px) {
-  .world-status-bar { flex-direction: column; align-items: stretch; gap: 8px; padding: 8px 15px; }
-  .status-info { justify-content: space-between; width: 100%; }
-  .top-bar-controls { background: rgba(0,0,0,0.2); padding: 4px; border-radius: 25px; justify-content: space-around; }
+  .world-status-bar {
+    display: grid;
+    /* 定义两列：左侧占满剩余空间(1fr)，右侧根据按钮大小自适应(auto) */
+    grid-template-columns: 1fr auto;
+    /* 定义两行 */
+    grid-template-rows: auto auto;
+    gap: 12px 15px; /* 行间距 12px，列间距 15px */
+    padding: 12px 15px;
+  }
+
+  /* 使用 contents 让包裹层"消失"，让内部的子元素直接参与 Grid 布局 */
+  .status-info,
+  .top-bar-controls {
+    display: contents;
+  }
+
+  /* 隐藏移动端不需要的竖线分隔符 */
+  .status-divider {
+    display: none;
+  }
+
+  /* --- 第一行 --- */
+  /* 地点 */
+  .status-group:nth-child(1) {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+  /* 字体大小 */
+  .font-control-group {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end; /* 靠右对齐 */
+    align-self: center;
+  }
+
+  /* --- 第二行 --- */
+  /* 时间 */
+  .status-group:nth-child(3) {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: center;
+  }
+  /* 任务日志 */
+  .log-control-group {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: end; /* 靠右对齐 */
+    align-self: center;
+  }
 }
 </style>

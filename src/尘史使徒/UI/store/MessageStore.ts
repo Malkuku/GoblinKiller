@@ -14,6 +14,7 @@ export const useMessageStore = defineStore('message', () => {
 
     message.value = String(chat_messages[0].message);
   }
+  eventOn('mag_variable_update_ended', getMessage);
   return {
     message,
     textarea,

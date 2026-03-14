@@ -12,7 +12,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue';
+import { ref, nextTick } from 'vue';
 
 const props = defineProps<{
   displayHtml: string;
@@ -30,15 +30,6 @@ const scrollToBottom = () => {
   });
 };
 
-// 监听内容变化并滚动到底部
-watch(() => props.displayHtml, scrollToBottom);
-watch(() => props.isStreaming, (streaming) => {
-  if (!streaming) {
-    scrollToBottom();
-  }
-});
-
-// Expose the ref for parent component if needed, or handle scrolling internally
 defineExpose({
   scrollContainer,
   scrollToBottom
