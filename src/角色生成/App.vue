@@ -58,10 +58,9 @@
                   class="action-btn record-btn"
                   :class="{ 'is-recorded': isRecorded }"
                   @click="recordCharacter"
-                  :disabled="isRecorded"
                 >
                   <span class="btn-icon">{{ isRecorded ? '✔' : '⭳' }}</span>
-                  {{ isRecorded ? '档案已收录' : '记录该角色' }}
+                  <span class="btn-text">{{ isRecorded ? '档案已收录' : '记录该角色' }}</span>
                 </button>
                 <div class="location-hint" v-if="!isRecorded">
                   将绑定至: [ {{ currentMapIndex }} ]
@@ -260,27 +259,43 @@ const isRecorded = computed(() => {
   return !!minorChars[currentCharacterName.value];
 });
 
-// 5. 核心方法：记录角色
+// 5. 核心方法：记录/取消记录角色
 const recordCharacter = async () => {
-  if (isRecorded.value || !currentCharacter.value) return;
+  if (!currentCharacter.value) return;
 
-  const charDataToSave = JSON.parse(JSON.stringify(currentCharacter.value));
-  charDataToSave.区域检索词 = [currentMapIndex.value];
-  charDataToSave.在场 = true;
+  let diffObj = {};
 
-  const diffObj = {
-    角色: {
-      次要角色: {
-        [currentCharacterName.value]: charDataToSave
+  if (isRecorded.value) {
+    // === 取消记录逻辑 ===
+    // 将对应的角色 key 设置为 null 以删除
+    diffObj = {
+      角色: {
+        次要角色: {
+          [currentCharacterName.value]: null
+        }
       }
-    }
-  };
+    };
+  } else {
+    // === 记录角色逻辑 ===
+    const charDataToSave = JSON.parse(JSON.stringify(currentCharacter.value));
+    charDataToSave.区域检索词 = [currentMapIndex.value];
+    charDataToSave.在场 = true;
+
+    diffObj = {
+      角色: {
+        次要角色: {
+          [currentCharacterName.value]: charDataToSave
+        }
+      }
+    };
+  }
 
   try {
     await MvuUtil.updateMvuDataByDiff(diffObj);
+    // 稍微延迟刷新以确保本地状态同步
     setTimeout(fetchGlobalData, 100);
   } catch (error) {
-    console.error("记录角色失败:", error);
+    console.error("更新角色档案失败:", error);
   }
 };
 
@@ -426,15 +441,42 @@ const getVitalColorClass = (key) => {
   transition: all 0.3s;
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   display: flex; align-items: center; gap: 6px;
+  position: relative;
+  overflow: hidden;
 }
 .action-btn:hover:not(:disabled) { background: rgba(212, 175, 55, 0.3); box-shadow: 0 0 15px rgba(212, 175, 55, 0.4); }
 .action-btn:active:not(:disabled) { transform: scale(0.98); }
+
+/* 已记录状态的基础样式 (绿色) */
 .action-btn.is-recorded {
   background: rgba(30, 40, 30, 0.8);
   border-color: #4caf50;
   color: #81c784;
-  cursor: not-allowed;
+  cursor: pointer; /* 允许点击 */
 }
+
+/* 已记录状态 Hover 样式 (红色/取消) */
+.action-btn.is-recorded:hover {
+  background: rgba(100, 20, 20, 0.9);
+  border-color: #ff4d4d;
+  color: #ffcccc;
+  box-shadow: 0 0 15px rgba(255, 77, 77, 0.4);
+}
+
+/* Hover 时隐藏原有内容 */
+.action-btn.is-recorded:hover > * {
+  display: none;
+}
+
+/* Hover 时显示取消文字 */
+.action-btn.is-recorded:hover::after {
+  content: "✕ 取消记录";
+  display: block;
+  width: 100%;
+  text-align: center;
+  font-weight: bold;
+}
+
 .location-hint { font-family: var(--ac-font-mono); font-size: 0.7rem; color: var(--ac-gray); }
 
 /* --- 单栏流式布局 --- */

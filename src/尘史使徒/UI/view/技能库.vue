@@ -133,6 +133,11 @@
               </div>
 
               <div class="transfer-action-bar">
+                <!-- 新增：使用技能按钮 -->
+                <button class="mini-confirm-btn use-btn" @click="handleUseSkill(skill)">
+                  ⚡ 施放
+                </button>
+
                 <button class="mini-confirm-btn unequip-btn" @click="confirmTransfer">
                   遗忘 ➔
                 </button>
@@ -231,11 +236,14 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue';
+import { useRouter } from 'vue-router'; // 新增：引入路由
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { MvuUtil } from '@/Utils/MvuUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
+import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 
 // --- 状态定义 ---
+const router = useRouter(); // 新增：初始化路由
 const statStore = useStatStore();
 const localEquipped = ref({});
 const localLibrary = ref({});
@@ -243,6 +251,7 @@ const userArts = ref({}); // 存储当前选中角色的术之等级
 const hasUnsavedChanges = ref(false);
 const isSaving = ref(false);
 const searchQuery = ref('');
+const uiStore = useUiStore();
 
 // 角色切换状态
 const activeCharacterKey = ref('user');
@@ -401,6 +410,20 @@ function confirmTransfer() {
 
   hasUnsavedChanges.value = true;
   closeTransfer();
+}
+
+// --- 新增：使用技能逻辑 ---
+function handleUseSkill(skill) {
+  const skillName = skill.name;
+  let logText = '';
+
+  if (activeCharacterKey.value === 'user') {
+    logText = `<user>将要使用${skillName}`;
+  } else {
+    logText = `<user>希望让${activeCharacterKey.value}使用${skillName}`;
+  }
+  uiStore.setPendingInput(logText);
+  router.push('/选项');
 }
 
 // --- 文本格式化与图标 ---
@@ -681,6 +704,8 @@ async function saveAllChanges() {
 .mini-confirm-btn:disabled { background: #444; color: #888; cursor: not-allowed; }
 .unequip-btn { background: #555; color: #ddd; }
 .unequip-btn:hover { background: var(--c-danger); color: #fff; box-shadow: 0 0 10px var(--c-danger); }
+.use-btn { background: #00bcd4; color: #fff; margin-right: auto; }
+.use-btn:hover { background: #26c6da; box-shadow: 0 0 10px #00bcd4; }
 
 /* --- 性相配色方案 --- */
 .aspect-edge { border-top: 2px solid #2a2a2a; } .aspect-edge .skill-header { background: linear-gradient(90deg, rgba(42, 42, 42, 0.15), transparent); } .aspect-edge .skill-aspect-tag { background: #4a4a4a; color: #fff; } .aspect-edge .skill-icon { color: #4a4a4a; filter: drop-shadow(0 0 4px rgba(74, 74, 74, 0.5)); }

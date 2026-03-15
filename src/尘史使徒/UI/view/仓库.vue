@@ -520,12 +520,11 @@ function confirmUseItem() {
   const itemToUse = {
     物品名称: item.name,
     使用数量: qty,
-    描述: item.raw.描述 || '无',
     作用: formatItemText(item.raw.作用, item) || '未知'
   };
 
   // The text to be sent to the main input
-  const logText = `<user>决定使用[${qty}]个'${item.name}'。\n<list>\n${JSON.stringify(itemToUse, null, 2)}\n</list>\n`;
+  const logText = `<user>决定使用${item.name}。\n<list>\n${JSON.stringify(itemToUse, null, 2)}\n</list>\n`;
 
   uiStore.setPendingInput(logText);
   router.push('/选项');

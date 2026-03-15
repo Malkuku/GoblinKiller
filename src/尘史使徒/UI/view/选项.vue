@@ -62,7 +62,6 @@ import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
 import { useQuestStore } from '@/尘史使徒/UI/store/QuestStore';
 import { useShopStore } from '@/尘史使徒/UI/store/ShopStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
-import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 
 // Import Composables
 import { useTavernInteraction } from '@/尘史使徒/UI/composables/panel/useTavernInteraction';
@@ -83,7 +82,6 @@ const messageStore = useMessageStore();
 const questStore = useQuestStore();
 const shopStore = useShopStore();
 const uiStore = useUiStore();
-const statStore = useStatStore();
 
 // --- Composables Initialization ---
 const {
@@ -171,10 +169,6 @@ onMounted(() => {
     const ops = parseOptions(messageStore.message);
     if (ops.length > 0) cachedOptions.value = ops;
   }
-
-  // 初始化 StatStore 监听
-  statStore.initData();
-  statStore.registerListener();
 
   // 恢复上次未发送的输入
   const pendingText = uiStore.consumePendingInput();
