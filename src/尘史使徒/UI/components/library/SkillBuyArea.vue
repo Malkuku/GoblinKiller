@@ -7,21 +7,31 @@
 
     <!-- 添加列表过渡动画 -->
     <TransitionGroup name="card-vanish" tag="div" class="card-grid" v-else>
-      <div v-for="(details, name) in displaySkills" :key="name" class="trade-card skill-card">
+      <div
+        v-for="(details, name) in displaySkills"
+        :key="name"
+        class="trade-card skill-card"
+        :class="{ 'upgrade-card': isUpgrade(name, details) }"
+      >
         <div class="card-inner">
           <div class="card-top">
             <span class="card-title">{{ name }}</span>
-            <span class="level-badge">Lv.{{ details.技能等级 }}</span>
+            <div class="badges">
+              <span v-if="isUpgrade(name, details)" class="upgrade-badge">晋升</span>
+              <span class="level-badge">Lv.{{ details.技能等级 }}</span>
+            </div>
           </div>
 
           <div class="card-mid">
             <div class="tags">
               <span class="tag aspect">{{ details.性相 }}</span>
-              <span class="tag cost">消耗: {{ details.消耗 }}</span>
+              <!-- 使用 formatSkillText 处理消耗 -->
+              <span class="tag cost">消耗: {{ formatSkillText(details.消耗, details) }}</span>
             </div>
             <p class="desc">"{{ details.描述 }}"</p>
             <div class="divider"></div>
-            <p class="effect"><span class="label">效果:</span> {{ details.作用 }}</p>
+            <!-- 使用 formatSkillText 处理效果 -->
+            <p class="effect"><span class="label">效果:</span> {{ formatSkillText(details.作用, details) }}</p>
 
             <!-- 新增：定价理由展示区 -->
             <div class="reason-box" v-if="details.定价理由">
@@ -37,11 +47,12 @@
             <button v-if="pendingCart[name]" class="action-btn cancel-btn" @click="removeFromCart(name)">取消</button>
             <button
               v-else
-              class="action-btn buy-btn"
-              :disabled="hasSkill(name) || !canAddMore(details.价格 || 100)"
+              class="action-btn"
+              :class="isUpgrade(name, details) ? 'upgrade-btn' : 'buy-btn'"
+              :disabled="(isOwned(name) && !isUpgrade(name, details)) || !canAddMore(details.价格 || 100)"
               @click="addToCart(name, details)"
             >
-              {{ hasSkill(name) ? '已刻印' : '契约' }}
+              {{ getButtonText(name, details) }}
             </button>
           </div>
         </div>
@@ -97,9 +108,64 @@ const totalCartCost = computed(() => {
 
 const currentYizhi = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
 
-const hasSkill = skillName => {
+// 检查是否已拥有该技能 (无论等级)
+const isOwned = skillName => {
   const skills = statStore.stat_data?.角色?.user?.技能 || {};
   return !!skills[skillName];
+};
+
+// 检查是否为升级 (拥有且商店等级更高)
+const isUpgrade = (skillName, shopDetails) => {
+  const skills = statStore.stat_data?.角色?.user?.技能 || {};
+  const currentSkill = skills[skillName];
+  if (!currentSkill) return false;
+  return (shopDetails.技能等级 || 1) > (currentSkill.技能等级 || 1);
+};
+
+// 获取按钮文本
+const getButtonText = (name, details) => {
+  if (isUpgrade(name, details)) return '晋升';
+  if (isOwned(name)) return '已刻印';
+  return '契约';
+};
+
+// 格式化技能文本，替换占位符
+const formatSkillText = (text, currentSkill) => {
+  if (!text || typeof text !== 'string') return text || '无';
+
+  // 获取当前玩家数据
+  const stats = statStore.stat_data?.角色?.user || {};
+
+  return text.replace(/\$\{([^}]+)\}/g, (match, key) => {
+    // 1. 技能等级：使用商店预览的等级
+    if (key === '技能等级') return `技能等级[${currentSkill.技能等级 || 1}]`;
+
+    // 2. 基础数值
+    if (stats['基础数值'] && stats['基础数值'][key] !== undefined) {
+      return `${key}[${stats['基础数值'][key]}]`;
+    }
+
+    // 3. 术之等级
+    if (stats['术之等级'] && stats['术之等级'][key]) {
+      const artData = stats['术之等级'][key];
+      if (typeof artData === 'object' && artData['等级'] !== undefined) {
+        return `${key}[${artData['等级']}]`;
+      }
+      if (typeof artData === 'number') {
+        return `${key}[${artData}]`;
+      }
+    }
+
+    // 4. 生命状态
+    if (stats['生命状态'] && stats['生命状态'][key]) {
+      const status = stats['生命状态'][key];
+      if (typeof status === 'object' && status['当前'] !== undefined) {
+        return `${key}[${status['当前']}]`;
+      }
+    }
+
+    return match;
+  });
 };
 
 const canAddMore = price => {
@@ -107,7 +173,12 @@ const canAddMore = price => {
 };
 
 const addToCart = (name, details) => {
-  if (hasSkill(name)) { showToast('该技艺已铭刻于灵魂'); return; }
+  // 如果已拥有且不是升级，则禁止购买
+  if (isOwned(name) && !isUpgrade(name, details)) {
+    showToast('该技艺已铭刻于灵魂');
+    return;
+  }
+
   if (!canAddMore(details.价格 || 100)) { showToast('异质不足以支付代价'); return; }
   pendingCart.value[name] = { details };
 };
@@ -145,6 +216,7 @@ const confirmCheckout = async () => {
   const acquiredNames = [];
   for (const [skillName, cartItem] of Object.entries(pendingCart.value)) {
     acquiredNames.push(skillName);
+    // 直接覆盖旧技能数据，实现升级或新增
     diff.角色.user.技能[skillName] = {
       性相: cartItem.details.性相 || '无',
       技能等级: cartItem.details.技能等级 || 1,
@@ -191,6 +263,8 @@ const confirmCheckout = async () => {
     }
 
     // 4. UI 反馈与日志
+    const upgradeCount = acquiredNames.filter(n => isOwned(n)).length; // 这里的 isOwned 检查的是旧状态，可能不准，但逻辑上 acquiredNames 包含所有买的
+    // 由于数据更新是异步的，这里直接提示成功即可
     showToast(`成功习得 ${acquiredNames.length} 项禁忌知识`);
 
     // 立即在本地隐藏，触发消失动画
@@ -251,6 +325,7 @@ const confirmCheckout = async () => {
   border: 1px solid #333;
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 .skill-card::before {
   content: '';
@@ -263,6 +338,23 @@ const confirmCheckout = async () => {
   border-color: var(--c-gold-dim);
   transform: translateY(-2px);
   box-shadow: 0 8px 30px rgba(212, 175, 55, 0.1);
+}
+
+/* 升级卡片特殊样式 */
+.upgrade-card {
+  border-color: #7b1fa2; /* 紫色边框 */
+  box-shadow: 0 4px 20px rgba(123, 31, 162, 0.2);
+}
+.upgrade-card::before {
+  background: linear-gradient(90deg, transparent, #ab47bc, transparent);
+}
+.upgrade-card:hover {
+  border-color: #ab47bc;
+  box-shadow: 0 8px 30px rgba(171, 71, 188, 0.15);
+}
+.upgrade-card .card-title {
+  color: #e1bee7;
+  text-shadow: 0 0 5px rgba(171, 71, 188, 0.3);
 }
 
 .card-top {
@@ -280,6 +372,10 @@ const confirmCheckout = async () => {
   font-size: 1.1rem;
   text-shadow: 0 0 5px rgba(212, 175, 55, 0.3);
 }
+.badges {
+  display: flex;
+  gap: 5px;
+}
 .level-badge {
   font-size: 0.75rem;
   background: #2a2a2a;
@@ -287,6 +383,15 @@ const confirmCheckout = async () => {
   padding: 2px 6px;
   border-radius: 2px;
   border: 1px solid #444;
+}
+.upgrade-badge {
+  font-size: 0.75rem;
+  background: rgba(123, 31, 162, 0.2);
+  color: #e1bee7;
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid rgba(171, 71, 188, 0.4);
+  font-weight: bold;
 }
 
 .tags { display: flex; gap: 6px; margin-bottom: 10px; }
@@ -339,9 +444,8 @@ const confirmCheckout = async () => {
 
 .action-btn {
   padding: 6px 18px;
-  border: 1px solid var(--c-gold);
+  border: 1px solid;
   background: transparent;
-  color: var(--c-gold);
   font-family: 'Cinzel', serif;
   font-weight: bold;
   cursor: pointer;
@@ -349,16 +453,37 @@ const confirmCheckout = async () => {
   text-transform: uppercase;
   font-size: 0.8rem;
 }
-.action-btn:hover:not(:disabled) {
+.action-btn:disabled {
+  border-color: #444 !important;
+  color: #555 !important;
+  cursor: not-allowed;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* 购买按钮 */
+.buy-btn {
+  border-color: var(--c-gold);
+  color: var(--c-gold);
+}
+.buy-btn:hover:not(:disabled) {
   background: var(--c-gold);
   color: #000;
   box-shadow: 0 0 10px var(--c-gold-dim);
 }
-.action-btn:disabled {
-  border-color: #444;
-  color: #555;
-  cursor: not-allowed;
+
+/* 升级按钮 */
+.upgrade-btn {
+  border-color: #ce93d8;
+  color: #ce93d8;
 }
+.upgrade-btn:hover:not(:disabled) {
+  background: #ce93d8;
+  color: #000;
+  box-shadow: 0 0 10px rgba(206, 147, 216, 0.5);
+}
+
+/* 取消按钮 */
 .cancel-btn { border-color: #d32f2f; color: #ef5350; }
 .cancel-btn:hover { background: #d32f2f; color: #fff; }
 

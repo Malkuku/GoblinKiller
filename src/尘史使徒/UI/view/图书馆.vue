@@ -42,6 +42,20 @@
       />
 
       <ExpBuyArea v-show="currentMode === '经验兑换'" />
+
+      <!-- 聊天总结展示模块 -->
+      <div v-show="currentMode === '聊天总结'" class="scroll-area summary-view">
+        <div class="summary-card">
+          <div class="summary-header">
+            <h3>图书馆日志</h3>
+            <span class="summary-date">{{ new Date().toLocaleDateString() }}</span>
+          </div>
+          <div class="summary-content">
+            <div v-if="!summaryContent" class="empty-tip">暂无总结记录，请点击下方工具栏生成...</div>
+            <div v-else class="log-text">{{ summaryContent }}</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <InputArea
@@ -50,7 +64,8 @@
       @sendMessage="sendMessage"
       @toggleDeleteMode="toggleDeleteMode"
       @deleteSelected="deleteSelected"
-      @truncate="truncateChat"
+      @clearAll="clearChat"
+      @triggerSummary="handleTriggerSummary"
     />
   </div>
 </template>
@@ -79,7 +94,7 @@ const audioStore = useAudioStore();
 // 1. 初始化音频资源（将列表注入底层 API）
 audioStore.initAudioResources();
 
-const modes = ['对话', '物品出售', '技能购买', '秘传购买', '经验兑换'];
+const modes = ['对话', '物品出售', '技能购买', '秘传购买', '经验兑换', '聊天总结'];
 const currentMode = ref('对话');
 const isSending = ref(false);
 const isThinking = ref(false);
@@ -88,13 +103,18 @@ const isDeleteMode = ref(false);
 const selectedMessages = ref([]);
 const chatContents = ref([]);
 const welcomeContent = ref('');
+const summaryContent = ref('');
 const chatAreaRef = ref(null);
 const itemSells = ref({});
 const skillBuys = ref({});
 const secretBuys = ref({});
-const redDots = reactive({ '物品出售': false, '技能购买': false, '秘传购买': false });
-const lastRawRecords = { ItemSell: null, SkillBuy: null, SecretBuy: null };
+const redDots = reactive({ '物品出售': false, '技能购买': false, '秘传购买': false, '聊天总结': false });
+const lastRawRecords = { ItemSell: null, SkillBuy: null, SecretBuy: null, Summary: null };
 let pollingTimer = null;
+
+// 修复标签相关的状态
+const isFixingTags = ref(false);
+const lastFixTime = ref(0);
 
 const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥缈异质 || 0);
 
@@ -111,17 +131,27 @@ watch(() => statStore.stat_data?.['图书馆']?.['爱丽丝设定'], (newVal) =>
 }, { immediate: true });
 
 // 切换爱丽丝设定
-
 const handleAliceChange = async (newSetting) => {
   if (aliceSetting.value === newSetting) return; // 防止重复触发
+
+  const confirmSwitch = window.confirm(
+    "切换人设将清空当前的聊天记录和聊天总结。\n此操作不可撤销，如有需要请在继续前自行保存条目内容。\n\n是否继续？"
+  );
+  if (!confirmSwitch) {
+    return;
+  }
 
   aliceSetting.value = newSetting;
   chatContents.value = [];
   welcomeContent.value = '';
+  summaryContent.value = ''; // 立即清空前端显示的总结
+
   try {
+    // 同时清空聊天记录和聊天总结的 WI 条目
     await WorldInfoUtil.updateEntryContent('<图书馆>聊天记录', '');
+    await WorldInfoUtil.updateEntryContent('<图书馆>聊天总结', '');
     await MvuUtil.updateMvuDataByDiff({ "图书馆": { "爱丽丝设定": newSetting } });
-    showToast(`已切换为：${newSetting}，聊天记录已清空`);
+    showToast(`已切换为：${newSetting}，聊天记录与总结已清空`);
     await syncChatRecord();
   } catch (error) {
     console.error("切换设定失败:", error);
@@ -146,52 +176,26 @@ const toggleSelect = (id) => {
   else selectedMessages.value.splice(pos, 1);
 };
 
-// 手动截断聊天记录 (带 Alert 提示)
-const truncateChat = async () => {
+// 修改：清空聊天记录 (不再保留30条，直接清空)
+const clearChat = async () => {
+  const isConfirm = window.confirm("确定要清空所有聊天记录吗？\n（将仅保留开场白，此操作不可撤销）");
+  if (!isConfirm) return;
+
   try {
     const entryName = '<图书馆>聊天记录';
-    const rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
 
-    // 提取外层区块
-    const outerRegex = /<(content|user_say)>([\s\S]*?)<\/\1>/g;
-    const outerBlocks = [];
-    let match;
-    while ((match = outerRegex.exec(rawText)) !== null) {
-      outerBlocks.push({
-        tag: match[1],
-        innerRaw: match[2].trim(),
-        fullRaw: match[0]
-      });
-    }
-
-    const MAX_TURNS = 30;
-    if (outerBlocks.length <= MAX_TURNS) {
-      window.alert(`当前记录共 ${outerBlocks.length} 条，未超过 ${MAX_TURNS} 条，无需清理。`);
-      return;
-    }
-
-    // 弹出确认框防止误触
-    const isConfirm = window.confirm(`当前记录共 ${outerBlocks.length} 条，确定要清理旧记录吗？\n（清理后将仅保留最近 ${MAX_TURNS} 条）`);
-    if (!isConfirm) return;
-
-    // 执行截断：保留最后 MAX_TURNS 条
-    outerBlocks.splice(0, outerBlocks.length - MAX_TURNS);
-
-    // 重组内容
-    let newRaw = outerBlocks.map(b => b.fullRaw).join('\n');
-
-    // 保留开场白
-    const welcomeMatch = rawText.match(/<welcome>([\s\S]*?)<\/welcome>/);
-    if (welcomeMatch) {
-      newRaw += `\n${welcomeMatch[0]}`;
+    // 构造新的内容，仅保留开场白
+    let newRaw = '';
+    if (welcomeContent.value) {
+      newRaw = `<welcome>\n${welcomeContent.value}\n</welcome>`;
     }
 
     await WorldInfoUtil.updateEntryContent(entryName, newRaw);
-    window.alert(`清理成功！已保留最近 ${MAX_TURNS} 条记录。`);
+    showToast("记录已清空");
     await syncChatRecord(); // 刷新界面
   } catch (error) {
-    console.error("清理记录失败:", error);
-    window.alert("清理失败，请查看控制台报错。");
+    console.error("清空记录失败:", error);
+    showToast("清空失败");
   }
 };
 
@@ -269,22 +273,94 @@ const sendMessage = async (text) => {
   }
 };
 
+// 触发总结功能
+const handleTriggerSummary = async () => {
+  try {
+    // 触发全局事件
+    if (typeof eventEmit === 'function') {
+      eventEmit("总结图书馆聊天记录");
+      showToast("正在请求爱丽丝整理记录...");
+    } else {
+      console.warn("eventEmit function not found");
+    }
+    // 切换到总结页面
+    switchMode('聊天总结');
+    // 尝试立即读取一次
+    await fetchSummary();
+  } catch (e) {
+    console.error("触发总结失败", e);
+  }
+};
+
+// 读取总结内容
+const fetchSummary = async () => {
+  try {
+    const rawText = await WorldInfoUtil.getWorldBookContent(['<图书馆>聊天总结']);
+    const match = rawText.match(/<DiaryLog>([\s\S]*?)<\/DiaryLog>/);
+    const content = match ? match[1].trim() : '';
+
+    if (lastRawRecords.Summary !== null && lastRawRecords.Summary !== content) {
+      if (currentMode.value !== '聊天总结') redDots['聊天总结'] = true;
+    }
+    lastRawRecords.Summary = content;
+    summaryContent.value = content;
+  } catch (e) {
+    console.error("读取总结失败", e);
+  }
+};
+
 
 const syncChatRecord = async () => {
   if (isDeleteMode.value) return;
   try {
     const entryName = '<图书馆>聊天记录';
-    const rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
+    let rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
 
-    // 1. 提取外层区块 (保留原始结构)
+    // --- 智能修复标签逻辑 Start ---
+    const fixRegexClose = /<\/(对话|旁白|content|user_say)\s*(?!>)/g;
+    const fixRegexOpen = /<(对话|旁白|content|user_say)\s*(?!>)/g;
+
+    let fixedText = rawText;
+    let needsFix = false;
+
+    if (fixRegexClose.test(fixedText)) {
+      fixedText = fixedText.replace(fixRegexClose, '</$1>');
+      needsFix = true;
+    }
+    if (fixRegexOpen.test(fixedText)) {
+      fixedText = fixedText.replace(fixRegexOpen, '<$1>');
+      needsFix = true;
+    }
+
+    if (needsFix && fixedText !== rawText) {
+      const now = Date.now();
+      if (!isFixingTags.value && (now - lastFixTime.value > 2000)) {
+        isFixingTags.value = true;
+        console.log("检测到XML标签缺失，正在智能修复...");
+        try {
+          await WorldInfoUtil.updateEntryContent(entryName, fixedText);
+          rawText = fixedText;
+          lastFixTime.value = now;
+        } catch (e) {
+          console.error("智能修复标签写入失败:", e);
+        } finally {
+          isFixingTags.value = false;
+        }
+      } else {
+        rawText = fixedText;
+      }
+    }
+    // --- 智能修复标签逻辑 End ---
+
+    // 1. 提取外层区块
     const outerRegex = /<(content|user_say)>([\s\S]*?)<\/\1>/g;
     const outerBlocks = [];
     let match;
     while ((match = outerRegex.exec(rawText)) !== null) {
       outerBlocks.push({
-        tag: match[1],         // 'content' 或 'user_say'
-        innerRaw: match[2].trim(), // 标签内部的文本
-        fullRaw: match[0]      // 完整的标签字符串 (例如 <content>...</content>)
+        tag: match[1],
+        innerRaw: match[2].trim(),
+        fullRaw: match[0]
       });
     }
 
@@ -304,25 +380,21 @@ const syncChatRecord = async () => {
 
     let needsUpdate = false;
 
-    // 检查开场白是否需要更新
     if (outerBlocks.length === 0 && currentWelcome !== w1) { currentWelcome = w1; needsUpdate = true; }
     else if (outerBlocks.length > 0 && currentWelcome !== w2) { currentWelcome = w2; needsUpdate = true; }
 
-    // 4. 如果发生截断或开场白更新，按原格式写回 WorldInfo
     if (needsUpdate) {
-      // 直接使用 fullRaw 拼接，完美保留原始的 <对话> 和 <旁白> 嵌套结构
       let newRaw = outerBlocks.map(b => b.fullRaw).join('\n');
       if (currentWelcome) newRaw += `\n<welcome>\n${currentWelcome}\n</welcome>`;
       await WorldInfoUtil.updateEntryContent(entryName, newRaw);
     }
 
-    // 5. 将外层区块解析为 UI 需要的扁平消息数组
+    // 5. 解析消息
     const parsedMessages = [];
     for (const block of outerBlocks) {
       if (block.tag === 'user_say') {
         parsedMessages.push({ type: 'user', text: block.innerRaw });
       } else {
-        // 解析 <content> 内部的 <对话> 和 <旁白>
         const innerRegex = /<(对话|旁白)>([\s\S]*?)<\/\1>/g;
         let innerMatch;
         let hasInnerTags = false;
@@ -333,7 +405,6 @@ const syncChatRecord = async () => {
             text: innerMatch[2].trim()
           });
         }
-        // 兼容旧格式：如果没有内部标签，整体视为对话
         if (!hasInnerTags && block.innerRaw) {
           parsedMessages.push({ type: 'npc', text: block.innerRaw });
         }
@@ -380,7 +451,11 @@ const syncTransactionRecord = async () => {
   } catch (e) { console.error(e); }
 };
 
-const fetchAll = async () => { await syncChatRecord(); await syncTransactionRecord(); };
+const fetchAll = async () => {
+  await syncChatRecord();
+  await syncTransactionRecord();
+  await fetchSummary();
+};
 
 onMounted(async () => {
   if (typeof fetchAll === 'function') { await fetchAll(); pollingTimer = setInterval(fetchAll, 3000); }
@@ -393,12 +468,9 @@ const handleIntroComplete = () => {
 };
 
 const playLibraryBgm = () => {
-  // 直接从 Store 获取音频信息
   const track = audioStore.getTrack('libBgm');
   if (track && track.url) {
-    // 设置单曲循环
     setAudioSettings('bgm', { mode: 'repeat_one' });
-    // 直接调用 API 播放，底层会自动处理加载和缓冲
     playAudio('bgm', track);
   }
 };
@@ -407,13 +479,9 @@ const recordExitTime = async () => {
   try {
     const entryName = '<图书馆>聊天记录';
     let rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
-    // 删除旧标签（包括前导空白）
     rawText = rawText.replace(/\s*<上次访问时间>[\s\S]*?<\/上次访问时间>/g, '');
-
     const now = new Date().toLocaleString();
-    // 在最后插入
     rawText = rawText.trim() + `\n<上次访问时间>${now}</上次访问时间>`;
-
     await WorldInfoUtil.updateEntryContent(entryName, rawText);
   } catch (error) {
     console.error("记录退出时间失败:", error);
@@ -422,7 +490,6 @@ const recordExitTime = async () => {
 
 onUnmounted(() => {
   if (pollingTimer) clearInterval(pollingTimer);
-  // 3. 退出时暂停音乐
   pauseAudio('bgm');
   recordExitTime();
 });
@@ -490,4 +557,70 @@ onUnmounted(() => {
 .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 25px; max-width: 1200px; margin: 0 auto; padding-bottom: 80px; }
 .trade-card { border-radius: 4px; display: flex; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease; }
 .card-inner { padding: 20px; display: flex; flex-direction: column; height: 100%; }
+
+/* 总结页面样式 */
+.summary-view {
+  display: flex;
+  justify-content: center;
+}
+
+.summary-card {
+  width: 100%;
+  max-width: 800px;
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid var(--c-gold-dim);
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  padding: 30px;
+  margin-bottom: 40px;
+  position: relative;
+}
+
+.summary-card::before {
+  content: '';
+  position: absolute;
+  top: 5px; left: 5px; right: 5px; bottom: 5px;
+  border: 1px solid rgba(212, 175, 55, 0.1);
+  pointer-events: none;
+}
+
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--c-gold-dim);
+  padding-bottom: 15px;
+  margin-bottom: 20px;
+}
+
+.summary-header h3 {
+  margin: 0;
+  color: var(--c-gold);
+  font-family: 'Cinzel', serif;
+  font-size: 1.5rem;
+}
+
+.summary-date {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.summary-content {
+  min-height: 200px;
+}
+
+.log-text {
+  white-space: pre-wrap;
+  line-height: 1.8;
+  color: #ccc;
+  font-size: 1.05rem;
+  text-align: justify;
+}
+
+.empty-tip {
+  color: #555;
+  text-align: center;
+  margin-top: 50px;
+  font-style: italic;
+}
 </style>

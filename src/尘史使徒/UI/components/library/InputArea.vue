@@ -16,34 +16,38 @@
     <div class="input-wrapper">
       <!-- 工具栏 -->
       <div class="toolbar">
-        <button
-          class="tool-btn"
-          :class="{ active: isDeleteMode }"
-          @click="$emit('toggleDeleteMode')"
-          title="批量删除"
-        >
-          <!-- 垃圾桶 SVG -->
-          <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6"></polyline>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-          </svg>
-        </button>
+        <!-- 整合后的工具按钮 -->
+        <div class="tools-container">
+          <button
+            class="tool-btn"
+            :class="{ active: showMenu }"
+            @click="showMenu = !showMenu"
+            title="工具箱"
+          >
+            <!-- 齿轮/设置 SVG -->
+            <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
 
-        <!-- 手动截断按钮 -->
-        <button
-          class="tool-btn"
-          @click="$emit('truncate')"
-          title="清理旧记录(保留最近30条)"
-        >
-          <!-- 扫帚 SVG -->
-          <svg class="svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14.5 17.5L3 6V3h3l11.5 11.5"></path>
-            <path d="M13 19l6-6"></path>
-            <path d="M16 16l4 4"></path>
-            <path d="M19 21l2-2"></path>
-          </svg>
-        </button>
+          <!-- 弹出菜单 -->
+          <Transition name="fade">
+            <div v-if="showMenu" class="tools-menu">
+              <div class="menu-item" @click="handleMenuAction('triggerSummary')">
+                总结记录
+              </div>
+              <div class="menu-item" @click="handleMenuAction('clearAll')">
+                清空记录
+              </div>
+              <div class="menu-item" @click="handleMenuAction('toggleDeleteMode')">
+                {{ isDeleteMode ? '退出删除模式' : '批量删除' }}
+              </div>
+            </div>
+          </Transition>
+        </div>
 
+        <!-- 确认删除按钮 (仅在删除模式下显示在外面) -->
         <Transition name="scale">
           <button
             v-if="isDeleteMode"
@@ -98,10 +102,11 @@ const props = defineProps({
   isDeleteMode: Boolean,
   selectedCount: { type: Number, default: 0 }
 });
-const emit = defineEmits(['sendMessage', 'toggleDeleteMode', 'deleteSelected', 'truncate']);
+const emit = defineEmits(['sendMessage', 'toggleDeleteMode', 'deleteSelected', 'clearAll', 'triggerSummary']);
 
 const inputText = ref('');
 const isTavernBusy = ref(false);
+const showMenu = ref(false); // 控制菜单显示
 let sendButtonObserver = null;
 let pollingInterval = null;
 
@@ -111,6 +116,11 @@ const quickReplies = [
   "希望购买适合的技能",
   "希望购买适合的秘传"
 ];
+
+const handleMenuAction = (action) => {
+  emit(action);
+  showMenu.value = false;
+};
 
 // --- 监听酒馆状态逻辑 ---
 const checkTavernBusy = (btn) => {
@@ -163,12 +173,22 @@ const setupTavernObserver = () => {
 
 onMounted(() => {
   setupTavernObserver();
+  // 点击外部关闭菜单的简单实现
+  document.addEventListener('click', closeMenuOnClickOutside);
 });
 
 onUnmounted(() => {
   if (sendButtonObserver) sendButtonObserver.disconnect();
   if (pollingInterval) clearInterval(pollingInterval);
+  document.removeEventListener('click', closeMenuOnClickOutside);
 });
+
+const closeMenuOnClickOutside = (e) => {
+  const container = document.querySelector('.tools-container');
+  if (showMenu.value && container && !container.contains(e.target)) {
+    showMenu.value = false;
+  }
+};
 
 // --- 发送与停止逻辑 ---
 
@@ -233,7 +253,12 @@ const handleSendOrStop = (e) => {
 
 .input-wrapper { display: flex; gap: 10px; align-items: flex-end; }
 
-.toolbar { display: flex; gap: 5px; }
+.toolbar { display: flex; gap: 5px; align-items: flex-end; }
+
+.tools-container {
+  position: relative;
+}
+
 .tool-btn {
   width: 40px; height: 40px; background: #1a1a1a; border: 1px solid #333;
   color: #666; cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -243,6 +268,39 @@ const handleSendOrStop = (e) => {
 .tool-btn.active { border-color: var(--c-gold); color: var(--c-gold); background: rgba(212, 175, 55, 0.1); }
 .tool-btn.danger { border-color: #e57373; color: #e57373; }
 .tool-btn.danger:hover { background: rgba(229, 115, 115, 0.1); }
+
+/* 弹出菜单样式 */
+.tools-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 8px;
+  background: #1a1a1a;
+  border: 1px solid var(--c-gold-dim);
+  border-radius: 4px;
+  width: 140px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+  overflow: hidden;
+  z-index: 100;
+}
+
+.menu-item {
+  padding: 10px 15px;
+  color: #ccc;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  border-bottom: 1px solid #222;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:hover {
+  background: rgba(212, 175, 55, 0.1);
+  color: var(--c-gold);
+}
 
 .magic-input {
   flex: 1; background: #050505; border: 1px solid #333;
@@ -298,4 +356,7 @@ const handleSendOrStop = (e) => {
 
 .scale-enter-active, .scale-leave-active { transition: all 0.2s; }
 .scale-enter-from, .scale-leave-to { transform: scale(0); opacity: 0; }
+
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
