@@ -5,7 +5,7 @@
       <div class="character-selector">
         <span class="selector-label">⟡ 灌注目标</span>
         <select v-model="selectedCharacter">
-          <option value="user">User</option>
+          <option value="user">自己</option>
           <option v-for="name in mainCharacterNames" :key="name" :value="name">
             {{ name }}
           </option>
