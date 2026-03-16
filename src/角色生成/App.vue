@@ -236,11 +236,11 @@ const handleMvuUpdate = (e) => {
 
 onMounted(() => {
   fetchGlobalData();
-  window.addEventListener('mag_variable_update_ended', handleMvuUpdate);
+  addEventListener('mag_variable_update_ended', handleMvuUpdate);
 });
 
 onUnmounted(() => {
-  window.removeEventListener('mag_variable_update_ended', handleMvuUpdate);
+  removeEventListener('mag_variable_update_ended', handleMvuUpdate);
 });
 
 // 4. 计算属性
