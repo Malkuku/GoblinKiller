@@ -112,15 +112,13 @@ export function useEventLogger() {
         continue;
       }
 
-      // 经验变化
       if (oldArt.经验 !== newArt.经验) {
         const diff = newArt.经验 - oldArt.经验;
-        if (diff > 0) {
-          addLogMessage(`[ID:${msgId}] ${nameHtml} 【${artKey}】经验 +${diff}`);
-        }
+        const diffString = diff >= 0 ? `+${diff}` : `${diff}`;
+        addLogMessage(`[ID:${msgId}] ${nameHtml} 【${artKey}】经验: ${oldArt.经验} → ${newArt.经验} (${diffString})`);
       }
 
-      // 等级变化
+      // 等级变化 (UNCHANGED - already logs level changes)
       if (oldArt.等级 !== newArt.等级) {
         addLogMessage(`[ID:${msgId}] ${nameHtml} 【${artKey}】等级提升! Lv.${oldArt.等级} → Lv.${newArt.等级}`);
       }
