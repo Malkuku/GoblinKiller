@@ -7,6 +7,7 @@ import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
 import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
 import { useAudioStore } from '@/尘史使徒/UI/store/AudioStore';
+import { useStatWatcher } from '@/尘史使徒/UI/composables/panel/useStatWatcher';
 
 let vueApp: VueApp | null = null;
 let mountPoint: JQuery<HTMLDivElement> | null = null;
@@ -79,5 +80,6 @@ $(() => {
   useStatStore().initData()
   useMessageStore().getMessage();
   useAudioStore().initAudioResources();
+  useStatWatcher();
 });
 
