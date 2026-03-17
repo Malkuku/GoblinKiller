@@ -43,16 +43,67 @@
 
       <ExpBuyArea v-show="currentMode === '经验兑换'" />
 
-      <!-- 聊天总结展示模块 -->
-      <div v-show="currentMode === '聊天总结'" class="scroll-area summary-view">
-        <div class="summary-card">
-          <div class="summary-header">
-            <h3>图书馆日志</h3>
-            <span class="summary-date">{{ new Date().toLocaleDateString() }}</span>
+      <!-- [REFACTORED] 聊天总结展示模块 -->
+      <div v-show="currentMode === '聊天总结'" class="scroll-area log-view">
+        <div class="log-container">
+          <!-- Header -->
+          <div class="log-header">
+            <h3 class="log-title">图书馆日志</h3>
+            <div class="log-tools">
+              <button @click="toggleLogDeleteMode" class="tool-button" :class="{active: isLogDeleteMode}">
+                {{ isLogDeleteMode ? '完成' : '批量管理' }}
+              </button>
+              <button v-if="isLogDeleteMode && selectedLogIds.length > 0" @click="deleteSelectedLogs" class="tool-button danger">
+                删除选中 ({{ selectedLogIds.length }})
+              </button>
+            </div>
           </div>
-          <div class="summary-content">
-            <div v-if="!summaryContent" class="empty-tip">暂无总结记录，请点击下方工具栏生成...</div>
-            <div v-else class="log-text">{{ summaryContent }}</div>
+
+          <!-- Content -->
+          <div class="log-content">
+            <div v-if="diaryLogs.length === 0" class="log-empty-state">
+              <p>暂无日志记录</p>
+              <span>请在对话页面点击下方工具栏生成总结</span>
+            </div>
+            <div v-else class="log-timeline">
+              <div
+                v-for="log in diaryLogs"
+                :key="log.id"
+                class="log-item"
+                :class="{
+                  expanded: log.expanded,
+                  'selection-mode': isLogDeleteMode,
+                  'selected-for-deletion': isLogDeleteMode && selectedLogIds.includes(log.id)
+                }"
+              >
+                <div class="log-item__header" @click="!isLogDeleteMode && toggleLogExpansion(log.id)">
+                  <div class="log-item__selection">
+                    <label class="delete-checkbox-wrapper" @click.stop>
+                      <input
+                        v-if="isLogDeleteMode"
+                        type="checkbox"
+                        :value="log.id"
+                        v-model="selectedLogIds"
+                        class="delete-checkbox"
+                      />
+                      <div v-else class="timeline-marker"></div>
+                    </label>
+                  </div>
+                  <div class="log-item__meta">
+                    <span class="log-time">{{ log.time }}</span>
+                    <span class="log-preview">{{ log.preview }}</span>
+                  </div>
+                  <div class="log-item__toggle">
+                    <svg class="expand-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+                  </div>
+                </div>
+                <div class="log-item__body-wrapper">
+                  <div v-if="log.expanded" class="log-item__body">
+                    <div class="log-text">{{ log.content }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -94,7 +145,7 @@ const audioStore = useAudioStore();
 // 1. 初始化音频资源（将列表注入底层 API）
 audioStore.initAudioResources();
 
-const modes = ['对话', '物品出售', '技能购买', '秘传购买', '经验兑换', '聊天总结'];
+const modes = ['聊天总结','对话', '物品出售', '技能购买', '秘传购买', '经验兑换'];
 const currentMode = ref('对话');
 const isSending = ref(false);
 const isThinking = ref(false);
@@ -103,7 +154,6 @@ const isDeleteMode = ref(false);
 const selectedMessages = ref([]);
 const chatContents = ref([]);
 const welcomeContent = ref('');
-const summaryContent = ref('');
 const chatAreaRef = ref(null);
 const itemSells = ref({});
 const skillBuys = ref({});
@@ -111,6 +161,12 @@ const secretBuys = ref({});
 const redDots = reactive({ '物品出售': false, '技能购买': false, '秘传购买': false, '聊天总结': false });
 const lastRawRecords = { ItemSell: null, SkillBuy: null, SecretBuy: null, Summary: null };
 let pollingTimer = null;
+
+// --- 日志总结相关状态 ---
+const diaryLogs = ref([]); // { id, time, content, preview, expanded, fullBlock }
+const isLogDeleteMode = ref(false);
+const selectedLogIds = ref([]);
+// ---
 
 // 修复标签相关的状态
 const isFixingTags = ref(false);
@@ -144,7 +200,7 @@ const handleAliceChange = async (newSetting) => {
   aliceSetting.value = newSetting;
   chatContents.value = [];
   welcomeContent.value = '';
-  summaryContent.value = ''; // 立即清空前端显示的总结
+  diaryLogs.value = []; // 清空前端显示的总结
 
   try {
     // 同时清空聊天记录和聊天总结的 WI 条目
@@ -292,20 +348,98 @@ const handleTriggerSummary = async () => {
   }
 };
 
-// 读取总结内容
+// --- 读取并解析总结内容 ---
 const fetchSummary = async () => {
   try {
     const rawText = await WorldInfoUtil.getWorldBookContent(['<图书馆>聊天总结']);
-    const match = rawText.match(/<DiaryLog>([\s\S]*?)<\/DiaryLog>/);
-    const content = match ? match[1].trim() : '';
 
-    if (lastRawRecords.Summary !== null && lastRawRecords.Summary !== content) {
-      if (currentMode.value !== '聊天总结') redDots['聊天总结'] = true;
+    // 检查内容是否有变化，无变化则跳过解析
+    if (lastRawRecords.Summary === rawText) {
+      return;
     }
-    lastRawRecords.Summary = content;
-    summaryContent.value = content;
+
+    if (lastRawRecords.Summary !== null && currentMode.value !== '聊天总结') {
+      redDots['聊天总结'] = true;
+    }
+    lastRawRecords.Summary = rawText;
+
+    const parsedLogs = [];
+    const diaryRegex = /<DiaryLog>([\s\S]*?)<\/DiaryLog>/g;
+    let match;
+    let idCounter = 0;
+
+    while ((match = diaryRegex.exec(rawText)) !== null) {
+      const fullBlock = match[0];
+      const innerContent = match[1].trim();
+      const timeMatch = innerContent.match(/<time>(.*?)<\/time>/);
+      const time = timeMatch ? timeMatch[1] : '未知时间';
+
+      // 移除time标签，剩下的作为正文
+      const content = innerContent.replace(/<time>.*?<\/time>\s*/, '').trim();
+      const preview = content.substring(0, 40) + (content.length > 40 ? '...' : '');
+
+      // 查找旧日志以保留展开状态
+      const oldLog = diaryLogs.value.find(l => l.fullBlock === fullBlock);
+
+      parsedLogs.push({
+        id: idCounter++,
+        time,
+        content,
+        preview,
+        expanded: oldLog ? oldLog.expanded : false, // 保留旧的展开状态
+        fullBlock, // 保存原始的完整XML块，便于删除和比对
+      });
+    }
+
+    diaryLogs.value = parsedLogs.reverse(); // 让最新的日志显示在最上面
+
   } catch (e) {
     console.error("读取总结失败", e);
+  }
+};
+
+// --- 日志条目展开/折叠逻辑 ---
+const toggleLogExpansion = (logId) => {
+  diaryLogs.value.forEach(log => {
+    if (log.id === logId) {
+      log.expanded = !log.expanded;
+    } else {
+      log.expanded = false; // 关闭其他所有条目
+    }
+  });
+};
+
+// --- 日志批量删除相关逻辑 ---
+const toggleLogDeleteMode = () => {
+  isLogDeleteMode.value = !isLogDeleteMode.value;
+  if (!isLogDeleteMode.value) {
+    selectedLogIds.value = []; // 退出删除模式时清空选项
+  }
+};
+
+const deleteSelectedLogs = async () => {
+  if (selectedLogIds.value.length === 0) return;
+
+  const isConfirm = window.confirm(`确定要永久删除这 ${selectedLogIds.value.length} 条日志吗？\n此操作不可撤销。`);
+  if (!isConfirm) return;
+
+  try {
+    // 过滤出需要保留的日志
+    const logsToKeep = diaryLogs.value.filter(log => !selectedLogIds.value.includes(log.id));
+    // 从保留的日志中重构WI内容 (注意，我们之前反转了数组，这里要反转回来再保存)
+    const newRawContent = logsToKeep.reverse().map(log => log.fullBlock).join('\n\n');
+
+    await WorldInfoUtil.updateEntryContent('<图书馆>聊天总结', newRawContent);
+    showToast("选中的日志已删除");
+
+    // 重置状态并刷新
+    selectedLogIds.value = [];
+    isLogDeleteMode.value = false;
+    await fetchSummary(); // 重新获取数据刷新界面
+
+  } catch (error) {
+    console.error("删除日志失败:", error);
+    showToast("删除日志失败");
   }
 };
 
@@ -459,6 +593,7 @@ const fetchAll = async () => {
 
 onMounted(async () => {
   if (typeof fetchAll === 'function') { await fetchAll(); pollingTimer = setInterval(fetchAll, 3000); }
+  if (chatAreaRef.value) chatAreaRef.value.scrollToBottom();
 });
 
 // 2. 播放背景音乐逻辑极度简化
@@ -509,6 +644,8 @@ onUnmounted(() => {
   --c-text: #e0e0e0;
   --c-accent: #81d4fa;
   --c-danger: #e57373;
+  --c-danger-dim: rgba(229, 115, 115, 0.3);
+  --c-danger-hover: rgba(229, 115, 115, 0.5);
 
   position: relative;
   display: flex;
@@ -524,7 +661,6 @@ onUnmounted(() => {
   flex: 1;
   position: relative;
   overflow: hidden;
-  /* 添加微弱的噪点或纹理背景 */
   background-image: radial-gradient(circle at 50% 50%, #1a1a1a 0%, #000 100%);
 }
 
@@ -558,69 +694,245 @@ onUnmounted(() => {
 .trade-card { border-radius: 4px; display: flex; flex-direction: column; transition: transform 0.3s ease, box-shadow 0.3s ease; }
 .card-inner { padding: 20px; display: flex; flex-direction: column; height: 100%; }
 
-/* 总结页面样式 */
-.summary-view {
+/* --- [REFACTORED] 日志总结页面样式 --- */
+.log-view {
   display: flex;
   justify-content: center;
+  padding: 20px 10px;
 }
 
-.summary-card {
+.log-container {
   width: 100%;
-  max-width: 800px;
-  background: rgba(20, 20, 20, 0.95);
+  max-width: 900px;
+  background: rgba(12, 12, 12, 0.8);
   border: 1px solid var(--c-gold-dim);
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
-  border-radius: 4px;
-  padding: 30px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+  border-radius: 6px;
   margin-bottom: 40px;
-  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
-.summary-card::before {
-  content: '';
-  position: absolute;
-  top: 5px; left: 5px; right: 5px; bottom: 5px;
-  border: 1px solid rgba(212, 175, 55, 0.1);
-  pointer-events: none;
-}
-
-.summary-header {
+.log-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   border-bottom: 1px solid var(--c-gold-dim);
-  padding-bottom: 15px;
-  margin-bottom: 20px;
+  padding: 15px 25px;
+  flex-shrink: 0;
 }
 
-.summary-header h3 {
+.log-title {
   margin: 0;
   color: var(--c-gold);
   font-family: 'Cinzel', serif;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
 }
 
-.summary-date {
-  color: #666;
+.log-tools {
+  display: flex;
+  gap: 10px;
+}
+
+.tool-button {
+  background: transparent;
+  border: 1px solid #555;
+  color: #aaa;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+}
+.tool-button:hover {
+  background: #333;
+  color: var(--c-gold-light);
+  border-color: var(--c-gold-dim);
+}
+.tool-button.active {
+  background: var(--c-gold-dim);
+  color: var(--c-gold-light);
+  border-color: var(--c-gold);
+}
+.tool-button.danger {
+  border-color: var(--c-danger-dim);
+  color: var(--c-danger);
+}
+.tool-button.danger:hover {
+  background: var(--c-danger-hover);
+  border-color: var(--c-danger);
+  color: white;
+}
+
+.log-content {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 20px 10px 20px 25px;
+}
+
+.log-timeline {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* 时间轴的竖线 */
+.log-timeline::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 10px;
+  bottom: 10px;
+  width: 2px;
+  background-image: linear-gradient(to bottom, transparent, var(--c-gold-dim) 10%, var(--c-gold-dim) 90%, transparent);
+}
+
+.log-item {
+  transition: background-color 0.3s ease;
+  border-radius: 4px;
+}
+.log-item.selected-for-deletion {
+  background-color: var(--c-danger-dim);
+}
+
+.log-item__header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-radius: 3px;
+  transition: background-color 0.2s ease;
+}
+.log-item:not(.selection-mode) .log-item__header {
+  cursor: pointer;
+}
+.log-item:not(.selection-mode) .log-item__header:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+.log-item__selection {
+  flex-shrink: 0;
+  width: 42px; /* (20px left) + 2px line + 20px right */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 24px;
+}
+
+.delete-checkbox-wrapper {
+  display: flex;
+  cursor: pointer;
+}
+
+.delete-checkbox {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  accent-color: var(--c-gold);
+}
+
+.timeline-marker {
+  width: 10px;
+  height: 10px;
+  background-color: #444;
+  border: 2px solid #222;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+.log-item.expanded .timeline-marker,
+.log-item:hover .timeline-marker {
+  background-color: var(--c-gold);
+  border-color: var(--c-gold-dim);
+  transform: scale(1.2);
+}
+
+.log-item__meta {
+  flex-grow: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 15px;
+  overflow: hidden;
+}
+
+.log-time {
+  font-weight: bold;
+  color: var(--c-accent);
+  flex-shrink: 0;
   font-size: 0.9rem;
 }
 
-.summary-content {
-  min-height: 200px;
+.log-preview {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #888;
+  font-size: 0.95rem;
+  transition: color 0.3s ease;
+}
+.log-item:hover .log-preview {
+  color: #bbb;
+}
+
+.log-item__toggle {
+  flex-shrink: 0;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+}
+
+.expand-icon {
+  width: 24px;
+  height: 24px;
+  fill: #666;
+  transition: transform 0.3s ease, fill 0.3s ease;
+}
+.log-item.expanded .expand-icon {
+  transform: rotate(180deg);
+  fill: var(--c-gold);
+}
+.log-item:not(.selection-mode):hover .expand-icon {
+  fill: #aaa;
+}
+
+.log-item__body-wrapper {
+  overflow: hidden;
+  transition: max-height 0.5s cubic-bezier(0.25, 0.8, 0.25, 1);
+  max-height: 0;
+}
+.log-item.expanded .log-item__body-wrapper {
+  max-height: 1000px; /* 足够大的值 */
+}
+
+.log-item__body {
+  padding: 5px 20px 20px 52px;
 }
 
 .log-text {
   white-space: pre-wrap;
   line-height: 1.8;
-  color: #ccc;
-  font-size: 1.05rem;
+  color: #ddd;
+  font-size: 1rem;
   text-align: justify;
+  background: rgba(0,0,0,0.2);
+  border-left: 3px solid var(--c-gold-dim);
+  padding: 15px 20px;
+  border-radius: 0 4px 4px 0;
 }
 
-.empty-tip {
-  color: #555;
+.log-empty-state {
+  color: #666;
   text-align: center;
-  margin-top: 50px;
+  padding: 80px 20px;
   font-style: italic;
+}
+.log-empty-state p {
+  font-size: 1.2rem;
+  margin: 0 0 10px;
+  color: #888;
+}
+.log-empty-state span {
+  font-size: 0.9rem;
 }
 </style>
