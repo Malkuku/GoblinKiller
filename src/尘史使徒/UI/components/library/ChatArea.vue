@@ -2,77 +2,74 @@
   <div class="scroll-area chat-area" ref="chatAreaRef">
     <TransitionGroup name="list" tag="div" class="message-list">
 
-      <!-- 欢迎语 (支持对话与旁白分离) -->
-      <template v-if="parsedWelcome.length > 0">
-        <div v-for="(wMsg, index) in parsedWelcome" :key="'welcome_' + index" class="message-wrapper">
+      <!-- 【修改】统一循环处理所有消息和消息组 -->
+      <template v-for="item in messageGroups" :key="item.id">
 
-          <!-- 欢迎语中的旁白 -->
-          <div v-if="wMsg.type === 'aside'" class="message-row aside-row">
+        <!-- 渲染欢迎语组 -->
+        <div v-if="item.type === 'welcome-group'" class="welcome-container">
+          <div v-for="msg in item.messages" :key="msg.id" class="message-wrapper">
+            <!-- 欢迎语中的旁白 -->
+            <div v-if="msg.type === 'aside'" class="message-row aside-row">
+              <div class="aside-bubble">
+                <span class="aside-deco">——</span>
+                {{ msg.text }}
+                <span class="aside-deco">——</span>
+              </div>
+            </div>
+            <!-- 欢迎语中的对话 -->
+            <div v-else class="message-row npc-row">
+              <div class="avatar-frame npc-frame" :class="{ 'is-loaded': isAvatarLoaded }">
+                <img class="avatar" :src="avatarUrl" alt="Alice" />
+              </div>
+              <div class="bubble npc-bubble welcome-bubble">
+                <div class="bubble-content">{{ msg.text }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 渲染单条普通聊天记录 -->
+        <div
+          v-else
+          class="message-wrapper"
+          :class="{ 'is-selectable': isDeleteMode, 'is-selected': selectedMessages.includes(item.message.id) }"
+          @click="isDeleteMode && $emit('toggleSelect', item.message.id)"
+        >
+          <!-- 删除模式下的复选框 -->
+          <div v-if="isDeleteMode" class="checkbox-indicator">
+            <span v-if="selectedMessages.includes(item.message.id)">✦</span>
+          </div>
+
+          <!-- 旁白 (Aside) -->
+          <div v-if="item.message.type === 'aside'" class="message-row aside-row">
             <div class="aside-bubble">
               <span class="aside-deco">——</span>
-              {{ wMsg.text }}
+              {{ item.message.text }}
               <span class="aside-deco">——</span>
             </div>
           </div>
 
-          <!-- 欢迎语中的对话 -->
-          <div v-else class="message-row npc-row">
-            <div class="avatar-frame npc-frame" :class="{ 'is-loaded': isAvatarLoaded }">
+          <!-- 对话 (User 或 NPC) -->
+          <div v-else :class="['message-row', item.message.type === 'user' ? 'user-row' : 'npc-row']">
+            <!-- NPC 头像 -->
+            <div v-if="item.message.type === 'npc'" class="avatar-frame npc-frame" :class="{ 'is-loaded': isAvatarLoaded }">
               <img class="avatar" :src="avatarUrl" alt="Alice" />
             </div>
-            <div class="bubble npc-bubble welcome-bubble">
-              <div class="bubble-content">{{ wMsg.text }}</div>
+            <!-- 气泡内容 -->
+            <div :class="['bubble', item.message.type === 'user' ? 'user-bubble' : 'npc-bubble']">
+              <div class="bubble-content">{{ item.message.text }}</div>
+            </div>
+            <!-- User 头像 -->
+            <div v-if="item.message.type === 'user'" class="avatar-frame user-frame">
+              <svg class="user-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
+                <line x1="16" y1="8" x2="2" y2="22" />
+                <line x1="17.5" y1="15" x2="9" y2="15" />
+              </svg>
             </div>
           </div>
-
         </div>
       </template>
-
-      <!-- 聊天记录循环 -->
-      <div
-        v-for="msg in chatContents"
-        :key="msg.id"
-        class="message-wrapper"
-        :class="{ 'is-selectable': isDeleteMode, 'is-selected': selectedMessages.includes(msg.id) }"
-        @click="isDeleteMode && $emit('toggleSelect', msg.id)"
-      >
-        <!-- 删除模式下的复选框 -->
-        <div v-if="isDeleteMode" class="checkbox-indicator">
-          <span v-if="selectedMessages.includes(msg.id)">✦</span>
-        </div>
-
-        <!-- 旁白 (Aside) - 独立显示，无头像 -->
-        <div v-if="msg.type === 'aside'" class="message-row aside-row">
-          <div class="aside-bubble">
-            <span class="aside-deco">——</span>
-            {{ msg.text }}
-            <span class="aside-deco">——</span>
-          </div>
-        </div>
-
-        <!-- 对话 (User 或 NPC) - 带头像 -->
-        <div v-else :class="['message-row', msg.type === 'user' ? 'user-row' : 'npc-row']">
-
-          <!-- NPC 头像 -->
-          <div v-if="msg.type === 'npc'" class="avatar-frame npc-frame" :class="{ 'is-loaded': isAvatarLoaded }">
-            <img class="avatar" :src="avatarUrl" alt="Alice" />
-          </div>
-
-          <!-- 气泡内容 -->
-          <div :class="['bubble', msg.type === 'user' ? 'user-bubble' : 'npc-bubble']">
-            <div class="bubble-content">{{ msg.text }}</div>
-          </div>
-
-          <!-- User 头像 (右侧) -->
-          <div v-if="msg.type === 'user'" class="avatar-frame user-frame">
-            <svg class="user-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
-              <line x1="16" y1="8" x2="2" y2="22" />
-              <line x1="17.5" y1="15" x2="9" y2="15" />
-            </svg>
-          </div>
-        </div>
-      </div>
 
       <!-- 思考状态 -->
       <div v-if="isThinking" key="thinking" class="message-wrapper">
@@ -94,7 +91,6 @@ import { ref, nextTick, computed, watch } from 'vue';
 
 const props = defineProps({
   chatContents: Array,
-  welcomeContent: String,
   isThinking: Boolean,
   isDeleteMode: Boolean,
   selectedMessages: { type: Array, default: () => [] },
@@ -114,30 +110,44 @@ watch(() => avatarUrl.value, (newUrl) => {
   img.src = newUrl;
 }, { immediate: true });
 
-// 解析 WelcomeContent，分离对话和旁白
-const parsedWelcome = computed(() => {
-  if (!props.welcomeContent) return [];
+// 【删除】不再需要单独分离出欢迎语
+// const welcomeGroup = computed(() => { ... });
 
-  const innerRegex = /<(对话|旁白)>([\s\S]*?)<\/\1>/g;
-  let innerMatch;
-  const result = [];
-  let hasInnerTags = false;
+// 【删除】不再需要单独分离出聊天记录
+// const chatOnlyMessages = computed(() => { ... });
 
-  while ((innerMatch = innerRegex.exec(props.welcomeContent)) !== null) {
-    hasInnerTags = true;
-    result.push({
-      type: innerMatch[1] === '对话' ? 'npc' : 'aside',
-      text: innerMatch[2].trim()
-    });
-  }
+// 【新增】计算属性，用于将连续的欢迎语组合并处理所有消息
+const messageGroups = computed(() => {
+  const groups = [];
+  let currentWelcomeGroup = null;
 
-  // 兼容旧格式：如果没有标签，整体视为对话
-  if (!hasInnerTags && props.welcomeContent) {
-    result.push({ type: 'npc', text: props.welcomeContent });
-  }
+  props.chatContents.forEach((msg, index) => {
+    if (msg.isWelcome) {
+      // 如果是欢迎消息，则开始或继续一个欢迎语组
+      if (!currentWelcomeGroup) {
+        currentWelcomeGroup = {
+          id: `welcome-group-${index}`, // 使用索引确保key的唯一性
+          type: 'welcome-group',
+          messages: []
+        };
+        groups.push(currentWelcomeGroup);
+      }
+      currentWelcomeGroup.messages.push(msg);
+    } else {
+      // 如果是普通消息，则中断当前的欢迎语组
+      currentWelcomeGroup = null;
+      // 将普通消息包装后推入
+      groups.push({
+        id: msg.id,
+        type: 'chat-message',
+        message: msg
+      });
+    }
+  });
 
-  return result;
+  return groups;
 });
+
 
 const scrollToBottom = async () => {
   await nextTick();
@@ -149,6 +159,26 @@ defineExpose({ scrollToBottom });
 </script>
 
 <style scoped>
+/* 【新增】欢迎语容器样式 */
+.welcome-container {
+  border: 1px dashed var(--c-gold-dim);
+  border-radius: 8px;
+  padding: 15px;
+  background: rgba(20, 20, 20, 0.2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* 欢迎语容器内的 message-wrapper 样式微调 */
+/* 注意：这里的.message-wrapper现在是欢迎语组内部的子项 */
+.welcome-container .message-wrapper {
+  padding: 0;
+  border: none;
+  background: none !important;
+  cursor: default;
+}
+
 /* 样式保持与上一次提供的一致，无需更改 */
 .chat-area { padding: 20px; }
 .message-list { display: flex; flex-direction: column; gap: 16px; max-width: 900px; margin: 0 auto; padding-bottom: 20px; }

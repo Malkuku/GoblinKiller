@@ -11,13 +11,17 @@
         v-for="(details, name) in displaySkills"
         :key="name"
         class="trade-card skill-card"
-        :class="{ 'upgrade-card': isUpgrade(name, details) }"
+        :class="{
+          'upgrade-card': isUpgrade(name, details),
+          'transform-card': isTransformation(name, details)
+        }"
       >
         <div class="card-inner">
           <div class="card-top">
             <span class="card-title">{{ name }}</span>
             <div class="badges">
               <span v-if="isUpgrade(name, details)" class="upgrade-badge">晋升</span>
+              <span v-if="isTransformation(name, details)" class="transform-badge">易形</span>
               <span class="level-badge">Lv.{{ details.技能等级 }}</span>
             </div>
           </div>
@@ -48,8 +52,12 @@
             <button
               v-else
               class="action-btn"
-              :class="isUpgrade(name, details) ? 'upgrade-btn' : 'buy-btn'"
-              :disabled="(isOwned(name) && !isUpgrade(name, details)) || !canAddMore(details.价格 || 100)"
+              :class="{
+                'upgrade-btn': isUpgrade(name, details),
+                'transform-btn': isTransformation(name, details),
+                'buy-btn': !isUpgrade(name, details) && !isTransformation(name, details)
+              }"
+              :disabled="(isOwned(name) && !isUpgrade(name, details) && !isTransformation(name, details)) || !canAddMore(details.价格 || 100)"
               @click="addToCart(name, details)"
             >
               {{ getButtonText(name, details) }}
@@ -119,12 +127,34 @@ const isUpgrade = (skillName, shopDetails) => {
   const skills = statStore.stat_data?.角色?.user?.技能 || {};
   const currentSkill = skills[skillName];
   if (!currentSkill) return false;
-  return (shopDetails.技能等级 || 1) > (currentSkill.技能等级 || 1);
+  // 明确检查技能等级是数字类型
+  const shopLevel = Number(shopDetails.技能等级) || 1;
+  const currentLevel = Number(currentSkill.技能等级) || 1;
+  return shopLevel > currentLevel;
 };
+
+// 新增：检查是否为易形/改造 (拥有、等级相同、但描述不同)
+const isTransformation = (skillName, shopDetails) => {
+  const skills = statStore.stat_data?.角色?.user?.技能 || {};
+  const currentSkill = skills[skillName];
+  if (!currentSkill) return false;
+
+  // 等级必须相同
+  const shopLevel = Number(shopDetails.技能等级) || 1;
+  const currentLevel = Number(currentSkill.技能等级) || 1;
+  if (shopLevel !== currentLevel) return false;
+
+  // 描述必须不同
+  const shopDesc = shopDetails.描述 || '';
+  const currentDesc = currentSkill.描述 || '';
+  return shopDesc !== currentDesc;
+};
+
 
 // 获取按钮文本
 const getButtonText = (name, details) => {
   if (isUpgrade(name, details)) return '晋升';
+  if (isTransformation(name, details)) return '易形';
   if (isOwned(name)) return '已刻印';
   return '契约';
 };
@@ -173,8 +203,8 @@ const canAddMore = price => {
 };
 
 const addToCart = (name, details) => {
-  // 如果已拥有且不是升级，则禁止购买
-  if (isOwned(name) && !isUpgrade(name, details)) {
+  // 如果已拥有且不是升级或易形，则禁止购买
+  if (isOwned(name) && !isUpgrade(name, details) && !isTransformation(name, details)) {
     showToast('该技艺已铭刻于灵魂');
     return;
   }
@@ -216,7 +246,7 @@ const confirmCheckout = async () => {
   const acquiredNames = [];
   for (const [skillName, cartItem] of Object.entries(pendingCart.value)) {
     acquiredNames.push(skillName);
-    // 直接覆盖旧技能数据，实现升级或新增
+    // 直接覆盖旧技能数据，实现升级、易形或新增
     diff.角色.user.技能[skillName] = {
       性相: cartItem.details.性相 || '无',
       技能等级: cartItem.details.技能等级 || 1,
@@ -263,7 +293,6 @@ const confirmCheckout = async () => {
     }
 
     // 4. UI 反馈与日志
-    const upgradeCount = acquiredNames.filter(n => isOwned(n)).length; // 这里的 isOwned 检查的是旧状态，可能不准，但逻辑上 acquiredNames 包含所有买的
     // 由于数据更新是异步的，这里直接提示成功即可
     showToast(`成功习得 ${acquiredNames.length} 项禁忌知识`);
 
@@ -357,6 +386,23 @@ const confirmCheckout = async () => {
   text-shadow: 0 0 5px rgba(171, 71, 188, 0.3);
 }
 
+/* 新增：易形卡片特殊样式 */
+.transform-card {
+  border-color: #00897b; /* 青色边框 */
+  box-shadow: 0 4px 20px rgba(0, 137, 123, 0.2);
+}
+.transform-card::before {
+  background: linear-gradient(90deg, transparent, #4db6ac, transparent);
+}
+.transform-card:hover {
+  border-color: #4db6ac;
+  box-shadow: 0 8px 30px rgba(77, 182, 172, 0.15);
+}
+.transform-card .card-title {
+  color: #b2dfdb;
+  text-shadow: 0 0 5px rgba(77, 182, 172, 0.3);
+}
+
 .card-top {
   display: flex;
   justify-content: space-between;
@@ -391,6 +437,17 @@ const confirmCheckout = async () => {
   padding: 2px 6px;
   border-radius: 2px;
   border: 1px solid rgba(171, 71, 188, 0.4);
+  font-weight: bold;
+}
+
+/* 新增：易形徽章 */
+.transform-badge {
+  font-size: 0.75rem;
+  background: rgba(0, 137, 123, 0.2);
+  color: #b2dfdb;
+  padding: 2px 6px;
+  border-radius: 2px;
+  border: 1px solid rgba(77, 182, 172, 0.4);
   font-weight: bold;
 }
 
@@ -481,6 +538,17 @@ const confirmCheckout = async () => {
   background: #ce93d8;
   color: #000;
   box-shadow: 0 0 10px rgba(206, 147, 216, 0.5);
+}
+
+/* 新增：易形按钮 */
+.transform-btn {
+  border-color: #80cbc4;
+  color: #80cbc4;
+}
+.transform-btn:hover:not(:disabled) {
+  background: #80cbc4;
+  color: #000;
+  box-shadow: 0 0 10px rgba(128, 203, 196, 0.5);
 }
 
 /* 取消按钮 */

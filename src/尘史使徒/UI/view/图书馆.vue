@@ -16,7 +16,6 @@
         v-show="currentMode === '对话'"
         ref="chatAreaRef"
         :chatContents="chatContents"
-        :welcomeContent="welcomeContent"
         :isThinking="isThinking"
         :isDeleteMode="isDeleteMode"
         :selectedMessages="selectedMessages"
@@ -153,7 +152,7 @@ const showIntro = ref(true);
 const isDeleteMode = ref(false);
 const selectedMessages = ref([]);
 const chatContents = ref([]);
-const welcomeContent = ref('');
+const welcomeContent = ref(''); // 仍然保留，用于清空记录时的原始文本
 const chatAreaRef = ref(null);
 const itemSells = ref({});
 const skillBuys = ref({});
@@ -177,6 +176,7 @@ const userHeterogeneity = computed(() => statStore.stat_data?.角色?.user?.缥�
 // 爱丽丝设定状态
 const aliceSetting = ref('女儿爱丽丝');
 let isSettingInitialized = false;
+let welcomeMessageInitialized = false; // 【新增】欢迎语初始化旗标
 
 // 监听并初始化爱丽丝设定
 watch(() => statStore.stat_data?.['图书馆']?.['爱丽丝设定'], (newVal) => {
@@ -201,11 +201,12 @@ const handleAliceChange = async (newSetting) => {
   chatContents.value = [];
   welcomeContent.value = '';
   diaryLogs.value = []; // 清空前端显示的总结
+  welcomeMessageInitialized = false; // 【修改】重置欢迎语旗标，以便为新会话重新判断
 
   try {
     // 同时清空聊天记录和聊天总结的 WI 条目
     await WorldInfoUtil.updateEntryContent('<图书馆>聊天记录', '');
-    await WorldInfoUtil.updateEntryContent('<图书馆>聊天总结', '');
+    await WorldInfo_util.updateEntryContent('<图书馆>聊天总结', '');
     await MvuUtil.updateMvuDataByDiff({ "图书馆": { "爱丽丝设定": newSetting } });
     showToast(`已切换为：${newSetting}，聊天记录与总结已清空`);
     await syncChatRecord();
@@ -275,8 +276,10 @@ const deleteSelected = async () => {
     }
   };
 
-  // 遍历剩余消息，重组 XML
+  // 遍历剩余消息，重组 XML (跳过欢迎语)
   for (const m of newMessages) {
+    if (m.isWelcome) continue; // 跳过欢迎语部分
+
     if (m.type === 'user') {
       flushContentBlock(); // 遇到玩家发言，先结算之前的 content 块
       newRaw += `<user_say>\n${m.text}\n</user_say>\n`;
@@ -313,9 +316,10 @@ const sendMessage = async (text) => {
     const entryName = '<图书馆>聊天记录';
     let rawText = await WorldInfoUtil.getWorldBookContent([entryName]);
     const newUserTag = `<user_say>\n${text}\n</user_say>`;
-    const lastUserSayRegex = /<user_say>[\s\S]*?<\/user_say>\s*$/;
-    if (lastUserSayRegex.test(rawText)) rawText = rawText.replace(lastUserSayRegex, newUserTag);
-    else rawText += `\n${newUserTag}`;
+
+    // 【修改】直接追加新消息，不再强制插入到 welcome 之前
+    rawText += `\n${newUserTag}`;
+
     await WorldInfoUtil.updateEntryContent(entryName, rawText);
     await MvuUtil.updateMvuDataByDiff({ "图书馆": { "玩家输入": text } });
     eventEmit("图书馆对话");
@@ -503,19 +507,33 @@ const syncChatRecord = async () => {
     const welcomeMatch = rawText.match(/<welcome>([\s\S]*?)<\/welcome>/);
     if (welcomeMatch) currentWelcome = welcomeMatch[1].trim();
 
-    let w1, w2;
-    if (aliceSetting.value === '妹妹爱丽丝') {
-      w1 = welcomeMessage.sisterWelcome1; w2 = welcomeMessage.sisterWelcome2;
-    } else if (aliceSetting.value === '妈妈爱丽丝') {
-      w1 = welcomeMessage.motherWelcome1; w2 = welcomeMessage.motherWelcome2;
-    } else {
-      w1 = welcomeMessage.daughterWelcome1; w2 = welcomeMessage.daughterWelcome2;
-    }
-
     let needsUpdate = false;
 
-    if (outerBlocks.length === 0 && currentWelcome !== w1) { currentWelcome = w1; needsUpdate = true; }
-    else if (outerBlocks.length > 0 && currentWelcome !== w2) { currentWelcome = w2; needsUpdate = true; }
+    // 【修改】这段逻辑仅在会话初次加载时执行一次
+    if (!welcomeMessageInitialized) {
+      let w1, w2;
+      if (aliceSetting.value === '妹妹爱丽丝') {
+        w1 = welcomeMessage.sisterWelcome1; w2 = welcomeMessage.sisterWelcome2;
+      } else if (aliceSetting.value === '妈妈爱丽丝') {
+        w1 = welcomeMessage.motherWelcome1; w2 = welcomeMessage.motherWelcome2;
+      } else {
+        w1 = welcomeMessage.daughterWelcome1; w2 = welcomeMessage.daughterWelcome2;
+      }
+
+      const targetWelcome = outerBlocks.length === 0 ? w1 : w2;
+      if (currentWelcome !== targetWelcome) {
+        currentWelcome = targetWelcome;
+        needsUpdate = true;
+      }
+
+      // 【修改】结构检查逻辑移至此处，仅在初始化时执行，避免后续操作改变位置
+      const isStructureWrong = welcomeMatch && !rawText.trim().endsWith('</welcome>');
+      if (isStructureWrong) {
+        needsUpdate = true;
+      }
+
+      welcomeMessageInitialized = true; // 标记为已初始化
+    }
 
     if (needsUpdate) {
       let newRaw = outerBlocks.map(b => b.fullRaw).join('\n');
@@ -523,42 +541,75 @@ const syncChatRecord = async () => {
       await WorldInfoUtil.updateEntryContent(entryName, newRaw);
     }
 
-    // 5. 解析消息
-    const parsedMessages = [];
-    for (const block of outerBlocks) {
-      if (block.tag === 'user_say') {
-        parsedMessages.push({ type: 'user', text: block.innerRaw });
-      } else {
+    // 【重构】统一解析所有消息块，以保证其在文件流中的原始顺序
+    const allMessages = [];
+    const blockRegex = /<(content|user_say|welcome)>([\s\S]*?)<\/\1>/g;
+    let blockMatch;
+    let welcomeIndex = 0;
+    let rawWelcomeForClear = ''; // 用于清空聊天功能
+
+    while ((blockMatch = blockRegex.exec(rawText)) !== null) {
+      const tag = blockMatch[1];
+      const innerRaw = blockMatch[2].trim();
+
+      // A. 如果是欢迎语块
+      if (tag === 'welcome') {
+        rawWelcomeForClear = innerRaw; // 保存原始欢迎语文本，用于"清空"功能
         const innerRegex = /<(对话|旁白)>([\s\S]*?)<\/\1>/g;
         let innerMatch;
         let hasInnerTags = false;
-        while ((innerMatch = innerRegex.exec(block.innerRaw)) !== null) {
+        while ((innerMatch = innerRegex.exec(innerRaw)) !== null) {
           hasInnerTags = true;
-          parsedMessages.push({
+          allMessages.push({
+            id: `welcome_${welcomeIndex++}`,
+            type: innerMatch[1] === '对话' ? 'npc' : 'aside',
+            text: innerMatch[2].trim(),
+            isWelcome: true
+          });
+        }
+        if (!hasInnerTags && innerRaw) {
+          allMessages.push({ id: `welcome_${welcomeIndex++}`, type: 'npc', text: innerRaw, isWelcome: true });
+        }
+      }
+      // B. 如果是用户发言块
+      else if (tag === 'user_say') {
+        allMessages.push({ type: 'user', text: innerRaw });
+      }
+      // C. 如果是NPC/旁白内容块
+      else if (tag === 'content') {
+        const innerRegex = /<(对话|旁白)>([\s\S]*?)<\/\1>/g;
+        let innerMatch;
+        let hasInnerTags = false;
+        while ((innerMatch = innerRegex.exec(innerRaw)) !== null) {
+          hasInnerTags = true;
+          allMessages.push({
             type: innerMatch[1] === '对话' ? 'npc' : 'aside',
             text: innerMatch[2].trim()
           });
         }
-        if (!hasInnerTags && block.innerRaw) {
-          parsedMessages.push({ type: 'npc', text: block.innerRaw });
+        if (!hasInnerTags && innerRaw) {
+          allMessages.push({ type: 'npc', text: innerRaw });
         }
       }
     }
 
-    // 6. ID 匹配与 UI 更新
-    parsedMessages.forEach((m) => {
-      const oldMsg = chatContents.value.find(old => old.text === m.text && old.type === m.type && !old._used);
+    // ID 匹配与 UI 更新 (只对非欢迎语的聊天消息进行)
+    allMessages.forEach((m) => {
+      if (m.isWelcome) return; // 欢迎语使用简单ID，不参与此逻辑
+      const oldMsg = chatContents.value.find(old => !old.isWelcome && old.text === m.text && old.type === m.type && !old._used);
       if (oldMsg) { m.id = oldMsg.id; oldMsg._used = true; }
       else { m.id = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5); }
     });
 
     chatContents.value.forEach(old => delete old._used);
-    const isNewMessage = chatContents.value.length !== parsedMessages.length;
-    chatContents.value = parsedMessages;
-    welcomeContent.value = currentWelcome;
+
+    // 组合最终数组并更新UI
+    const isNewMessage = chatContents.value.length !== allMessages.length || JSON.stringify(chatContents.value) !== JSON.stringify(allMessages);
+    chatContents.value = allMessages;
+    welcomeContent.value = rawWelcomeForClear; // 更新它，为 clearChat 功能保留原始文本
 
     if (isNewMessage) {
-      const lastMsg = parsedMessages[parsedMessages.length - 1];
+      const lastMsg = allMessages[allMessages.length - 1];
       if (lastMsg && (lastMsg.type === 'npc' || lastMsg.type === 'aside')) isThinking.value = false;
     }
   } catch (error) { console.error("同步聊天记录失败:", error); }
