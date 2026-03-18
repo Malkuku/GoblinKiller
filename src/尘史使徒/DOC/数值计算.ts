@@ -1,6 +1,6 @@
 /**
  * 密教模拟器风格 - 属性计算系统
- * v2.0 - 引入主副性相衰减机制
+ * v2.2 - 引入主副性相衰减机制 & 仅针对生命值(Life)的多梯度线性保底
  */
 
 // ==========================================
@@ -30,10 +30,10 @@ const BASE_VALUE_STAT = 10;
  * 稍微拉高了高阶位的倍率，确保等级压制的基础。
  */
 const TIER_MULTIPLIERS = {
-  MORTAL: 0.25,    // Lv 1-9   (原 0.2)
-  ASCENDANT: 0.6,  // Lv 10-13 (原 0.5)
-  INHUMAN: 1.0,    // Lv 14-18 (原 0.8，整数倍率更直观)
-  DIVINE: 2.0      // Lv 19+   (原 1.5，神性应当强大)
+  MORTAL: 0.25,    // Lv 1-9
+  ASCENDANT: 0.6,  // Lv 10-13
+  INHUMAN: 1.0,    // Lv 14-18
+  DIVINE: 2.0      // Lv 19+
 };
 
 /**
@@ -54,17 +54,18 @@ const ASPECT_PRIORITY: Record<Aspect, number> = {
 };
 
 /**
- * 性相修正系数矩阵 (保持不变)
+ * 性相修正系数矩阵
  */
 const ASPECT_COEFFICIENTS: Record<Attribute, Record<Aspect, number>> = {
   Life: { Heart: 6.0, Winter: 4.5, Forge: 4.0, Grail: 3.5, Edge: 2.5, Moth: 1.5, Knock: 1.5, Lantern: 1.0 },
   Stamina: { Forge: 6.0, Heart: 5.0, Edge: 3.5, Grail: 2.5, Winter: 2.0, Moth: 1.5, Knock: 1.0, Lantern: 1.0 },
-  Spirit: { Lantern: 6.0, Winter: 5.0, Knock: 4.5, Moth: 3.5, Heart: 2.5, Forge: 1.5, Edge: 1.5, Grail: 1.0 },
+  Spirit: { Lantern: 4.5, Winter: 4.0, Knock: 3.6, Moth: 3.2, Heart: 2.8, Forge: 2.4, Edge: 2.2, Grail: 2.0 },
   Strength: { Forge: 2.5, Edge: 2.2, Grail: 1.5, Heart: 1.2, Winter: 0.8, Knock: 0.6, Moth: 0.6, Lantern: 0.4 },
   Agility: { Moth: 2.5, Edge: 2.2, Knock: 1.8, Grail: 1.2, Lantern: 1.0, Heart: 0.8, Forge: 0.6, Winter: 0.4 },
   Wisdom: { Lantern: 2.5, Knock: 2.3, Moth: 1.6, Winter: 1.4, Forge: 1.2, Heart: 0.8, Edge: 0.8, Grail: 0.6 },
   Charisma: { Grail: 2.5, Heart: 2.0, Moth: 1.8, Lantern: 1.5, Knock: 1.2, Edge: 1.0, Forge: 0.5, Winter: 0.1 }
 };
+
 
 // ==========================================
 // 3. 计算逻辑函数
@@ -92,13 +93,35 @@ function calculateAspectPower(level: number): number {
  * 规则：
  * 1. 计算所有性相对该属性的原始加成值。
  * 2. 排序：数值大的优先；数值相同时，按 ASPECT_PRIORITY 排序。
- * 3. 衰减累加：第1名 100%，第2名 50%，其余 20%。
+ * 3. 衰减累加：第1名 100%，第2名 60%，其余 30%。
+ * 4. 生命值保底：仅为生命(Life)附加基于性相等级的多梯度线性保底。
  */
 export function calculateCharacterAttributes(levels: CharacterLevels): AttributeResult {
   const result: AttributeResult = {
     Life: BASE_VALUE_POOL, Stamina: BASE_VALUE_POOL, Spirit: BASE_VALUE_POOL,
     Strength: BASE_VALUE_STAT, Agility: BASE_VALUE_STAT, Wisdom: BASE_VALUE_STAT, Charisma: BASE_VALUE_STAT
   };
+
+  const sortedLevels: number[] = [];
+  for (const aspectKey in levels) {
+    const level = levels[aspectKey as Aspect] || 0;
+    if (level > 0) {
+      sortedLevels.push(level);
+    }
+  }
+  // 降序排列：[最高级, 第二高, 第三高...]
+  sortedLevels.sort((a, b) => b - a);
+
+  let linearLifeBonus = 0;
+  sortedLevels.forEach((lvl, index) => {
+    if (index === 0) {
+      linearLifeBonus += lvl * 40; // 主修性相：每级 +40
+    } else if (index === 1) {
+      linearLifeBonus += lvl * 10; // 副修性相：每级 +10
+    } else {
+      linearLifeBonus += lvl * 5;  // 其余辅修：每级 +5
+    }
+  });
 
   // 1. 预计算所有活跃性相的 Power
   const aspectPowers: Partial<Record<Aspect, number>> = {};
@@ -151,8 +174,15 @@ export function calculateCharacterAttributes(levels: CharacterLevels): Attribute
       totalBonus += source.value * weight;
     });
 
-    result[attribute] += totalBonus;
+    // ==========================================
+    // 【修改】：严格限制仅对生命值(Life)应用线性保底
+    // ==========================================
+    if (attribute === 'Life') {
+      result[attribute] += linearLifeBonus;
+    }
 
+    // 汇总并取整
+    result[attribute] += totalBonus;
     result[attribute] = Math.round(result[attribute]);
   }
 
