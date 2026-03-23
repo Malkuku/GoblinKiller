@@ -11,6 +11,7 @@
       :font-size="fontSize"
       :unread-log-count="unreadLogCount"
       @toggle-log-panel="toggleLogPanel"
+      @toggle-edit-panel="showEditPanel = !showEditPanel"
       @change-font-size="changeFontSize"
     />
 
@@ -21,6 +22,12 @@
       :format-log-text="formatLogText"
       :log-list-ref="el => logListRef = el"
       @close="showLogPanel = false"
+    />
+
+    <!-- 正文编辑面板 -->
+    <ContentEditPanel
+      v-if="showEditPanel"
+      @close="showEditPanel = false"
     />
 
     <!-- 消息滚动显示区域 -->
@@ -73,6 +80,7 @@ import { useEventLogger } from '@/尘史使徒/UI/composables/panel/useEventLogg
 import LoadingOverlay from '@/尘史使徒/UI/components/panel/LoadingOverlay.vue';
 import StatusBar from '@/尘史使徒/UI/components/panel/StatusBar.vue';
 import EventLogPanel from '@/尘史使徒/UI/components/panel/EventLogPanel.vue';
+import ContentEditPanel from '@/尘史使徒/UI/components/panel/ContentEditPanel.vue';
 import MessageDisplay from '@/尘史使徒/UI/components/panel/MessageDisplay.vue';
 import JumpLinks from '@/尘史使徒/UI/components/panel/JumpLinks.vue';
 import InteractionPanel from '@/尘史使徒/UI/components/panel/InteractionPanel.vue';
@@ -94,7 +102,6 @@ const {
   recalculateVariables
 } = useTavernInteraction();
 
-// 修正：传入 messageStore, questStore, shopStore 进行监听
 const {
   displayHtml,
   cachedOptions,
@@ -127,6 +134,7 @@ const isInitializing = ref(true);
 const userInput = ref('');
 const fontSize = ref(18);
 const messageDisplayRef = ref<InstanceType<typeof MessageDisplay> | null>(null);
+const showEditPanel = ref(false); // 控制编辑面板显示
 
 // --- Event Handlers & Logic ---
 const handleSendOrStop = async () => {
@@ -135,7 +143,6 @@ const handleSendOrStop = async () => {
     return;
   }
 
-  // 严格复刻原逻辑：清空选项，设置繁忙状态
   const textToSend = userInput.value;
   cachedOptions.value = [];
   userInput.value = '';
@@ -159,22 +166,18 @@ watch(userInput, (newVal) => {
 
 // --- Lifecycle Hooks ---
 onMounted(() => {
-  // 初始化字体大小
   const savedSize = localStorage.getItem('animus_font_size');
   if (savedSize) fontSize.value = parseInt(savedSize);
 
-  // 严格复刻原逻辑：初始化获取 message 并解析选项
   messageStore.getMessage();
   if (messageStore.message) {
     const ops = parseOptions(messageStore.message);
     if (ops.length > 0) cachedOptions.value = ops;
   }
 
-  // 恢复上次未发送的输入
   const pendingText = uiStore.consumePendingInput();
   if (pendingText) userInput.value = pendingText;
 
-  // 结束初始化状态
   setTimeout(() => {
     isInitializing.value = false;
   }, 800);

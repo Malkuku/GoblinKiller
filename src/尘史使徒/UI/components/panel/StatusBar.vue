@@ -1,3 +1,4 @@
+<!-- src/尘史使徒/UI/components/panel/StatusBar.vue -->
 <template>
   <div class="world-status-bar">
     <!-- 左侧：世界信息 (时间/地点) -->
@@ -17,16 +18,28 @@
       </div>
     </div>
 
-    <!-- 右侧：工具控件 (日志/字体) -->
+    <!-- 右侧：工具控件 (编辑/日志/字体) -->
     <div class="top-bar-controls">
-      <!-- 事件日志按钮 -->
-      <div class="log-control-group">
-        <button class="control-icon log-btn" @click="$emit('toggle-log-panel')" title="事件日志">
-          <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 12H9V5h10v9z"/>
-          </svg>
-          <span v-if="unreadLogCount > 0" class="log-badge">{{ unreadLogCount }}</span>
-        </button>
+      <!-- 动作按钮组 (编辑 & 日志) -->
+      <div class="action-controls-group">
+        <!-- 正文编辑按钮 -->
+        <div class="edit-control-group">
+          <button class="control-icon edit-btn" @click="$emit('toggle-edit-panel')" title="编辑正文">
+            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 事件日志按钮 -->
+        <div class="log-control-group">
+          <button class="control-icon log-btn" @click="$emit('toggle-log-panel')" title="事件日志">
+            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 12H9V5h10v9z"/>
+            </svg>
+            <span v-if="unreadLogCount > 0" class="log-badge">{{ unreadLogCount }}</span>
+          </button>
+        </div>
       </div>
 
       <!-- 字体控制 -->
@@ -51,6 +64,7 @@ const props = defineProps<{
 
 defineEmits<{
   (e: 'toggle-log-panel'): void;
+  (e: 'toggle-edit-panel'): void;
   (e: 'change-font-size', delta: number): void;
 }>();
 
@@ -67,7 +81,6 @@ const formattedWorldTime = computed(() => {
     const minutes = pad(date.getMinutes());
     let weekDay = date.getDay();
     if (weekDay === 0) weekDay = 7;
-    // 严格复刻原有的 HTML 结构
     const dSep = `<span class="d-sep">-</span>`;
     const dtSep = `<span class="dt-sep">♦</span>`;
     const tSep = `<span class="t-sep">:</span>`;
@@ -81,7 +94,6 @@ const formattedWorldTime = computed(() => {
 </script>
 
 <style scoped>
-/* 仅包含与此组件相关的样式 */
 .world-status-bar {
   display: flex; justify-content: space-between; align-items: center; gap: 15px;
   padding: 10px 20px; background: rgba(0, 0, 0, 0.4);
@@ -94,40 +106,37 @@ const formattedWorldTime = computed(() => {
 .status-text { letter-spacing: 0.5px; text-shadow: 0 0 5px rgba(0,0,0,0.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .status-divider { width: 1px; height: 14px; background: rgba(164, 139, 87, 0.4); }
 .top-bar-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.font-control-group, .log-control-group { display: flex; align-items: center; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 20px; border: 1px solid var(--c-border); }
-.log-control-group { padding: 0; }
+.action-controls-group { display: flex; align-items: center; gap: 10px; }
+.font-control-group, .log-control-group, .edit-control-group { display: flex; align-items: center; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 20px; border: 1px solid var(--c-border); }
+.log-control-group, .edit-control-group { padding: 0; }
 .control-icon { background: none; border: none; color: var(--c-text-main); cursor: pointer; font-family: var(--font-title); padding: 0 5px; height: 28px; display: flex; align-items: center; justify-content: center; transition: color 0.3s; }
 .control-icon:hover { color: var(--c-gold); }
 .font-size-display { font-size: 0.85rem; color: var(--c-gold); min-width: 28px; text-align: center; }
-.log-btn { position: relative; width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--c-text-dim); }
-.log-btn:hover { color: var(--c-gold); }
+.log-btn, .edit-btn { position: relative; width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--c-text-dim); }
+.log-btn:hover, .edit-btn:hover { color: var(--c-gold); }
 .control-svg { width: 20px; height: 20px; }
 .log-badge { position: absolute; top: 0; right: 0; background: #8b0000; color: #fff; font-size: 0.7rem; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.5); border: 1px solid #1a1a1a; }
 .time-display :deep(.d-sep), .time-display :deep(.t-sep), .time-display :deep(.w-sep) { color: rgba(164, 139, 87, 0.6); margin: 0 1px; font-weight: normal; }
 .time-display :deep(.dt-sep) { color: var(--c-gold); margin: 0 6px; font-size: 0.7em; vertical-align: middle; opacity: 0.8; }
+
 @media (max-width: 768px) {
   .world-status-bar {
     display: grid;
-    /* 定义两列：左侧占满剩余空间(1fr)，右侧根据按钮大小自适应(auto) */
     grid-template-columns: 1fr auto;
-    /* 定义两行 */
     grid-template-rows: auto auto;
-    gap: 12px 15px; /* 行间距 12px，列间距 15px */
+    gap: 12px 15px;
     padding: 12px 15px;
   }
 
-  /* 使用 contents 让包裹层"消失"，让内部的子元素直接参与 Grid 布局 */
   .status-info,
   .top-bar-controls {
     display: contents;
   }
 
-  /* 隐藏移动端不需要的竖线分隔符 */
   .status-divider {
     display: none;
   }
 
-  /* --- 第一行 --- */
   /* 地点 */
   .status-group:nth-child(1) {
     grid-column: 1;
@@ -138,22 +147,21 @@ const formattedWorldTime = computed(() => {
   .font-control-group {
     grid-column: 2;
     grid-row: 1;
-    justify-self: end; /* 靠右对齐 */
+    justify-self: end;
     align-self: center;
   }
 
-  /* --- 第二行 --- */
   /* 时间 */
   .status-group:nth-child(3) {
     grid-column: 1;
     grid-row: 2;
     align-self: center;
   }
-  /* 任务日志 */
-  .log-control-group {
+  /* 动作按钮组 (编辑 & 日志) */
+  .action-controls-group {
     grid-column: 2;
     grid-row: 2;
-    justify-self: end; /* 靠右对齐 */
+    justify-self: end;
     align-self: center;
   }
 }
