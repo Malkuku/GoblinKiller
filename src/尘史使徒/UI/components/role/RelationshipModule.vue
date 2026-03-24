@@ -36,15 +36,7 @@
             <textarea v-else v-model="rel['利益纽带']" @input="updateField" class="edit-textarea"></textarea>
           </div>
 
-          <div class="detail-item" v-if="!isEditing && rel['近期影响'] && Object.keys(rel['近期影响']).length > 0">
-            <h4 class="detail-title">近期影响</h4>
-            <ul class="recent-impact-list">
-              <li v-for="(val, key) in rel['近期影响']" :key="key">
-                <span class="impact-key">{{ key }}:</span>
-                <span class="impact-val">{{ val }}</span>
-              </li>
-            </ul>
-          </div>
+
         </div>
       </div>
     </div>
@@ -114,8 +106,5 @@ const formatName = (name) => {
   padding: 8px; font-family: 'EB Garamond', serif; border-radius: 4px; resize: vertical; min-height: 60px;
 }
 
-.recent-impact-list { margin: 0; padding: 0; list-style: none; font-size: 0.85rem; color: #ddd; line-height: 1.6; }
-.recent-impact-list li { margin-bottom: 6px; display: flex; align-items: flex-start; }
-.impact-key { color: var(--c-gold, #d4af37); margin-right: 8px; font-weight: bold; white-space: nowrap; }
-.impact-val { color: #fff; flex: 1; }
+
 </style>

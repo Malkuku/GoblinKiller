@@ -17,22 +17,12 @@
       </div>
     </div>
 
-    <div class="recent-impacts" v-if="hasRecentImpacts && !isEditing">
-      <div class="impact-header">
-        <span class="impact-title">近期影响</span>
-      </div>
-      <div class="impact-list">
-        <div v-for="(value, key) in data['近期影响']" :key="key" class="impact-item">
-          <span class="impact-key">【{{ key }}】</span>
-          <span class="impact-value">{{ value }}</span>
-        </div>
-      </div>
-    </div>
+
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { ref, watch } from 'vue';
 
 const props = defineProps({
   data: { type: Object, default: () => ({}) },
@@ -51,9 +41,7 @@ const updateField = () => {
   emit('update:data', editableData.value);
 };
 
-const hasRecentImpacts = computed(() => {
-  return props.data['近期影响'] && Object.keys(props.data['近期影响']).length > 0;
-});
+
 </script>
 
 <style scoped>
@@ -71,11 +59,5 @@ const hasRecentImpacts = computed(() => {
   padding: 8px; font-family: 'EB Garamond', serif; border-radius: 4px; resize: vertical; min-height: 60px;
 }
 
-.recent-impacts { margin-top: 8px; padding: 16px; background: linear-gradient(135deg, rgba(212, 175, 55, 0.08), rgba(0, 0, 0, 0.2)); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 6px; box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3); }
-.impact-header { margin-bottom: 14px; text-align: center; border-bottom: 1px solid rgba(212, 175, 55, 0.2); padding-bottom: 10px; }
-.impact-title { font-family: 'Cinzel', serif; color: #a0c4ff; font-size: 1rem; font-weight: bold; letter-spacing: 2px; }
-.impact-list { display: flex; flex-direction: column; gap: 12px; }
-.impact-item { font-size: 0.9rem; line-height: 1.5; background: rgba(0, 0, 0, 0.25); padding: 10px 14px; border-left: 3px solid #a0c4ff; border-radius: 0 4px 4px 0; }
-.impact-key { color: #d4af37; font-weight: bold; margin-right: 6px; }
-.impact-value { color: #cccccc; }
+
 </style>

@@ -95,12 +95,12 @@
 
     <!-- 右侧：详细内容展示区 -->
     <main class="role-content">
-      <component
-        :is="currentComponent"
+      <CharPanel
         :key="selectedId"
         :data="currentData"
         :char-id="selectedId"
         :category="currentCategoryKey"
+        :char-type="selectedType"
       />
     </main>
 
@@ -108,12 +108,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
-import UserPanel from '@/尘史使徒/UI/components/role/UserPanel.vue';
-import MainCharPanel from '@/尘史使徒/UI/components/role/MainCharPanel.vue';
-import MinorCharPanel from '@/尘史使徒/UI/components/role/MinorCharPanel.vue';
 import { MvuUtil } from '@/Utils/MvuUtil';
+import CharPanel from '@/尘史使徒/UI/components/role/CharPanel.vue';
+import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
+import { computed, ref, watch } from 'vue';
 
 const store = useStatStore();
 
@@ -209,15 +207,6 @@ const selectRole = (id, type) => {
     isMobileMenuOpen.value = false;
   }
 };
-
-const currentComponent = computed(() => {
-  switch (selectedType.value) {
-    case 'user': return UserPanel;
-    case 'main': return MainCharPanel;
-    case 'minor': return MinorCharPanel;
-    default: return UserPanel;
-  }
-});
 
 const currentData = computed(() => {
   if (selectedType.value === 'user') return userData.value;

@@ -113,6 +113,7 @@ export interface MinorCharacterData {
   "生命状态": LifeStatus;
   "技能": Record<string, SkillData>;
   "特殊状态": Record<string, SpecialStatusData>;
+  "物品": Record<string, ItemData>;
   "术之等级": Record<string, ArtLevelData>;
 }
 
@@ -137,7 +138,6 @@ export interface SkillData {
 }
 
 export interface PersonalityData {
-  "近期影响"?: Record<string, any>;
   "社交表现": string;
   "行动逻辑": string;
   "思维习惯": string;
@@ -146,7 +146,6 @@ export interface PersonalityData {
 }
 
 export interface RelationshipData {
-  "近期影响"?: Record<string, any>;
   "认知了解": string;
   "情感羁绊": string;
   "利益纽带": string;
@@ -180,8 +179,9 @@ export interface ArtLevelData {
 
 export interface ItemData {
   "类型": string;
+  "品质": string;
   "描述": string;
-  "作用": string;
+  "作用": string | Array<string>;
   "数量": number;
   "耐久": number;
 }
