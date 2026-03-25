@@ -162,6 +162,7 @@ const baseNavItems = [
   { name: '道寻', path: '/任务', icon: '⚖' },
   { name: '书库', path: '/图书馆', icon: '🏛' },
   { name: '卷索', path: '/世界情报', icon: '⨳' },
+  { name: '残卷', path: '/总结', icon: '⬡' },
   { name: '绯廊', path: '/图片', icon: '🖼' },
   { name: '祈奉', path: '/设置', icon: '⚙' },
 ];

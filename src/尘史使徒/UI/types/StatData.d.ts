@@ -280,3 +280,40 @@ export interface SystemSettings {
   "战斗策略": "节省体力" | "伤害灌注" | "防御优先" | "自定义"
   "战斗策略自定义内容":""
 }
+
+/**
+ * =================================================
+ * 4. 总结概括数据结构
+ * =================================================
+ */
+export interface SummaryData {
+  "总结概括": Record<string, SummaryOverview>;
+  "总结详细": Record<string, SummaryDetails>;
+}
+
+/**
+ * 总结概括 - 单个条目（如 AM1, AM2, AMxx）
+ */
+export interface SummaryOverview {
+  "时间范围": string;  // 格式："yyyy-mm-ddTxx:xx[s]" [s]表示星期s
+  "标签": string;
+  "概括": string;
+  "重要度": number; //0~1
+}
+
+/**
+ * 总结详细 - 单个条目（如 AM1, AM2）
+ */
+export interface SummaryDetails {
+  [eventName: string]: SummaryEvent;
+}
+
+/**
+ * 总结详细 - 单个事件
+ */
+export interface SummaryEvent {
+  "时间": string;
+  "地点": string;
+  "人物": string;
+  "事件经过": string;
+}

@@ -1,19 +1,20 @@
 import { createMemoryHistory, createRouter } from 'vue-router';
 import Layout from '../view/layout.vue';
 
-import XuanXiang from '../view/选项.vue';
 import ShiJieXinXi from '../view/世界信息.vue';
-import JueSe from '../view/角色.vue';
-import RenWu from '../view/任务.vue';
-import CangKu from '../view/仓库.vue';
-import ShangDian from '../view/商店.vue';
 import ShiJieQingBao from '../view/世界情报.vue';
-import TuPian from '../view/图片展示.vue';
-import SheZhi from '../view/设置.vue';
-import KaiChang from '../view/开场设置.vue';
 import RenWuChuangJian from '../view/人物创建.vue';
+import CangKu from '../view/仓库.vue';
+import RenWu from '../view/任务.vue';
+import ShangDian from '../view/商店.vue';
 import TuShuGuan from '../view/图书馆.vue';
+import TuPian from '../view/图片展示.vue';
+import KaiChang from '../view/开场设置.vue';
+import ZongJie from '../view/总结.vue';
 import JiNengKu from '../view/技能库.vue';
+import JueSe from '../view/角色.vue';
+import SheZhi from '../view/设置.vue';
+import XuanXiang from '../view/选项.vue';
 
 export const router = createRouter({
   history: createMemoryHistory(),
@@ -35,7 +36,8 @@ export const router = createRouter({
         { path: '开场设置', component: KaiChang },
         { path: '人物创建', component: RenWuChuangJian },
         { path: '图书馆', component: TuShuGuan },
-        { path: '技能库', component: JiNengKu }
+        { path: '技能库', component: JiNengKu },
+        { path: '总结', component: ZongJie }
       ],
     },
   ],
