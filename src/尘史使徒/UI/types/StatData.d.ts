@@ -179,7 +179,7 @@ export interface ArtLevelData {
 
 export interface ItemData {
   "类型": string;
-  "品质": string;
+  "品质": "凡庸"|"遗物"|"珍卷"|"禁忌"|"神造"|"遗片"|"佚存"|"残卷"|"蛀损"|"完帙"|"未知";
   "描述": string;
   "作用": string | Array<string>;
   "数量": number;
