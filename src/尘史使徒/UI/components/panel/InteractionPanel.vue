@@ -1,4 +1,3 @@
-<!-- src/views/story/components/InteractionPanel.vue -->
 <template>
   <div class="interaction-panel">
     <!-- 移动端工具栏切换按钮 -->
@@ -92,11 +91,20 @@
         </transition>
       </div>
 
-      <!-- 发送/停止按钮 -->
-      <button class="send-btn" :class="{'is-busy': isTavernBusy}" @click="$emit('send-or-stop')">
-        <span v-if="!isTavernBusy" class="send-icon">➤</span>
-        <div v-else class="stop-icon">■</div>
-      </button>
+      <!-- 发送/停止按钮 (分离层级，保证停止按钮的最高优先级) -->
+      <div class="action-btn-container">
+        <!-- 默认发送按钮 -->
+        <button class="send-btn" :class="{'is-hidden': isTavernBusy}" @click="!isTavernBusy && $emit('send-or-stop')">
+          <span class="send-icon">➤</span>
+        </button>
+
+        <!-- 最高优先级：停止按钮覆盖层 -->
+        <transition name="pop-stop">
+          <button v-if="isTavernBusy" class="send-btn is-busy priority-stop-btn" @click="$emit('send-or-stop')">
+            <div class="stop-icon">■</div>
+          </button>
+        </transition>
+      </div>
     </div>
   </div>
 </template>
@@ -206,9 +214,16 @@ const handleOptionClick = (option: string) => {
 .story-input.busy-state { display: flex; align-items: center; justify-content: center; gap: 10px; background: rgba(0, 0, 0, 0.1); border-color: transparent; border-bottom-color: rgba(164, 139, 87, 0.3); color: var(--c-gold); cursor: default; user-select: none; }
 .busy-icon { font-size: 1.2rem; animation: write 1s ease-in-out infinite alternate; }
 .busy-text { font-family: 'Cinzel', serif; font-size: 0.95rem; letter-spacing: 1px; animation: pulse-text 2s infinite; }
-.send-btn { width: 56px; height: 56px; background: transparent; border: 1px solid var(--c-border); border-radius: 50%; color: var(--c-gold); font-size: 1.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
+
+/* 按钮容器与发送/停止按钮样式 */
+.action-btn-container { position: relative; width: 56px; height: 56px; flex-shrink: 0; }
+.send-btn { width: 100%; height: 100%; background: transparent; border: 1px solid var(--c-border); border-radius: 50%; color: var(--c-gold); font-size: 1.4rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.3s; }
 .send-btn:hover { background: var(--c-gold); color: #1a1a1a; box-shadow: 0 0 15px var(--c-gold); }
-.send-btn.is-busy { border-color: #8b0000; color: #8b0000; }
+.send-btn.is-hidden { opacity: 0; pointer-events: none; }
+
+/* 停止按钮独立图层与最高层级 */
+.priority-stop-btn { position: absolute; top: 0; left: 0; z-index: 999; box-shadow: 0 0 10px rgba(139, 0, 0, 0.3); }
+.send-btn.is-busy { border-color: #8b0000; color: #8b0000; background: rgba(20, 22, 28, 0.9); }
 .send-btn.is-busy:hover { background: rgba(139, 0, 0, 0.2); color: #ff4d4d; box-shadow: 0 0 15px rgba(139, 0, 0, 0.5); }
 .stop-icon { font-size: 1.2rem; line-height: 1; }
 
@@ -220,6 +235,10 @@ const handleOptionClick = (option: string) => {
 .fade-input-enter-active, .fade-input-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .fade-input-enter-from { opacity: 0; transform: translateY(5px); }
 .fade-input-leave-to { opacity: 0; transform: translateY(-5px); }
+
+/* 停止按钮高优先级出现动画 */
+.pop-stop-enter-active, .pop-stop-leave-active { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pop-stop-enter-from, .pop-stop-leave-to { opacity: 0; transform: scale(0.5); }
 
 /* Animations */
 @keyframes spin { to { transform: rotate(360deg); } }
