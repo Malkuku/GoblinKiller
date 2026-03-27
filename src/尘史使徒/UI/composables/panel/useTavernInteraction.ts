@@ -11,14 +11,34 @@ export function useTavernInteraction() {
   let sendButtonObserver: MutationObserver | null = null;
 
   const checkTavernBusy = (btn: HTMLElement) => {
-    const style = window.getComputedStyle(btn);
-    const isHidden = style.display === 'none' || style.visibility === 'hidden';
-    const isDisabled = btn.hasAttribute('disabled');
-    // 注意：原代码中包含 fa-circle-stop 类名检查，这里予以保留
-    const isStopIcon = btn.classList.contains('fa-circle-stop');
-    const busy = isHidden || isDisabled || isStopIcon;
-    if (isTavernBusy.value !== busy) {
-      isTavernBusy.value = busy;
+    try {
+      const parentDoc = window.parent.document;
+
+      // 首先检查是否存在停止按钮
+      const stopBtn = parentDoc.querySelector('#form_sheld .mes_stop');
+      const hasStopButton = stopBtn &&
+        window.getComputedStyle(stopBtn).display !== 'none' &&
+        window.getComputedStyle(stopBtn).visibility !== 'hidden';
+
+      if (hasStopButton) {
+        // 如果停止按钮存在且可见，优先认为处于繁忙状态
+        if (!isTavernBusy.value) {
+          isTavernBusy.value = true;
+        }
+        return;
+      }
+
+      // 如果没有停止按钮，再检查发送按钮的状态
+      const style = window.getComputedStyle(btn);
+      const isHidden = style.display === 'none' || style.visibility === 'hidden';
+      const isDisabled = btn.hasAttribute('disabled');
+      const busy = isHidden || isDisabled;
+
+      if (isTavernBusy.value !== busy) {
+        isTavernBusy.value = busy;
+      }
+    } catch (e) {
+      console.warn('检查Tavern状态失败', e);
     }
   };
 
@@ -26,14 +46,29 @@ export function useTavernInteraction() {
     try {
       const parentDoc = window.parent.document;
       const tavernSendBtn = parentDoc.getElementById('send_but');
+      const stopBtn = parentDoc.querySelector('#form_sheld .mes_stop');
+
       if (tavernSendBtn) {
         checkTavernBusy(tavernSendBtn);
         if (sendButtonObserver) sendButtonObserver.disconnect();
+
         sendButtonObserver = new MutationObserver(() => {
           const currentBtn = parentDoc.getElementById('send_but');
           if (currentBtn) checkTavernBusy(currentBtn);
         });
-        sendButtonObserver.observe(tavernSendBtn, { attributes: true, attributeFilter: ['style', 'class', 'disabled'] });
+
+        sendButtonObserver.observe(tavernSendBtn, {
+          attributes: true,
+          attributeFilter: ['style', 'class', 'disabled']
+        });
+
+        // 如果停止按钮存在，也观察它的变化
+        if (stopBtn) {
+          sendButtonObserver.observe(stopBtn, {
+            attributes: true,
+            attributeFilter: ['style', 'class']
+          });
+        }
       }
     } catch (e) {
       console.warn('设置Tavern父窗口观察器失败', e);
