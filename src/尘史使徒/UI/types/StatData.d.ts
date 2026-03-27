@@ -179,7 +179,7 @@ export interface ArtLevelData {
 
 export interface ItemData {
   "类型": string;
-  "品质": "凡庸"|"遗物"|"珍卷"|"禁忌"|"神造"|"遗片"|"佚存"|"残卷"|"蛀损"|"完帙"|"未知";
+  "品质": "凡庸" | "遗物" | "珍品" | "禁忌" | "神造" | "遗片" | "佚存" | "残卷" | "蛀损" | "完帙" | "未知";
   "描述": string;
   "作用": string | Array<string>;
   "数量": number;
@@ -268,17 +268,17 @@ export interface EventData {
  * 系统设置
  */
 export interface SystemSettings {
-  "关注角色列表":{
+  "关注角色列表": {
     "主要角色": string[];
     "次要角色": string[];
   },
-  "当前版本":number;
-  "当前剧本":string;
-  "插图模式":"男性"|"女性";
+  "当前版本": number;
+  "当前剧本": string;
+  "插图模式": "男性" | "女性";
   "玩家插图": number;
   "叙事节奏": "轻松奇幻" | "诡秘现实" | string;
   "战斗策略": "节省体力" | "伤害灌注" | "防御优先" | "自定义"
-  "战斗策略自定义内容":""
+  "战斗策略自定义内容": ""
 }
 
 /**

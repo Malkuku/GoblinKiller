@@ -99,7 +99,7 @@ const props = defineProps({
   quality: {
     type: String,
     default: '',
-    validator: (v) => !v || ['凡庸', '遗物', '珍卷', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙'].includes(v)
+    validator: (v) => !v || ['凡庸', '遗物', '珍品', '禁忌', '神造', '遗片', '佚存', '残卷', '蛀损', '完帙'].includes(v)
   },
   quantity: { type: Number, default: 1 },
   durability: { type: Number, default: 0 },
@@ -116,7 +116,7 @@ const qualityClass = computed(() => {
   const qualityMap = {
     '凡庸': 'quality-common',
     '遗物': 'quality-relic',
-    '珍卷': 'quality-rare',
+    '珍品': 'quality-rare',
     '禁忌': 'quality-forbidden',
     '神造': 'quality-divine',
     '遗片': 'quality-fragment',
