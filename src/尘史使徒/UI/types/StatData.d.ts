@@ -80,7 +80,6 @@ export interface MainCharacterData {
   "在场": boolean;
   "年龄": string;
   "当前身份": string;
-  "当前想法": string;
   "外貌": string[];
   "外貌概括"?: string;
   "背景": string[];

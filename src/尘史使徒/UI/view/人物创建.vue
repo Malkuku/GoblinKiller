@@ -29,7 +29,6 @@
             v-model:formData="formData"
             v-model:appearanceDetails="appearanceDetails"
             @open-map="showMapModal = true"
-            @update-summary="updateSummary"
           />
 
           <!-- 第二页：术的能力 -->
@@ -112,7 +111,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, computed, onMounted, provide } from 'vue';
+import { reactive, ref, computed, onMounted } from 'vue';
 import { MvuUtil } from '@/Utils/MvuUtil';
 import { MessageUtil } from '@/Utils/MessageUtil';
 import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
@@ -130,7 +129,6 @@ const showMapModal = ref(false);
 const isInfiniteMode = ref(false);
 const currentPage = ref(1);
 const fileInput = ref(null);
-const finalPersonalitySummary = ref("");
 
 onMounted(() => {
   if (!statStore.stat_data) {
@@ -185,6 +183,17 @@ const finalAppearance = computed(() => {
   ];
   if (appearanceDetails.feature) parts.push(appearanceDetails.feature);
   return parts.join('，');
+});
+
+// 性格描述动态计算：直接展示 personality 对象的键值对
+const finalPersonalitySummary = computed(() => {
+  if (!formData.personality || typeof formData.personality !== 'object') {
+    return "性格信息缺失";
+  }
+  // 将 personality 对象转换为 "键: 值" 格式的字符串数组，然后用 "，" 连接
+  return Object.entries(formData.personality)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join('，');
 });
 
 // 术之点数计算
@@ -244,6 +253,7 @@ const importConfig = (event) => {
   reader.onload = (e) => {
     try {
       const config = JSON.parse(e.target.result);
+      // 使用 Object.assign 来触发响应式更新
       if (config.formData) Object.assign(formData, config.formData);
       if (config.appearanceDetails) Object.assign(appearanceDetails, config.appearanceDetails);
       if(window.toastr) window.toastr.success("配置导入成功");
@@ -251,9 +261,6 @@ const importConfig = (event) => {
   };
   reader.readAsText(file);
 };
-
-// 接收子组件传来的性格总结
-const updateSummary = (val) => { finalPersonalitySummary.value = val; };
 
 // --- 提交逻辑 ---
 const submitCreation = async (payload) => {
@@ -263,21 +270,14 @@ const submitCreation = async (payload) => {
   submitting.value = true;
 
   try {
-    // 1. 构建主要角色更新数据 (修复：将关系写入 主要角色 -> user)
+    // 1. 构建主要角色更新数据
     const mainRolesUpdate = {};
-
     formData.relationships.forEach(npc => {
       if (!npc.roleId) return;
-
       const roleData = statStore.stat_data["角色"]["主要角色"][npc.roleId] || {};
       const currentKeywords = roleData["区域检索词"] || [];
       const existingRelationships = roleData["人际关系"] || {};
-
-      // 区域检索词去重合并
-      const newKeywords = currentKeywords.includes(formData.location)
-        ? currentKeywords
-        : [...currentKeywords, formData.location];
-
+      const newKeywords = currentKeywords.includes(formData.location) ? currentKeywords : [...currentKeywords, formData.location];
       mainRolesUpdate[npc.roleId] = {
         "区域检索词": newKeywords,
         "人际关系": {
@@ -294,19 +294,19 @@ const submitCreation = async (payload) => {
     // 2. 过滤 0 级的术之等级
     const artsToInsert = {};
     for (const key in formData.术之等级) {
-      const lv = formData.术之等级[key].等级;
-      if (lv > 0) {
-        artsToInsert[key] = { "等级": lv, "经验": 0 };
+      if (formData.术之等级[key].等级 > 0) {
+        artsToInsert[key] = { ...formData.术之等级[key] };
       }
     }
 
-    // 3. 基础更新 Payload (移除了 user 节点下的错误人际关系)
+    // 3. 构建基础更新 Payload
     const updatePayload = {
       "世界": { "地图索引": formData.location, "地点": formData.location },
       "角色": {
         "user": {
           "年龄": formData.age,
           "当前身份": formData.identity,
+          // 直接使用原始 personality 对象，性格总结也使用计算出的字符串
           "性格": { ...formData.personality, "性格总结": [finalPersonalitySummary.value] },
           "外貌": [finalAppearance.value],
           "金钱": finalMoney,
@@ -319,13 +319,12 @@ const submitCreation = async (payload) => {
 
     if (formData.基础数值) updatePayload["角色"]["user"]["基础数值"] = formData.基础数值;
     if (formData.生命状态) updatePayload["角色"]["user"]["生命状态"] = formData.生命状态;
-
     if (Object.keys(mainRolesUpdate).length > 0) updatePayload["角色"]["主要角色"] = mainRolesUpdate;
 
     // 4. 一次性提交所有数据
     await MvuUtil.updateMvuDataByDiff(updatePayload);
 
-    // 5. 注入正文 (补全所有缺失信息)
+    // 5. 注入正文
     const msgId = getLastMessageId(); // 假设全局有此函数
     let injectionText = `于破碎的镜面之中，{{user}}看到了自己\n<mirror>\n`;
     injectionText += `姓名：{{user}}\n性别：${formData.gender}\n出生地：${formData.location}\n`;
@@ -333,7 +332,6 @@ const submitCreation = async (payload) => {
     injectionText += `外貌：${finalAppearance.value}\n性格：${finalPersonalitySummary.value}\n`;
     if (formData.specialStatus) injectionText += `特殊状态：${formData.specialStatus}\n`;
 
-    // 写入羁绊 (利用 CreationRelations.vue 自动注入到 formData 的完整综述文本)
     if (formData.fullRelationshipText && formData.fullRelationshipText !== "孤身一人，没有额外羁绊") {
       injectionText += `\n[命运羁绊]\n${formData.fullRelationshipText}\n`;
     }
@@ -416,5 +414,4 @@ const submitCreation = async (payload) => {
   width: 100%;
   height: 100%;
 }
-
 </style>

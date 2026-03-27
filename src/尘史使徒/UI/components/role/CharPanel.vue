@@ -50,9 +50,6 @@
             <h3>生命状态</h3>
             <LifeStatusModule :data="data" />
           </section>
-          <section v-if="showDetails && data.当前想法" class="info-block detail-block">
-            <p><strong>当前想法:</strong> <span class="thought-text">{{ data.当前想法 }}</span></p>
-          </section>
           <section v-if="data.特殊状态" class="info-block">
             <h3>特殊状态</h3>
             <SpecialStatusModule :data="data.特殊状态" :stats="data" />

@@ -122,12 +122,25 @@ defineExpose({ scrollContainer, scrollToBottom });
 }
 
 /* ================= 基础标签优化 ================= */
-.text-body :deep(p) {
-  margin-bottom: 0.8em; /* 从 1em 缩小 */
-  text-align: justify;
-  line-height: 1.7; /* 从 1.8 缩小 */
-  color: #DCD4C6;
+
+.text-body :deep(q) {
+  quotes: none; display: inline; background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(164, 139, 87, 0.15); border-radius: 4px;
+  padding: 2px 6px; margin: 0 2px; color: #fff5e6;
+  font-family: 'EB Garamond', serif; font-style: italic;
+  text-shadow: 0 0 2px rgba(0,0,0,0.5); box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+  box-decoration-break: clone; -webkit-box-decoration-break: clone;
+  transition: all 0.3s ease;
 }
+.text-body :deep(q):hover {
+  background: rgba(164, 139, 87, 0.15); border-color: rgba(164, 139, 87, 0.4);
+  text-shadow: 0 0 5px rgba(164, 139, 87, 0.5); cursor: default;
+}
+.text-body :deep(q)::before { content: ""; color: var(--c-gold); margin-right: 3px; font-weight: bold; opacity: 0.8; text-shadow: none; }
+.text-body :deep(q)::after { content: ""; color: var(--c-gold); margin-left: 3px; font-weight: bold; opacity: 0.8; text-shadow: none; }
+.text-body :deep(p) { margin-bottom: 1em; text-align: justify; }
+.text-body :deep(em) { color: var(--c-gold); font-style: italic; }
+.text-body :deep(strong) { color: #fff; font-weight: 600; }
 .text-body :deep(em) {
   color: var(--c-gold, #C9B485);
   font-style: italic;

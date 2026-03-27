@@ -6,7 +6,19 @@
         <button class="close-edit" @click="$emit('close')">×</button>
       </div>
       <div class="edit-body">
-        <textarea v-model="textContent" class="edit-textarea" placeholder="在此编辑正文内容..."></textarea>
+        <div class="edit-options">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="editAllContent" />
+            <span>修改整个消息内容</span>
+          </label>
+          <div class="option-hint" v-if="editAllContent">
+            将修改整个消息内容，包括所有标签和文本
+          </div>
+          <div class="option-hint" v-else>
+            只修改 &lt;content&gt; 标签内的内容
+          </div>
+        </div>
+        <textarea v-model="textContent" class="edit-textarea" :placeholder="textareaPlaceholder"></textarea>
       </div>
       <div class="edit-footer">
         <button class="confirm-btn" @click="handleConfirm">确认修正</button>
@@ -16,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted, watch, computed } from 'vue';
 import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
 import { MessageUtil } from '@/Utils/MessageUtil';
 
@@ -26,16 +38,31 @@ const emit = defineEmits<{
 
 const messageStore = useMessageStore();
 const textContent = ref('');
+const editAllContent = ref(false);
 const CONTENT_REGEX = /<content>([\s\S]*?)<\/content>/i;
 
-// 提取 <content> 标签内的内容
+// 计算文本框的占位符文本
+const textareaPlaceholder = computed(() => {
+  return editAllContent.value
+    ? '在此编辑整个消息内容...'
+    : '在此编辑正文内容...';
+});
+
+// 提取内容：根据勾选状态决定提取整个消息还是只提取<content>标签内的内容
 const extractContent = () => {
   const msg = messageStore.message || '';
-  const match = msg.match(CONTENT_REGEX);
-  if (match && match[1]) {
-    textContent.value = match[1].trim();
+
+  if (editAllContent.value) {
+    // 编辑整个消息内容
+    textContent.value = msg;
   } else {
-    textContent.value = '';
+    // 只编辑<content>标签内的内容
+    const match = msg.match(CONTENT_REGEX);
+    if (match && match[1]) {
+      textContent.value = match[1].trim();
+    } else {
+      textContent.value = '';
+    }
   }
 };
 
@@ -43,7 +70,13 @@ onMounted(() => {
   extractContent();
 });
 
+// 监听消息变化
 watch(() => messageStore.message, () => {
+  extractContent();
+});
+
+// 监听勾选框变化
+watch(editAllContent, () => {
   extractContent();
 });
 
@@ -54,15 +87,24 @@ const handleConfirm = async () => {
     return;
   }
 
-  // 包装回 <content> 标签
-  const newContent = `<content>\n${textContent.value}\n</content>`;
+  let newContent = '';
+  let targetRegex: RegExp | string = '';
 
-  // 如果原文本中存在 <content> 标签则替换，否则追加到末尾
-  const targetRegex = CONTENT_REGEX.test(messageStore.message) ? CONTENT_REGEX : /$/;
+  if (editAllContent.value) {
+    // 修改整个消息内容
+    newContent = textContent.value;
+    targetRegex = /^[\s\S]*$/; // 匹配整个字符串
+  } else {
+    // 只修改<content>标签内的内容
+    newContent = `<content>\n${textContent.value}\n</content>`;
+
+    // 如果原文本中存在<content>标签则替换，否则追加到末尾
+    targetRegex = CONTENT_REGEX.test(messageStore.message) ? CONTENT_REGEX : /$/;
+  }
 
   await MessageUtil.mergeContentToMessage(messageId, newContent, 'affected', targetRegex);
   messageStore.getMessage(); // 重刷消息
-  toastr.success('正文修改成功');
+  toastr.success(editAllContent.value ? '整个消息修改成功' : '正文修改成功');
   emit('close');
 };
 </script>
@@ -94,6 +136,34 @@ const handleConfirm = async () => {
 .close-edit { background: none; border: none; color: var(--c-text-dim); cursor: pointer; font-size: 1.2rem; }
 .edit-body {
   flex: 1; padding: 10px; display: flex; flex-direction: column;
+}
+.edit-options {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  border: 1px solid rgba(164, 139, 87, 0.3);
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--c-text-main);
+  font-size: 0.9rem;
+  margin-bottom: 5px;
+}
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--c-gold);
+  cursor: pointer;
+}
+.option-hint {
+  font-size: 0.8rem;
+  color: var(--c-text-dim);
+  padding-left: 24px;
+  margin-top: 2px;
 }
 .edit-textarea {
   flex: 1; width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(164, 139, 87, 0.5);
