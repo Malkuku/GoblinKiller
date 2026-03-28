@@ -793,4 +793,24 @@ const JsonNode = defineComponent({
 :deep(.jv-bracket), :deep(.jv-comma) { color: #666; }
 :deep(.jv-ellipsis) { background: #333; padding: 0 4px; border-radius: 2px; color: #aaa; }
 :deep(.jv-count) { color: #555; font-style: italic; margin-left: 8px; }
+
+/* ============================================================
+   移动端适配：强制全屏
+   ============================================================ */
+@media screen and (max-width: 768px) {
+  .ac-window {
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important; /* 优先使用 dvh 解决移动端浏览器地址栏遮挡问题 */
+    border: none;
+    border-radius: 0;
+  }
+
+  /* 移动端全屏后，隐藏右下角的缩放手柄 */
+  .ac-window .resize-handle-icon {
+    display: none;
+  }
+}
 </style>
