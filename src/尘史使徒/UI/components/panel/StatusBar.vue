@@ -20,8 +20,17 @@
 
     <!-- 右侧：工具控件 (编辑/日志/字体) -->
     <div class="top-bar-controls">
-      <!-- 动作按钮组 (编辑 & 日志) -->
+      <!-- 动作按钮组 (编辑 & 日志 & 创建角色) -->
       <div class="action-controls-group">
+        <!-- 创建次要角色按钮 -->
+        <div class="create-char-control-group">
+          <button class="control-icon create-char-btn" @click="handleCreateChar" title="创建次要角色">
+            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
+          </button>
+        </div>
+
         <!-- 正文编辑按钮 -->
         <div class="edit-control-group">
           <button class="control-icon edit-btn" @click="$emit('toggle-edit-panel')" title="编辑正文">
@@ -68,6 +77,12 @@ defineEmits<{
   (e: 'change-font-size', delta: number): void;
 }>();
 
+const handleCreateChar = () => {
+  if (confirm('是否创建次要角色？')) {
+    eventEmit('创建次要角色');
+  }
+};
+
 const formattedWorldTime = computed(() => {
   if (!props.time) return '??-??-??T??:??[?]';
   try {
@@ -107,13 +122,13 @@ const formattedWorldTime = computed(() => {
 .status-divider { width: 1px; height: 14px; background: rgba(164, 139, 87, 0.4); }
 .top-bar-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .action-controls-group { display: flex; align-items: center; gap: 10px; }
-.font-control-group, .log-control-group, .edit-control-group { display: flex; align-items: center; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 20px; border: 1px solid var(--c-border); }
-.log-control-group, .edit-control-group { padding: 0; }
+.font-control-group, .log-control-group, .edit-control-group, .create-char-control-group { display: flex; align-items: center; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 20px; border: 1px solid var(--c-border); }
+.log-control-group, .edit-control-group, .create-char-control-group { padding: 0; }
 .control-icon { background: none; border: none; color: var(--c-text-main); cursor: pointer; font-family: var(--font-title); padding: 0 5px; height: 28px; display: flex; align-items: center; justify-content: center; transition: color 0.3s; }
 .control-icon:hover { color: var(--c-gold); }
 .font-size-display { font-size: 0.85rem; color: var(--c-gold); min-width: 28px; text-align: center; }
-.log-btn, .edit-btn { position: relative; width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--c-text-dim); }
-.log-btn:hover, .edit-btn:hover { color: var(--c-gold); }
+.log-btn, .edit-btn, .create-char-btn { position: relative; width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--c-text-dim); }
+.log-btn:hover, .edit-btn:hover, .create-char-btn:hover { color: var(--c-gold); }
 .control-svg { width: 20px; height: 20px; }
 .log-badge { position: absolute; top: 0; right: 0; background: #8b0000; color: #fff; font-size: 0.7rem; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.5); border: 1px solid #1a1a1a; }
 .time-display :deep(.d-sep), .time-display :deep(.t-sep), .time-display :deep(.w-sep) { color: rgba(164, 139, 87, 0.6); margin: 0 1px; font-weight: normal; }
@@ -157,7 +172,7 @@ const formattedWorldTime = computed(() => {
     grid-row: 2;
     align-self: center;
   }
-  /* 动作按钮组 (编辑 & 日志) */
+  /* 动作按钮组 (编辑 & 日志 & 创建角色) */
   .action-controls-group {
     grid-column: 2;
     grid-row: 2;
