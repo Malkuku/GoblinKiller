@@ -1,6 +1,4 @@
 import { ref, onMounted, onUnmounted, readonly } from 'vue';
-import { KatEvents } from '@/Constants/KatEvent';
-import * as toastr from 'toastr';
 
 export function useTavernInteraction() {
   const isTavernBusy = ref(false);
@@ -159,8 +157,10 @@ export function useTavernInteraction() {
 
   const recalculateVariables = async () => {
     try {
-      await eventEmit(KatEvents.kat_resend_mvu_update);
-      toastr.success("已发送变量重算");
+      //TODO这里需要触发MVU的重算功能
+      //await eventEmit(KatEvents.kat_resend_mvu_update);
+      //toastr.success("已发送变量重算");
+      toastr.error("功能未完成")
     } catch (e) {
       console.error('变量重算错误:', e);
       toastr.error("变量重算失败");

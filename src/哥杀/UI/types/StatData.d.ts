@@ -117,8 +117,8 @@ export interface PlayerCharacter {
   "生命值": Resource;
   "护甲值": Resource;
   "魔力值": Resource;
-  "信仰力体": Resource;
-  "体力资": Resource;
+  "信仰力值": Resource;
+  "体力值": Resource;
   "资源快照": Snapshot;
   "历练进度": Progress;
   "装备": Equipment;
@@ -146,10 +146,10 @@ export interface RelationCharacter {
   "背包": Inventory;
   "技能列表": Record<string, any>;
   "生命值": Resource;
-  "护甲魔": Resource;
-  "魔力信": Resource;
-  "信仰力体": Resource;
-  "体力资": Resource;
+  "护甲值": Resource;
+  "魔力值": Resource;
+  "信仰力值": Resource;
+  "体力值": Resource;
   "资源快照": Snapshot;
   "公会信息": GuildInfo;
   "身份背景": string;
@@ -181,8 +181,8 @@ export interface Pet {
 /** 敌人信息 */
 export interface Enemy {
   "类型": string;
-  "生命护": Resource;
-  "护甲能力": Resource;
+  "生命值": Resource;
+  "护甲值": Resource;
   "能力": Record<string, number>;
   "备注": string;
 }

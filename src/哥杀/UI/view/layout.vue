@@ -252,12 +252,14 @@ const navItems = [
 }
 
 .desktop-header {
-  position: relative; z-index: 10; display: flex; flex-direction: column;
+  position: relative; z-index: 20; display: flex; flex-direction: column;
   align-items: center; width: 100%; flex-shrink: 0;
+  height: 45px; /* 【关键修改】固定头部高度，让竖旗展开时脱离限制，自然向下遮挡内容 */
 }
 
 .flag-nav-container {
-  display: flex; gap: 15px; margin-top: -1px;
+  display: flex; gap: 15px;
+  margin-top: -10px; /* 向上溢出，防止下滑时断开 */
 }
 
 .flag-spacer {
@@ -265,29 +267,42 @@ const navItems = [
 }
 
 .flag-item {
-  position: relative; width: 46px; height: 90px;
+  position: relative; width: 46px;
+  height: 55px; /* 默认全部缩短，配合clip-path刚好只显示图标 */
   background-color: var(--flag-bg); color: var(--flag-text);
   text-decoration: none; display: flex; flex-direction: column;
-  align-items: center; padding-top: 15px;
+  align-items: center;
+  padding-top: 25px; /* 将内容往下推，适应向上溢出 */
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%);
   transition: transform 0.3s ease, background-color 0.3s, height 0.3s;
   box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  z-index: 10;
 }
 
-.flag-item:hover { transform: translateY(5px); }
-.flag-item.active { background-color: var(--flag-active); color: var(--bg-base); height: 100px; }
+.flag-item:hover {
+  transform: translateY(5px);
+  height: 130px; /* 【关键修改】悬浮时拉得更长，足以遮挡下方内容 */
+  z-index: 15; /* 保证悬浮时处于最上层 */
+}
+
+.flag-item.active {
+  background-color: var(--flag-active);
+  color: var(--bg-base);
+}
 
 /* 特殊操作竖旗样式 */
-.flag-action { cursor: pointer; height: 85px; } /* 稍微短一点以示区分 */
+.flag-action { cursor: pointer; }
 .flag-theme { background-color: var(--flag-theme-bg); }
 .flag-close { background-color: var(--flag-close-bg); }
-.flag-action:hover { height: 95px; }
 
 .flag-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .flag-content .text { writing-mode: vertical-rl; font-size: 0.9rem; letter-spacing: 2px; }
 
 .nav-badge {
-  position: absolute; top: 5px; right: 5px; width: 8px; height: 8px;
+  position: absolute;
+  top: 18px; /* 稍微往下移一点，防止在向上溢出区域被遮挡 */
+  right: 8px;
+  width: 8px; height: 8px;
   background-color: #e74c3c; border-radius: 50%;
 }
 
@@ -305,14 +320,38 @@ const navItems = [
   .mobile-nav-unroll { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.5s cubic-bezier(0.25, 0.8, 0.25, 1); background: rgba(0, 0, 0, 0.02); }
   .mobile-nav-unroll.is-open { grid-template-rows: 1fr; }
   .mobile-nav-content { overflow: hidden; display: flex; flex-direction: column; }
-  .mobile-nav-dashed-box { border: 1px dashed var(--accent-gold); margin: 15px 20px; padding: 15px; border-radius: 6px; display: flex; flex-direction: column; gap: 15px; background: rgba(255, 255, 255, 0.1); }
-  .mobile-nav-scroll-row { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 5px; scrollbar-width: none; align-items: center; }
+
+  /* 移动端路由UI缩小优化 */
+  .mobile-nav-dashed-box {
+    border: 1px dashed var(--accent-gold);
+    margin: 10px 15px;
+    padding: 10px;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .mobile-nav-scroll-row {
+    display: flex; overflow-x: auto; gap: 8px; padding-bottom: 0; scrollbar-width: none; align-items: center; flex: 1;
+  }
   .mobile-nav-scroll-row::-webkit-scrollbar { display: none; }
-  .mobile-nav-item { flex-shrink: 0; width: 65px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px 5px; text-decoration: none; color: var(--text-main); border: 1px solid var(--scroll-border); border-radius: 6px; background: rgba(255, 255, 255, 0.4); transition: all 0.3s ease; }
+
+  .mobile-nav-item {
+    flex-shrink: 0;
+    width: 50px;
+    position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 4px;
+    padding: 8px 4px;
+    font-size: 0.8rem;
+    text-decoration: none; color: var(--text-main); border: 1px solid var(--scroll-border); border-radius: 6px; background: rgba(255, 255, 255, 0.4); transition: all 0.3s ease;
+  }
+  .mobile-nav-item .icon { font-size: 1.1rem; }
   .mobile-nav-item.active { background-color: var(--flag-bg); color: var(--flag-text); border-color: var(--flag-bg); box-shadow: inset 0 0 10px rgba(0,0,0,0.2); }
 
   /* 移动端特殊按钮样式 */
-  .mobile-nav-divider { width: 1px; height: 40px; background-color: var(--scroll-border); margin: 0 5px; flex-shrink: 0; }
+  .mobile-nav-divider { width: 1px; height: 30px; background-color: var(--scroll-border); margin: 0 5px; flex-shrink: 0; }
   .action-item { cursor: pointer; color: var(--flag-text); border: none; }
   .theme-item { background-color: var(--flag-theme-bg); }
   .close-item { background-color: var(--flag-close-bg); }
