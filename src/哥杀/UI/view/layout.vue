@@ -95,7 +95,7 @@
     <!-- 弹窗面板 -->
     <VariablePanel v-if="showVariablePanel" @close="showVariablePanel = false" />
     <ContentEditPanel v-if="showEditPanel" @close="showEditPanel = false" />
-    <EventLogPanel v-if="showLogPanel" @close="showLogPanel = false" :logMessages="[]" :formatLogText="t=>t" :logListRef="()=>{}"/>
+    <EventLogPanel v-if="showLogPanel" @close="showLogPanel = false"/>
 
   </div>
 </template>

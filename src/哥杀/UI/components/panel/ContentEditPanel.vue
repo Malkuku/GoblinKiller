@@ -101,8 +101,11 @@ const handleConfirm = async () => {
 .checkbox-label input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent-gold); cursor: pointer; }
 .option-hint { font-size: 0.85rem; color: var(--text-muted); padding-left: 24px; }
 .edit-textarea {
-  flex: 1; width: 100%; background: rgba(255, 255, 255, 0.5); border: 1px solid var(--scroll-border);
-  color: var(--text-main); padding: 15px; font-size: 0.95rem; resize: none; outline: none;
+  flex: 1; width: 100%;
+  background: var(--scroll-paper) !important;
+  border: 1px solid var(--scroll-border);
+  color: var(--text-main) !important;
+  padding: 15px; font-size: 0.95rem; resize: none; outline: none;
   border-radius: 4px; font-family: inherit; scrollbar-width: thin;
 }
 .edit-textarea:focus { border-color: var(--accent-gold); box-shadow: 0 0 5px rgba(198, 166, 100, 0.2); }

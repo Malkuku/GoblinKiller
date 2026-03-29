@@ -52,9 +52,15 @@ const handleLevelChange = (e: Event) => {
 }
 .header-left { display: flex; align-items: center; gap: 10px; }
 .log-level-select {
-  background: rgba(255, 255, 255, 0.5); border: 1px solid var(--scroll-border);
-  color: var(--text-main); font-size: 0.85rem; padding: 2px 5px;
+  background: var(--scroll-paper) !important;
+  border: 1px solid var(--scroll-border);
+  color: var(--text-main) !important;
+  font-size: 0.85rem; padding: 2px 5px;
   border-radius: 3px; cursor: pointer; outline: none;
+}
+.log-level-select option {
+  background: var(--scroll-paper) !important;
+  color: var(--text-main) !important;
 }
 .log-level-select:focus, .log-level-select:hover { border-color: var(--accent-gold); }
 
