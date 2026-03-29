@@ -12,6 +12,12 @@
     </header>
 
     <nav class="summary-actions">
+      <!-- 新增：生成总结按钮 -->
+      <button class="generate-summary-btn" @click="handleSummary">
+        <span class="icon">✧</span>
+        <span class="text">生成总结</span>
+      </button>
+
       <transition name="fade">
         <button
           v-if="isEditMode && (selectedOverviews.size > 0 || selectedEvents.size > 0)"
@@ -189,6 +195,8 @@ import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
 import { SummaryOverview, SummaryEvent } from '../types/StatData';
 import { MvuUtil } from '@/Utils/MvuUtil'; // 引入 MvuUtil 同步数据
 
+declare const eventEmit: any;
+
 const statStore = useStatStore();
 
 const searchQuery = ref('');
@@ -299,6 +307,13 @@ const handleBatchDelete = async () => {
 
   // 同步数据变化到 Mvu
   await MvuUtil.updateMvuDataByObj(data);
+};
+
+// 新增：生成总结方法
+const handleSummary = () => {
+  if (confirm('是否手动触发一次总结正文？')) {
+    eventEmit('总结正文');
+  }
 };
 
 const editForm = ref<SummaryOverview>({
@@ -485,6 +500,27 @@ const saveEventEdit = async (sectionId: string, eventName: string) => {
   justify-content: flex-end;
   margin-bottom: 10px;
   padding-right: 5px;
+}
+
+/* 新增：生成总结按钮样式 */
+.generate-summary-btn {
+  background: rgba(212, 175, 55, 0.15);
+  border: 1px solid var(--c-gold);
+  color: var(--c-gold);
+  padding: 4px 12px;
+  border-radius: 15px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: auto; /* 将其他按钮推向右侧 */
+  transition: all 0.3s ease;
+}
+
+.generate-summary-btn:hover {
+  background: rgba(212, 175, 55, 0.3);
+  box-shadow: 0 0 10px var(--c-gold-glow);
 }
 
 .batch-delete-btn {
