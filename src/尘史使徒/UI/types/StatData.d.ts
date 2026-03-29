@@ -207,7 +207,6 @@ export interface MapNodeData {
 export interface EconomyData {
   "名称检索词": string[];
   "区域检索词": string[];
-  "货币体系": Record<string, string>;
   "物价": Record<string, string[]>;
   "平均收入": Record<string, string>;
 }

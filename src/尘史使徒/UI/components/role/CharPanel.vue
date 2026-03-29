@@ -56,21 +56,10 @@
           </section>
         </div>
 
-        <div v-if="currentTab === '属性'" class="tab-content">
-          <section class="info-block">
-            <h3>性格倾向</h3>
-            <PersonalityModule
-              :data="isEditing ? editForm.性格 : data.性格"
-              :isEditing="isEditing"
-              @update:data="editForm.性格 = $event"
-            />
-          </section>
+        <div v-if="currentTab === '技能'" class="tab-content">
           <section class="info-block">
             <ArtsModule :arts-data="data.术之等级" />
           </section>
-        </div>
-
-        <div v-if="currentTab === '技能'" class="tab-content">
           <section class="info-block">
             <h3>掌握技能</h3>
             <SkillModule :data="data.技能" :stats="data" />
@@ -78,17 +67,37 @@
         </div>
 
         <div v-if="currentTab === '档案'" class="tab-content">
+          <!-- 修改点：将背景纳入详情模式 -->
+          <section
+            v-if="showDetails || charType !== 'main' || isEditing"
+            class="info-block"
+            :class="{ 'detail-block': charType === 'main' && !isEditing }"
+          >
+            <h3>背景</h3>
+            <p v-if="!isEditing" class="text-content">{{ data.背景?.join('\n') }}</p>
+            <textarea v-else v-model="editForm._背景Str" class="edit-textarea" placeholder="每行一条背景故事"></textarea>
+          </section>
+
           <section class="info-block">
             <h3>外貌</h3>
             <p v-if="!isEditing">{{ data.外貌?.join('\n') }}</p>
             <textarea v-else v-model="editForm._外貌Str" class="edit-textarea" placeholder="每行一条外貌特征"></textarea>
           </section>
 
-          <section class="info-block">
-            <h3>背景</h3>
-            <p v-if="!isEditing" class="text-content">{{ data.背景?.join('\n') }}</p>
-            <textarea v-else v-model="editForm._背景Str" class="edit-textarea" placeholder="每行一条背景故事"></textarea>
+          <!-- 修改点：将性格倾向纳入详情模式 -->
+          <section
+            v-if="showDetails || charType !== 'main' || isEditing"
+            class="info-block"
+            :class="{ 'detail-block': charType === 'main' && !isEditing }"
+          >
+            <h3>性格倾向</h3>
+            <PersonalityModule
+              :data="isEditing ? editForm.性格 : data.性格"
+              :isEditing="isEditing"
+              @update:data="editForm.性格 = $event"
+            />
           </section>
+
 
           <section v-if="charType === 'main'" class="info-block">
             <h3>活动范围</h3>
@@ -203,12 +212,12 @@ const showDetailToggle = computed(() => props.charType === 'main');
 
 const hasTabs = computed(() => props.charType !== 'minor');
 
-const defaultTabs = ['状态', '属性', '技能', '档案', '物品'];
+const defaultTabs = ['状态', '技能', '档案', '物品'];
 
 const tabs = computed(() => {
   if (props.charType === 'user') return defaultTabs;
   if (props.charType === 'main') {
-    if (props.data?.姓名 === '希尔') return ['属性', '技能', '档案'];
+    if (props.data?.姓名 === '希尔') return ['技能', '档案'];
     return defaultTabs;
   }
   return [];

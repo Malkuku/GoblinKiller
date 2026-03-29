@@ -51,6 +51,15 @@
         </div>
       </div>
 
+      <!-- 总结正文按钮 -->
+      <div class="summary-control-group">
+        <button class="control-icon summary-btn" @click="handleSummary" title="总结正文">
+          <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/>
+          </svg>
+        </button>
+      </div>
+
       <!-- 字体控制 -->
       <div class="font-control-group">
         <button class="control-icon" @click="$emit('change-font-size', -1)">A-</button>
@@ -63,6 +72,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+
+declare const eventEmit: any;
 
 const props = defineProps<{
   location: string;
@@ -80,6 +91,12 @@ defineEmits<{
 const handleCreateChar = () => {
   if (confirm('是否创建次要角色？')) {
     eventEmit('创建次要角色');
+  }
+};
+
+const handleSummary = () => {
+  if (confirm('是否手动触发一次总结正文？')) {
+    eventEmit('总结正文');
   }
 };
 
@@ -122,13 +139,13 @@ const formattedWorldTime = computed(() => {
 .status-divider { width: 1px; height: 14px; background: rgba(164, 139, 87, 0.4); }
 .top-bar-controls { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .action-controls-group { display: flex; align-items: center; gap: 10px; }
-.font-control-group, .log-control-group, .edit-control-group, .create-char-control-group { display: flex; align-items: center; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 20px; border: 1px solid var(--c-border); }
-.log-control-group, .edit-control-group, .create-char-control-group { padding: 0; }
+.font-control-group, .log-control-group, .edit-control-group, .create-char-control-group, .summary-control-group { display: flex; align-items: center; background: rgba(0,0,0,0.6); padding: 4px; border-radius: 20px; border: 1px solid var(--c-border); }
+.log-control-group, .edit-control-group, .create-char-control-group, .summary-control-group { padding: 0; }
 .control-icon { background: none; border: none; color: var(--c-text-main); cursor: pointer; font-family: var(--font-title); padding: 0 5px; height: 28px; display: flex; align-items: center; justify-content: center; transition: color 0.3s; }
 .control-icon:hover { color: var(--c-gold); }
 .font-size-display { font-size: 0.85rem; color: var(--c-gold); min-width: 28px; text-align: center; }
-.log-btn, .edit-btn, .create-char-btn { position: relative; width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--c-text-dim); }
-.log-btn:hover, .edit-btn:hover, .create-char-btn:hover { color: var(--c-gold); }
+.log-btn, .edit-btn, .create-char-btn, .summary-btn { position: relative; width: 36px; height: 36px; padding: 0; border-radius: 50%; color: var(--c-text-dim); }
+.log-btn:hover, .edit-btn:hover, .create-char-btn:hover, .summary-btn:hover { color: var(--c-gold); }
 .control-svg { width: 20px; height: 20px; }
 .log-badge { position: absolute; top: 0; right: 0; background: #8b0000; color: #fff; font-size: 0.7rem; font-weight: bold; width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.5); border: 1px solid #1a1a1a; }
 .time-display :deep(.d-sep), .time-display :deep(.t-sep), .time-display :deep(.w-sep) { color: rgba(164, 139, 87, 0.6); margin: 0 1px; font-weight: normal; }
@@ -137,9 +154,9 @@ const formattedWorldTime = computed(() => {
 @media (max-width: 768px) {
   .world-status-bar {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr auto auto;
     grid-template-rows: auto auto;
-    gap: 12px 15px;
+    gap: 12px 10px;
     padding: 12px 15px;
   }
 
@@ -158,9 +175,18 @@ const formattedWorldTime = computed(() => {
     grid-row: 1;
     align-self: center;
   }
+
+  /* 总结正文按钮 */
+  .summary-control-group {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    align-self: center;
+  }
+
   /* 字体大小 */
   .font-control-group {
-    grid-column: 2;
+    grid-column: 3;
     grid-row: 1;
     justify-self: end;
     align-self: center;
@@ -172,9 +198,10 @@ const formattedWorldTime = computed(() => {
     grid-row: 2;
     align-self: center;
   }
+
   /* 动作按钮组 (编辑 & 日志 & 创建角色) */
   .action-controls-group {
-    grid-column: 2;
+    grid-column: 2 / span 2;
     grid-row: 2;
     justify-self: end;
     align-self: center;

@@ -196,15 +196,6 @@
           </button>
 
           <div v-if="isSectionOpen('econ_' + region)" class="ac-accordion-content">
-            <div class="sub-section">
-              <h4 class="ac-sub-title">CURRENCY_SYSTEM</h4>
-              <div class="grid-container">
-                <div v-for="(desc, name) in filterTemplate(econ.货币体系)" :key="name" class="tech-card mini">
-                  <div class="mini-header gold-text">{{ name }}</div>
-                  <div class="mini-body dim-text">{{ desc }}</div>
-                </div>
-              </div>
-            </div>
             <!-- 收入与物价 -->
             <div class="sub-section">
               <h4 class="ac-sub-title">ECONOMICS_DATA</h4>

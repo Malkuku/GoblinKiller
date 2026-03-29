@@ -260,7 +260,6 @@ watch(() => store.stat_data, (newVal) => {
   position: relative;
   background: rgba(0,0,0,0.8);
 }
-
 /* --- 新增：工具栏样式 --- */
 .sidebar-tools {
   display: flex;
@@ -268,10 +267,13 @@ watch(() => store.stat_data, (newVal) => {
   gap: 8px;
   border-bottom: 1px solid rgba(255,255,255,0.1);
   background: rgba(0,0,0,0.3);
+  box-sizing: border-box; /* 新增：防止 padding 撑开宽度 */
+  width: 100%; /* 新增：确保宽度不超过父容器 */
 }
 
 .search-input {
   flex: 1;
+  min-width: 0; /* 新增：允许输入框在 flex 容器中缩小，防止溢出 */
   background: rgba(0,0,0,0.5);
   border: 1px solid var(--c-border);
   color: #ddd;
@@ -280,6 +282,7 @@ watch(() => store.stat_data, (newVal) => {
   font-size: 0.85rem;
   outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box; /* 新增 */
 }
 
 .search-input:focus {
@@ -287,6 +290,7 @@ watch(() => store.stat_data, (newVal) => {
 }
 
 .tool-btn {
+  flex-shrink: 0; /* 新增：防止按钮被挤压变形 */
   background: transparent;
   border: 1px solid var(--c-border);
   color: #888;
@@ -299,6 +303,7 @@ watch(() => store.stat_data, (newVal) => {
   justify-content: center;
   font-size: 1rem;
   transition: all 0.2s;
+  box-sizing: border-box; /* 新增 */
 }
 
 .tool-btn:hover {
