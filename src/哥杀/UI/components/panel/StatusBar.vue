@@ -51,10 +51,6 @@
 
         <button class="control-btn text-btn" @click="$emit('decrease-font-size')" title="减小字体">A-</button>
         <button class="control-btn text-btn" @click="$emit('increase-font-size')" title="增大字体">A+</button>
-        <button class="control-btn text-btn theme-btn" @click="$emit('toggle-theme')">
-          {{ isDarkMode ? '☀ 晨光' : '☾ 夜幕' }}
-        </button>
-        <button class="control-btn icon-btn close-btn" @click="$emit('close')">✕</button>
       </div>
     </div>
 
@@ -68,7 +64,9 @@
             </svg>
             <span class="status-text">{{ currentTime }}</span>
           </div>
-          <button class="control-btn text-btn close-btn" @click="$emit('close')">✕</button>
+          <button class="control-btn icon-btn" @click="showMobileTools = true" title="展开工具">
+            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+          </button>
         </div>
         <div class="mobile-row">
           <div class="status-group" title="所在地">
@@ -87,9 +85,6 @@
               <svg class="coin-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#CD7F32" stroke="#A0522D" stroke-width="1"/></svg>
             </div>
           </div>
-          <button class="control-btn icon-btn" @click="showMobileTools = true" title="展开工具">
-            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-          </button>
         </div>
       </template>
       <template v-else>
@@ -99,9 +94,6 @@
           </button>
           <button class="control-btn text-btn" @click="$emit('decrease-font-size')" title="减小字体">A-</button>
           <button class="control-btn text-btn" @click="$emit('increase-font-size')" title="增大字体">A+</button>
-          <button class="control-btn text-btn theme-btn" @click="$emit('toggle-theme')">
-            {{ isDarkMode ? '☀ 晨光' : '☾ 夜幕' }}
-          </button>
           <button class="control-btn icon-btn" @click="$emit('toggle-variable-panel')" title="变量监控">
             <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
           </button>

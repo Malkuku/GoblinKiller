@@ -1,5 +1,6 @@
 import { createMemoryHistory, createRouter } from 'vue-router';
 import Layout from '../view/layout.vue';
+import XuanXiang from '../view/选项.vue';
 
 export const router = createRouter({
   history: createMemoryHistory(),
@@ -7,9 +8,9 @@ export const router = createRouter({
     {
       path: '/',
       component: Layout,
-      //redirect: '/',
+      redirect: '/选项',
       children: [
-        // { path: '选项', component: XuanXiang },
+        { path: '选项', component: XuanXiang },
         // { path: '世界信息', component: ShiJieXinXi },
         // { path: '角色', component: JueSe },
         // { path: '任务', component: RenWu },

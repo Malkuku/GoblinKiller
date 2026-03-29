@@ -30,7 +30,18 @@
         <div class="mobile-nav-unroll mobile-only" :class="{ 'is-open': isMobileMenuOpen }">
           <div class="mobile-nav-content">
             <div class="mobile-nav-dashed-box">
+              <!-- 移动端：特殊操作按钮 -->
+              <div class="mobile-nav-item action-item theme-item" @click="toggleTheme">
+                <span class="icon">{{ uiStore.darkMode ? '☀' : '☾' }}</span>
+                <span class="text">{{ uiStore.darkMode ? '晨光' : '夜幕' }}</span>
+              </div>
+              <div class="mobile-nav-item action-item close-item" @click="close">
+                <span class="icon">✕</span>
+                <span class="text">归隐</span>
+              </div>
+              <div class="mobile-nav-divider"></div>
               <div class="mobile-nav-scroll-row">
+                <!-- 常规路由 -->
                 <router-link
                   v-for="item in navItems" :key="item.path" :to="item.path"
                   class="mobile-nav-item" active-class="active" @click="isMobileMenuOpen = false"
@@ -46,24 +57,12 @@
         </div>
 
         <!-- ========================================== -->
-        <!-- 顶层状态栏 (PC与移动端共用，位于卷轴上方) -->
-        <!-- ========================================== -->
-        <StatusBar
-          :is-dark-mode="uiStore.darkMode"
-          @toggle-font-size="toggleFontSize"
-          @toggle-theme="toggleTheme"
-          @close="close"
-          @toggle-variable-panel="showVariablePanel = !showVariablePanel"
-          @toggle-edit-panel="showEditPanel = !showEditPanel"
-          @toggle-log-panel="showLogPanel = !showLogPanel"
-        />
-
-        <!-- ========================================== -->
         <!-- PC端头部：竖旗导航 -->
         <!-- ========================================== -->
         <header class="desktop-header">
           <!-- 竖旗路由导航 -->
           <nav class="flag-nav-container">
+            <!-- 常规路由竖旗 -->
             <router-link
               v-for="item in navItems" :key="item.path" :to="item.path"
               class="flag-item" active-class="active"
@@ -74,6 +73,24 @@
               </div>
               <div v-if="notifications && notifications[item.path]" class="nav-badge"></div>
             </router-link>
+
+            <div class="flag-spacer"></div>
+
+            <!-- 特殊操作竖旗：主题切换 -->
+            <div class="flag-item flag-action flag-theme" @click="toggleTheme" :title="uiStore.darkMode ? '切换至晨光' : '切换至夜幕'">
+              <div class="flag-content">
+                <span class="icon">{{ uiStore.darkMode ? '☀' : '☾' }}</span>
+                <span class="text">{{ uiStore.darkMode ? '晨光' : '夜幕' }}</span>
+              </div>
+            </div>
+
+            <!-- 特殊操作竖旗：关闭 -->
+            <div class="flag-item flag-action flag-close" @click="close" title="关闭界面">
+              <div class="flag-content">
+                <span class="icon">✕</span>
+                <span class="text">归隐</span>
+              </div>
+            </div>
           </nav>
         </header>
 
@@ -104,7 +121,6 @@
 import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useUiStore } from '@/哥杀/UI/store/UIStore';
-import StatusBar from '@/哥杀/UI/components/panel/StatusBar.vue';
 import VariablePanel from '@/哥杀/UI/components/panel/VariablePanel.vue';
 import ContentEditPanel from '@/哥杀/UI/components/panel/ContentEditPanel.vue';
 import EventLogPanel from '@/哥杀/UI/components/panel/EventLogPanel.vue';
@@ -120,6 +136,11 @@ const notifications = ref({});
 const visible = computed(() => uiStore.showUI);
 const close = () => { uiStore.showUI = false; };
 
+// 切换主题
+const toggleTheme = () => {
+  uiStore.darkMode = !uiStore.darkMode;
+};
+
 // 面板状态
 const showVariablePanel = ref(false);
 const showEditPanel = ref(false);
@@ -133,16 +154,8 @@ const toggleMobileMenu = () => {
   }
 };
 
-// 字体大小切换逻辑
-const fontLevel = ref(1);
-const toggleFontSize = () => {
-  fontLevel.value = fontLevel.value >= 3 ? 1 : fontLevel.value + 1;
-  const sizes = { 1: '16px', 2: '18px', 3: '20px' };
-  document.documentElement.style.fontSize = sizes[fontLevel.value];
-};
-
 const navItems = [
-  { name: '未途', path: '/', icon: '❖' },
+  { name: '旅途', path: '/选项', icon: '❖' },
   { name: '视界', path: '/', icon: '👁' },
   { name: '倒影', path: '/', icon: '♟' },
   { name: '器具', path: '/', icon: '▨' },
@@ -154,11 +167,6 @@ const navItems = [
   { name: '绯廊', path: '/', icon: '🖼' },
   { name: '祈奉', path: '/', icon: '⚙' },
 ];
-
-const toggleTheme = async () => {
-  uiStore.darkMode = !uiStore.darkMode;
-  await uiStore.saveModeSetting();
-};
 </script>
 
 <style scoped>
@@ -178,6 +186,10 @@ const toggleTheme = async () => {
   --flag-text: #f4f1ea;
   --flag-active: #c6a664;
   --status-bar-bg: rgba(244, 241, 234, 0.9);
+
+  /* 特殊竖旗颜色 */
+  --flag-theme-bg: #3b5998;
+  --flag-close-bg: #b33939;
 
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100vh; height: 100dvh;
@@ -202,6 +214,10 @@ const toggleTheme = async () => {
   --flag-text: #dce4ee;
   --flag-active: #8ba4c7;
   --status-bar-bg: rgba(31, 41, 61, 0.9);
+
+  /* 暗黑模式特殊竖旗颜色 */
+  --flag-theme-bg: #2c3e50;
+  --flag-close-bg: #641e16;
 }
 
 .fantasy-background {
@@ -232,6 +248,7 @@ const toggleTheme = async () => {
 
 .scroll-content {
   flex: 1; padding: 20px 40px 40px 40px; overflow-y: auto;
+  display: flex; flex-direction: column;
 }
 
 .desktop-header {
@@ -243,18 +260,28 @@ const toggleTheme = async () => {
   display: flex; gap: 15px; margin-top: -1px;
 }
 
+.flag-spacer {
+  width: 10px; /* 在常规路由和特殊按钮之间增加一点间距 */
+}
+
 .flag-item {
   position: relative; width: 46px; height: 90px;
   background-color: var(--flag-bg); color: var(--flag-text);
   text-decoration: none; display: flex; flex-direction: column;
   align-items: center; padding-top: 15px;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%);
-  transition: transform 0.3s ease, background-color 0.3s;
+  transition: transform 0.3s ease, background-color 0.3s, height 0.3s;
   box-shadow: 0 4px 6px rgba(0,0,0,0.3);
 }
 
 .flag-item:hover { transform: translateY(5px); }
 .flag-item.active { background-color: var(--flag-active); color: var(--bg-base); height: 100px; }
+
+/* 特殊操作竖旗样式 */
+.flag-action { cursor: pointer; height: 85px; } /* 稍微短一点以示区分 */
+.flag-theme { background-color: var(--flag-theme-bg); }
+.flag-close { background-color: var(--flag-close-bg); }
+.flag-action:hover { height: 95px; }
 
 .flag-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .flag-content .text { writing-mode: vertical-rl; font-size: 0.9rem; letter-spacing: 2px; }
@@ -279,10 +306,17 @@ const toggleTheme = async () => {
   .mobile-nav-unroll.is-open { grid-template-rows: 1fr; }
   .mobile-nav-content { overflow: hidden; display: flex; flex-direction: column; }
   .mobile-nav-dashed-box { border: 1px dashed var(--accent-gold); margin: 15px 20px; padding: 15px; border-radius: 6px; display: flex; flex-direction: column; gap: 15px; background: rgba(255, 255, 255, 0.1); }
-  .mobile-nav-scroll-row { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 5px; scrollbar-width: none; }
+  .mobile-nav-scroll-row { display: flex; overflow-x: auto; gap: 12px; padding-bottom: 5px; scrollbar-width: none; align-items: center; }
   .mobile-nav-scroll-row::-webkit-scrollbar { display: none; }
   .mobile-nav-item { flex-shrink: 0; width: 65px; position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 12px 5px; text-decoration: none; color: var(--text-main); border: 1px solid var(--scroll-border); border-radius: 6px; background: rgba(255, 255, 255, 0.4); transition: all 0.3s ease; }
   .mobile-nav-item.active { background-color: var(--flag-bg); color: var(--flag-text); border-color: var(--flag-bg); box-shadow: inset 0 0 10px rgba(0,0,0,0.2); }
+
+  /* 移动端特殊按钮样式 */
+  .mobile-nav-divider { width: 1px; height: 40px; background-color: var(--scroll-border); margin: 0 5px; flex-shrink: 0; }
+  .action-item { cursor: pointer; color: var(--flag-text); border: none; }
+  .theme-item { background-color: var(--flag-theme-bg); }
+  .close-item { background-color: var(--flag-close-bg); }
+
   .unroll-divider { height: 2px; background: linear-gradient(90deg, transparent, var(--accent-gold), transparent); margin: 0 20px; opacity: 0.5; }
   .scroll-content { padding: 20px; }
 }
