@@ -111,8 +111,6 @@ const props = defineProps<{
   userInput: string;
   cachedOptions: string[];
   userLifeStatus: any;
-  combatStrategy: string;
-  combatStrategyCustom: string;
 }>();
 
 const emit = defineEmits<{

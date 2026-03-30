@@ -108,12 +108,6 @@
       <!-- 卷轴右侧/下方轴承 -->
       <div class="scroll-roller roller-end"></div>
     </main>
-
-    <!-- 弹窗面板 -->
-    <VariablePanel v-if="showVariablePanel" @close="showVariablePanel = false" />
-    <ContentEditPanel v-if="showEditPanel" @close="showEditPanel = false" />
-    <EventLogPanel v-if="showLogPanel" @close="showLogPanel = false"/>
-
   </div>
 </template>
 
@@ -121,10 +115,6 @@
 import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useUiStore } from '@/哥杀/UI/store/UIStore';
-import VariablePanel from '@/哥杀/UI/components/panel/VariablePanel.vue';
-import ContentEditPanel from '@/哥杀/UI/components/panel/ContentEditPanel.vue';
-import EventLogPanel from '@/哥杀/UI/components/panel/EventLogPanel.vue';
-
 const uiStore = useUiStore();
 const router = useRouter();
 const route = useRoute();
@@ -140,11 +130,6 @@ const close = () => { uiStore.showUI = false; };
 const toggleTheme = () => {
   uiStore.darkMode = !uiStore.darkMode;
 };
-
-// 面板状态
-const showVariablePanel = ref(false);
-const showEditPanel = ref(false);
-const showLogPanel = ref(false);
 
 // 移动端菜单状态
 const isMobileMenuOpen = ref(false);

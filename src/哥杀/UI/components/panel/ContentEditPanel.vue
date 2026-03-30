@@ -79,9 +79,9 @@ const handleConfirm = async () => {
 <style scoped>
 .edit-panel {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 80%; height: 80%; background: var(--scroll-paper);
+  width: 65%; height: 90%; background: var(--scroll-paper);
   border: 1px solid var(--scroll-border); border-radius: 6px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 10000;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 10001;
   display: flex; flex-direction: column; color: var(--text-main);
 }
 .edit-header {
@@ -120,7 +120,7 @@ const handleConfirm = async () => {
 .slide-down-edit-enter-from, .slide-down-edit-leave-to { opacity: 0; transform: translate(-50%, -55%); }
 
 @media (max-width: 1000px) {
-  .edit-panel { top: 0; left: 0; transform: none; width: 100%; height: 100dvh; border-radius: 0; border: none; }
+  .edit-panel { top: 20%; left: 0; transform: none; width: 100%; height: 80dvh; border-radius: 0; border: none; }
   .slide-down-edit-enter-from, .slide-down-edit-leave-to { opacity: 0; transform: translateY(-10px); }
 }
 </style>

@@ -46,10 +46,6 @@
       :is-tavern-busy="isTavernBusy"
       :cached-options="cachedOptions"
       :user-life-status="userLifeStatus"
-      :combat-strategy="combatStrategy"
-      :combat-strategy-custom="combatStrategyCustom"
-      @update:strategy="handleStrategyChange"
-      @update:custom-content="handleCustomContentChange"
       @send-or-stop="handleSendOrStop"
       @recalculate-variables="recalculateVariables"
       @reroll-current="rerollCurrent"
@@ -95,12 +91,8 @@
 
   const {
     userLifeStatus,
-    combatStrategy,
-    combatStrategyCustom,
     currentWorldTime,
     currentWorldLocation,
-    handleStrategyChange,
-    handleCustomContentChange,
   } = useStatusSync();
 
   const {
