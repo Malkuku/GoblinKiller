@@ -141,9 +141,9 @@ const toggleMobileMenu = () => {
 
 const navItems = [
   { name: '旅途', path: '/选项', icon: '❖' },
-  { name: '视界', path: '/', icon: '👁' },
-  { name: '倒影', path: '/', icon: '♟' },
-  { name: '器具', path: '/', icon: '▨' },
+  // { name: '视界', path: '/', icon: '👁' },
+  { name: '自我', path: '/主角', icon: '♟' },
+  { name: '友人', path: '/关系角色', icon: '▨' },
   { name: '典范', path: '/', icon: 'Ø'},
   { name: '道寻', path: '/', icon: '⚖' },
   { name: '书库', path: '/', icon: '🏛' },

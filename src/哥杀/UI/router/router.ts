@@ -1,6 +1,8 @@
 import { createMemoryHistory, createRouter } from 'vue-router';
 import Layout from '../view/layout.vue';
-import XuanXiang from '../view/选项.vue';
+import optionView from '@/哥杀/UI/view/选项.vue'
+import playerView from '@/哥杀/UI/view/主角.vue'
+import relationView from '@/哥杀/UI/components/role/RelationCharacterProfile.vue'
 
 export const router = createRouter({
   history: createMemoryHistory(),
@@ -10,9 +12,9 @@ export const router = createRouter({
       component: Layout,
       redirect: '/选项',
       children: [
-        { path: '选项', component: XuanXiang },
-        // { path: '世界信息', component: ShiJieXinXi },
-        // { path: '角色', component: JueSe },
+        { path: '选项', component: optionView },
+        { path: '主角', component: playerView },
+        { path: '关系角色', component: relationView },
         // { path: '任务', component: RenWu },
         // { path: '仓库', component: CangKu },
         // { path: '商店', component: ShangDian },
