@@ -37,7 +37,7 @@
             :characterId="selectedCharacterId"
           />
           <div v-else class="empty-selection">
-            <div class="empty-icon">✧</div>
+            <div class="empty-icon" v-html="getSVG('decorative', { size: 48 })"></div>
             <p>请从左侧名册中选择一位角色，<br>以翻阅其命运的档案。</p>
           </div>
         </transition>
@@ -54,6 +54,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
 import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { getSVG } from '@/哥杀/UI/composables/icon/icon';
 import RelationCharacterProfile from '../components/role/RelationCharacterProfile.vue';
 
 const statStore = useStatStore();

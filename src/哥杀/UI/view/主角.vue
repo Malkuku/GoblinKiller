@@ -9,9 +9,8 @@
         :class="{ active: activeTab === index }"
         @click="activeTab = index"
       >
-        <span class="bookmark-icon">{{ tab.icon }}</span>
+        <span class="bookmark-icon" v-html="getSVG(tab.icon, { size: 24 })"></span>
         <span class="bookmark-text">{{ tab.name }}</span>
-        <!-- 装饰性连接缺口 -->
         <div class="bookmark-connector" v-if="activeTab === index"></div>
       </div>
     </aside>
@@ -20,7 +19,7 @@
     <section class="profile-content-area">
       <!-- ================= 第1页：基础概览 ================= -->
       <div v-if="activeTab === 0" class="page-content" key="page0">
-        <h2 class="page-title"><span>✧</span> 灵魂印记 <span>✧</span></h2>
+        <h2 class="page-title"><span v-html="getSVG('decorative', { size: 16 })"></span> 灵魂印记 <span v-html="getSVG('decorative', { size: 16 })"></span></h2>
 
         <div class="info-grid">
           <div class="info-card">
@@ -64,7 +63,7 @@
 
       <!-- ================= 第2页：能力相关 ================= -->
       <div v-if="activeTab === 1" class="page-content" key="page1">
-        <h2 class="page-title"><span>✧</span> 力量具象 <span>✧</span></h2>
+        <h2 class="page-title"><span v-html="getSVG('decorative', { size: 16 })"></span> 力量具象 <span v-html="getSVG('decorative', { size: 16 })"></span></h2>
 
         <div class="two-col-layout">
           <!-- 左列：职业与历练 -->
@@ -116,13 +115,13 @@
 
       <!-- ================= 第3页：资源相关 ================= -->
       <div v-if="activeTab === 2" class="page-content" key="page2">
-        <h2 class="page-title"><span>✧</span> 物质沉淀 <span>✧</span></h2>
+        <h2 class="page-title"><span v-html="getSVG('decorative', { size: 16 })"></span> 物质沉淀 <span v-html="getSVG('decorative', { size: 16 })"></span></h2>
 
         <!-- 财富 -->
         <div class="wealth-container">
-          <div class="coin gold"><span>🥇</span> {{ player.背包.金钱.金币 }} 金</div>
-          <div class="coin silver"><span>🥈</span> {{ player.背包.金钱.银币 }} 银</div>
-          <div class="coin copper"><span>🥉</span> {{ player.背包.金钱.铜币 }} 铜</div>
+          <div class="coin gold"><span v-html="getSVG('coin', { size: 20, color: '#d4af37' })"></span> {{ player.背包.金钱.金币 }} 金</div>
+          <div class="coin silver"><span v-html="getSVG('coin', { size: 20, color: '#c0c0c0' })"></span> {{ player.背包.金钱.银币 }} 银</div>
+          <div class="coin copper"><span v-html="getSVG('coin', { size: 20, color: '#cd7f32' })"></span> {{ player.背包.金钱.铜币 }} 铜</div>
         </div>
 
         <div class="two-col-layout mt-4">
@@ -168,11 +167,11 @@
 
       <!-- ================= 第4页：驱动相关 ================= -->
       <div v-if="activeTab === 3" class="page-content" key="page3">
-        <h2 class="page-title"><span>✧</span> 命运轨迹 <span>✧</span></h2>
+        <h2 class="page-title"><span v-html="getSVG('decorative', { size: 16 })"></span> 命运轨迹 <span v-html="getSVG('decorative', { size: 16 })"></span></h2>
 
         <h3 class="section-title">公会铭牌</h3>
         <div class="guild-card">
-          <div class="guild-emblem">🛡️</div>
+          <div class="guild-emblem" v-html="getSVG('shield', { size: 48 })"></div>
           <div class="guild-info">
             <div class="g-name">{{ player.公会信息.所属公会 || '无所属' }}</div>
             <div class="g-rank">阶级:
@@ -213,14 +212,14 @@
 <script setup>
 import AbilityScoresDisplay from '@/哥杀/UI/components/role/AbilityScoresDisplay.vue';
 import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { getSVG } from '@/哥杀/UI/composables/icon/icon';
 import { computed, ref } from 'vue';
 
-// 书签定义
 const tabs = [
-  { name: '概览', icon: '👤' },
-  { name: '能力', icon: '⚔️' },
-  { name: '资源', icon: '🎒' },
-  { name: '驱动', icon: '📜' }
+  { name: '概览', icon: 'user' },
+  { name: '能力', icon: 'swords' },
+  { name: '资源', icon: 'nav_bag' },
+  { name: '驱动', icon: 'scroll' }
 ];
 
 const activeTab = ref(0);

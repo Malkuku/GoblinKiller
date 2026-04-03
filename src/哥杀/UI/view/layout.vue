@@ -18,8 +18,7 @@
     <main class="scroll-main-container">
       <!-- 卷轴左侧/上方轴承 -->
       <div class="scroll-roller roller-start" @click="toggleMobileMenu">
-        <div class="roller-rune mobile-only" :class="{ 'is-active': isMobileMenuOpen }">
-          ✧
+        <div class="roller-rune mobile-only" :class="{ 'is-active': isMobileMenuOpen }" v-html="getSVG('decorative', { size: 14 })">
         </div>
       </div>
 
@@ -32,21 +31,20 @@
             <div class="mobile-nav-dashed-box">
               <!-- 移动端：特殊操作按钮 -->
               <div class="mobile-nav-item action-item theme-item" @click="toggleTheme">
-                <span class="icon">{{ uiStore.darkMode ? '☀' : '☾' }}</span>
+                <span class="icon" v-html="getSVG(uiStore.darkMode ? 'sun' : 'moon', { size: 18 })"></span>
                 <span class="text">{{ uiStore.darkMode ? '晨光' : '夜幕' }}</span>
               </div>
               <div class="mobile-nav-item action-item close-item" @click="close">
-                <span class="icon">✕</span>
+                <span class="icon" v-html="getSVG('close', { size: 18 })"></span>
                 <span class="text">归隐</span>
               </div>
               <div class="mobile-nav-divider"></div>
               <div class="mobile-nav-scroll-row">
-                <!-- 常规路由 -->
                 <router-link
                   v-for="item in navItems" :key="item.path" :to="item.path"
                   class="mobile-nav-item" active-class="active" @click="isMobileMenuOpen = false"
                 >
-                  <span class="icon" v-if="item.icon">{{ item.icon }}</span>
+                  <span class="icon" v-if="item.icon" v-html="getSVG(item.icon, { size: 18 })"></span>
                   <span class="text">{{ item.name }}</span>
                   <div v-if="notifications && notifications[item.path]" class="nav-badge"></div>
                 </router-link>
@@ -62,13 +60,12 @@
         <header class="desktop-header">
           <!-- 竖旗路由导航 -->
           <nav class="flag-nav-container">
-            <!-- 常规路由竖旗 -->
             <router-link
               v-for="item in navItems" :key="item.path" :to="item.path"
               class="flag-item" active-class="active"
             >
               <div class="flag-content">
-                <span class="icon" v-if="item.icon">{{ item.icon }}</span>
+                <span class="icon" v-if="item.icon" v-html="getSVG(item.icon, { size: 20 })"></span>
                 <span class="text">{{ item.name }}</span>
               </div>
               <div v-if="notifications && notifications[item.path]" class="nav-badge"></div>
@@ -76,18 +73,16 @@
 
             <div class="flag-spacer"></div>
 
-            <!-- 特殊操作竖旗：主题切换 -->
             <div class="flag-item flag-action flag-theme" @click="toggleTheme" :title="uiStore.darkMode ? '切换至晨光' : '切换至夜幕'">
               <div class="flag-content">
-                <span class="icon">{{ uiStore.darkMode ? '☀' : '☾' }}</span>
+                <span class="icon" v-html="getSVG(uiStore.darkMode ? 'sun' : 'moon', { size: 20 })"></span>
                 <span class="text">{{ uiStore.darkMode ? '晨光' : '夜幕' }}</span>
               </div>
             </div>
 
-            <!-- 特殊操作竖旗：关闭 -->
             <div class="flag-item flag-action flag-close" @click="close" title="关闭界面">
               <div class="flag-content">
-                <span class="icon">✕</span>
+                <span class="icon" v-html="getSVG('close', { size: 20 })"></span>
                 <span class="text">归隐</span>
               </div>
             </div>
@@ -115,6 +110,7 @@
 import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { useUiStore } from '@/哥杀/UI/store/UIStore';
+import { getSVG } from '@/哥杀/UI/composables/icon/icon';
 const uiStore = useUiStore();
 const router = useRouter();
 const route = useRoute();
@@ -140,13 +136,12 @@ const toggleMobileMenu = () => {
 };
 
 const navItems = [
-  { name: '旅途', path: '/选项', icon: '❖' },
-  // { name: '视界', path: '/', icon: '👁' }, //TODO将来或许会有的地图模块
-  { name: '自我', path: '/主角', icon: '♟' },
-  { name: '背包', path: '/背包', icon: '◈' },
-  { name: '友人', path: '/关系角色', icon: '▨' },
-  { name: '宠物', path: '/宠物', icon: '⬡'},
-  { name: '险敌', path: '/敌人', icon: '☠'}
+  { name: '旅途', path: '/选项', icon: 'journey' },
+  { name: '自我', path: '/主角', icon: 'nav_protagonist' },
+  { name: '背包', path: '/背包', icon: 'nav_bag' },
+  { name: '友人', path: '/关系角色', icon: 'nav_social' },
+  { name: '宠物', path: '/宠物', icon: 'paw' },
+  { name: '险敌', path: '/敌人', icon: 'skull' }
 ];
 </script>
 
@@ -249,7 +244,7 @@ const navItems = [
 }
 
 .flag-spacer {
-  width: 10px; /* 在常规路由和特殊按钮之间增加一点间距 */
+  width: 80px; /* 在常规路由和特殊按钮之间增加更大的间距 */
 }
 
 .flag-item {
