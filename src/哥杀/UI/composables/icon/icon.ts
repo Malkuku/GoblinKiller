@@ -107,8 +107,8 @@ export const SVG_LIB = {
     blood: 'openmoji:drop-of-blood',
     journey: 'game-icons:compass',
     skull: 'game-icons:skull-ring',
-    sun: 'mdi:white-balance-sunny',
-    moon: 'mdi:moon-waning-crescent',
+    sun: 'game-icons:ubisoft-sun',
+    moon: 'game-icons:moon-bats',
     close: 'mdi:close',
     decorative: 'game-icons:star-formation',
     user: 'mdi:account'
