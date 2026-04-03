@@ -141,16 +141,12 @@ const toggleMobileMenu = () => {
 
 const navItems = [
   { name: '旅途', path: '/选项', icon: '❖' },
-  // { name: '视界', path: '/', icon: '👁' },
+  // { name: '视界', path: '/', icon: '👁' }, //TODO将来或许会有的地图模块
   { name: '自我', path: '/主角', icon: '♟' },
+  { name: '背包', path: '/背包', icon: '◈' },
   { name: '友人', path: '/关系角色', icon: '▨' },
-  { name: '典范', path: '/', icon: 'Ø'},
-  { name: '道寻', path: '/', icon: '⚖' },
-  { name: '书库', path: '/', icon: '🏛' },
-  { name: '忆库', path: '/', icon: '⬡' },
-  { name: '卷索', path: '/', icon: '⨳' },
-  { name: '绯廊', path: '/', icon: '🖼' },
-  { name: '祈奉', path: '/', icon: '⚙' },
+  { name: '宠物', path: '/宠物', icon: '⬡'},
+  { name: '险敌', path: '/敌人', icon: '☠'}
 ];
 </script>
 
