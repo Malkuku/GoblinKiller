@@ -86,17 +86,28 @@
 
       <!-- 批量操作区 -->
       <div class="batch-controls" v-if="paginatedInventory.length > 0">
-        <label class="select-all-label">
-          <input type="checkbox" @change="toggleSelectAll" :checked="isAllSelected" />
-          全选当前页
-        </label>
-        <button
-          class="action-btn delete-btn"
-          :disabled="selectedItems.length === 0"
-          @click="deleteSelectedItems"
-        >
-          批量删除 ({{ selectedItems.length }})
-        </button>
+        <template v-if="isBatchDeleteMode">
+          <label class="select-all-label">
+            <input type="checkbox" @change="toggleSelectAll" :checked="isAllSelected" />
+            全选当前页
+          </label>
+          <div class="batch-actions">
+            <button class="action-btn" @click="toggleBatchDeleteMode">取消</button>
+            <button
+              class="action-btn delete-btn"
+              :disabled="selectedItems.length === 0"
+              @click="deleteSelectedItems"
+            >
+              确认删除 ({{ selectedItems.length }})
+            </button>
+          </div>
+        </template>
+        <template v-else>
+          <div></div> <!-- 占位符，用于将按钮推至右侧 -->
+          <button class="action-btn delete-btn" @click="toggleBatchDeleteMode">
+            批量删除
+          </button>
+        </template>
       </div>
 
       <!-- 物品列表 -->
@@ -105,6 +116,7 @@
           <div class="item-header">
             <div class="item-name-wrapper">
               <input
+                v-if="isBatchDeleteMode"
                 type="checkbox"
                 :value="`${itemObj.category}::${itemObj.name}`"
                 v-model="selectedItems"
@@ -112,7 +124,7 @@
               />
               <span class="item-name">
                 <span class="icon-wrapper" v-html="getIconHtml(itemObj.item)"></span>
-                <span class="name-text" :style="{ color: getTierColor(itemObj.item.tier) }">[{{ itemObj.category }}] {{ itemObj.name }}</span>
+                <span class="name-text" :style="{ color: getTierColor(itemObj.item.tier) }">{{ itemObj.name }}</span>
                 <span class="item-qty">x{{ itemObj.item.quantity || 1 }}</span>
               </span>
             </div>
@@ -125,10 +137,10 @@
               </button>
             </div>
           </div>
-          <div class="item-meta">
+          <div class="item-meta" :style="{ paddingLeft: isBatchDeleteMode ? '40px' : '24px' }">
             <span class="item-tier" v-if="itemObj.item.tier" :style="{ color: getTierColor(itemObj.item.tier) }">品级: {{ itemObj.item.tier }}</span>
           </div>
-          <div class="item-desc">{{ itemObj.item.description || '暂无描述' }}</div>
+          <div class="item-desc" :style="{ paddingLeft: isBatchDeleteMode ? '40px' : '24px' }">{{ itemObj.item.description || '暂无描述' }}</div>
         </div>
         <div v-if="paginatedInventory.length === 0" class="empty-inventory">
           {{ searchQuery ? '未找到匹配的物品...' : '该分类下空空如也...' }}
@@ -160,6 +172,7 @@ const currentTab = ref('全部');
 const tabs = ['全部', '武器', '防具', '饰品', '消耗品', '材料', '杂物'];
 
 // 批量选择控制
+const isBatchDeleteMode = ref(false);
 const selectedItems = ref([]); // 存储格式: "category::name"
 
 // 分页控制
@@ -229,14 +242,23 @@ const paginatedInventory = computed(() => {
   return filteredInventory.value.slice(start, start + itemsPerPage);
 });
 
-// 当搜索、分类或排序改变时，重置页码并清空选中
+// 当搜索、分类或排序改变时，重置页码并清空选中、退出批量模式
 watch([searchQuery, currentTab, sortMethod, currentPage], () => {
   if (arguments[0][3] === currentPage.value) {
     // 如果不是翻页引起的变动，重置页码
     currentPage.value = 1;
   }
   selectedItems.value = [];
+  isBatchDeleteMode.value = false;
 });
+
+// 切换批量删除模式
+const toggleBatchDeleteMode = () => {
+  isBatchDeleteMode.value = !isBatchDeleteMode.value;
+  if (!isBatchDeleteMode.value) {
+    selectedItems.value = [];
+  }
+};
 
 // 全选当前页逻辑
 const isAllSelected = computed(() => {
@@ -325,6 +347,7 @@ const deleteSelectedItems = async () => {
 
   await MvuUtil.updateMvuDataByDiff(diff);
   selectedItems.value = []; // 清空选中状态
+  isBatchDeleteMode.value = false; // 删除完成后退出批量模式
 };
 </script>
 
@@ -339,12 +362,12 @@ const deleteSelectedItems = async () => {
 .item-card.selected-card { border-color: #b33939; background: rgba(179, 57, 57, 0.05); }
 .item-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
 .item-name-wrapper { display: flex; align-items: center; gap: 8px; }
-.item-checkbox { cursor: pointer; width: 16px; height: 16px; accent-color: #b33939; }
+.item-checkbox { cursor: pointer; width: 16px; height: 16px; accent-color: #b33939; flex-shrink: 0; }
 .item-name { font-weight: bold; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
 .icon-wrapper { display: inline-flex; align-items: center; justify-content: center; }
 .item-qty { color: var(--accent-gold); font-size: 0.9rem; margin-left: 4px; }
-.item-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; padding-left: 24px; }
-.item-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; padding-left: 24px; }
+.item-meta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; transition: padding-left 0.2s; }
+.item-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; transition: padding-left 0.2s; }
 .action-btn { background: transparent; border: 1px solid var(--scroll-border); color: var(--text-main); padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
 .action-btn:hover { background: var(--accent-gold); color: #fff; border-color: var(--accent-gold); }
 .delete-btn { color: #b33939; border-color: #b33939; }
@@ -367,7 +390,8 @@ const deleteSelectedItems = async () => {
 .category-tabs button.active { background: var(--accent-gold); color: #fff; font-weight: bold; }
 
 /* 批量操作区 */
-.batch-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 8px 12px; background: rgba(0,0,0,0.02); border-radius: 6px; border: 1px solid var(--scroll-border); }
+.batch-controls { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 8px 12px; background: rgba(0,0,0,0.02); border-radius: 6px; border: 1px solid var(--scroll-border); min-height: 42px; }
+.batch-actions { display: flex; gap: 10px; }
 .select-all-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.9rem; color: var(--text-main); user-select: none; }
 .select-all-label input { cursor: pointer; width: 16px; height: 16px; accent-color: #b33939; }
 

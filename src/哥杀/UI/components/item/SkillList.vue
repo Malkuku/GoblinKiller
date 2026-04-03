@@ -2,13 +2,26 @@
   <div class="skill-list-module">
     <h3 class="section-title">角色技能</h3>
 
-    <div class="skills-container">
-      <div v-if="skillsArray.length === 0" class="empty-skills">
+    <!-- 技能类型标签页 (替代原分页) -->
+    <div class="type-tabs" v-if="availableTabs.length > 0">
+      <button
+        v-for="tab in availableTabs"
+        :key="tab"
+        class="tab-btn"
+        :class="{ active: activeTab === tab }"
+        @click="activeTab = tab"
+      >
+        {{ tab }}技能
+      </button>
+    </div>
+
+    <div class="skills-container" :class="getTabClass(activeTab)">
+      <div v-if="displayedSkills.length === 0" class="empty-skills">
         暂无掌握的技能...
       </div>
 
       <div
-        v-for="skill in paginatedSkills"
+        v-for="skill in displayedSkills"
         :key="skill.name"
         class="skill-card"
         :class="{ expanded: expandedSkills.has(skill.name) }"
@@ -18,15 +31,36 @@
             <span class="icon-wrapper" v-html="skillIcon"></span>
             {{ skill.name }}
           </span>
-          <span class="toggle-icon">{{ expandedSkills.has(skill.name) ? '▼' : '▶' }}</span>
+          <div class="header-actions">
+            <button class="forget-btn" @click.stop="forgetSkill(skill.name)">遗忘</button>
+            <span class="toggle-icon">{{ expandedSkills.has(skill.name) ? '▼' : '▶' }}</span>
+          </div>
         </div>
 
         <transition name="expand">
           <div v-if="expandedSkills.has(skill.name)" class="skill-details">
             <template v-if="typeof skill.data === 'object' && skill.data !== null">
-              <div class="skill-details-grid">
+
+              <!-- 1. 消耗区域 (置于最上) -->
+              <div v-if="Object.keys(parsedData(skill.data).costs).length > 0" class="detail-section costs-section">
+                <div v-for="(val, key) in parsedData(skill.data).costs" :key="key" class="detail-item full-width cost-item">
+                  <span class="detail-key">{{ translateField(key) }}</span>
+                  <span class="detail-val">{{ val }}</span>
+                </div>
+              </div>
+
+              <!-- 2. 描述区域 (置于消耗下方) -->
+              <div v-if="Object.keys(parsedData(skill.data).descs).length > 0" class="detail-section descs-section">
+                <div v-for="(val, key) in parsedData(skill.data).descs" :key="key" class="detail-item full-width desc-item">
+                  <span class="detail-key">{{ translateField(key) }}</span>
+                  <span class="detail-val">{{ val }}</span>
+                </div>
+              </div>
+
+              <!-- 3. 其他属性区域 (网格布局) -->
+              <div v-if="Object.keys(parsedData(skill.data).others).length > 0" class="skill-details-grid">
                 <div
-                  v-for="(val, key) in skill.data"
+                  v-for="(val, key) in parsedData(skill.data).others"
                   :key="key"
                   class="detail-item"
                   :class="{ 'full-width': isLongText(val) }"
@@ -35,6 +69,7 @@
                   <span class="detail-val">{{ val }}</span>
                 </div>
               </div>
+
             </template>
             <template v-else>
               <div class="detail-item full-width">
@@ -45,13 +80,6 @@
         </transition>
       </div>
     </div>
-
-    <!-- 技能分页控制 -->
-    <div class="pagination" v-if="totalPages > 1">
-      <button :disabled="currentPage === 1" @click="currentPage--">上一页</button>
-      <span class="page-info">{{ currentPage }} / {{ totalPages }}</span>
-      <button :disabled="currentPage === totalPages" @click="currentPage++">下一页</button>
-    </div>
   </div>
 </template>
 
@@ -59,15 +87,12 @@
 import { ref, computed } from 'vue';
 import { useStatStore } from '@/哥杀/UI/store/StatStore';
 import { getSVG } from '@/哥杀/UI/composables/icon/icon';
+import { MvuUtil } from '@/Utils/MvuUtil';
 
 const statStore = useStatStore();
 
 // 技能图标
 const skillIcon = getSVG('skill', { size: 18, color: 'var(--accent-gold)' });
-
-// 分页控制
-const currentPage = ref(1);
-const itemsPerPage = 10;
 
 // 常见英文字段映射字典
 const fieldMap = {
@@ -90,7 +115,8 @@ const fieldMap = {
   proficiency: '熟练度',
   tier: '阶级',
   element: '元素属性',
-  cast_time: '施法时间'
+  cast_time: '施法时间',
+  efficiency: '效率' // 新增效率翻译
 };
 
 // 字段翻译函数
@@ -99,7 +125,7 @@ const translateField = (key) => {
   return fieldMap[lowerKey] || key;
 };
 
-// 判断是否为长文本（用于控制网格布局跨行）
+// 判断是否为长文本
 const isLongText = (val) => {
   return typeof val === 'string' && val.length > 15;
 };
@@ -111,12 +137,78 @@ const skillsArray = computed(() => {
   return Object.entries(skillsObj).map(([name, data]) => ({ name, data }));
 });
 
-// 分页计算
-const totalPages = computed(() => Math.ceil(skillsArray.value.length / itemsPerPage) || 1);
-const paginatedSkills = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  return skillsArray.value.slice(start, start + itemsPerPage);
+// 按类型分组技能
+const groupedSkills = computed(() => {
+  const groups = {};
+  skillsArray.value.forEach(skill => {
+    let type = '未分类';
+    if (skill.data && typeof skill.data === 'object') {
+      const rawType = skill.data.type || skill.data['类型'];
+      if (rawType) {
+        const lowerType = String(rawType).toLowerCase();
+        if (lowerType === 'active' || lowerType === '主动') type = '主动';
+        else if (lowerType === 'passive' || lowerType === '被动') type = '被动';
+        else type = rawType;
+      }
+    }
+    if (!groups[type]) groups[type] = [];
+    groups[type].push(skill);
+  });
+  return groups;
 });
+
+const availableTabs = computed(() => Object.keys(groupedSkills.value));
+const currentTab = ref('');
+
+// 当前激活的标签页
+const activeTab = computed({
+  get() {
+    if (availableTabs.value.includes(currentTab.value)) return currentTab.value;
+    return availableTabs.value[0] || '';
+  },
+  set(val) {
+    currentTab.value = val;
+  }
+});
+
+// 当前显示的技能列表
+const displayedSkills = computed(() => {
+  return groupedSkills.value[activeTab.value] || [];
+});
+
+// 为不同类型的技能提供不同的UI Class
+const getTabClass = (tabName) => {
+  if (tabName === '主动') return 'is-active-type';
+  if (tabName === '被动') return 'is-passive-type';
+  return 'is-default-type';
+};
+
+// 解析技能数据，分离消耗、描述和其他属性，并过滤掉类型
+const parsedData = (data) => {
+  const costs = {};
+  const descs = {};
+  const others = {};
+
+  const costKeys = ['cost', 'mp_cost', 'sp_cost', '消耗', '法力消耗', '体力消耗'];
+  const descKeys = ['desc', 'description', '描述'];
+
+  for (const [key, val] of Object.entries(data)) {
+    const lowerKey = String(key).toLowerCase();
+
+    // 过滤掉类型字段，因为已经通过标签页分类了
+    if (lowerKey === 'type' || lowerKey === '类型') continue;
+
+    if (costKeys.includes(lowerKey)) {
+      costs[key] = val;
+    } else if (descKeys.includes(lowerKey)) {
+      descs[key] = val;
+    } else {
+      others[key] = val;
+    }
+  }
+
+  return { costs, descs, others };
+};
 
 // 记录展开状态的技能名称集合
 const expandedSkills = ref(new Set());
@@ -126,6 +218,21 @@ const toggleSkill = (skillName) => {
     expandedSkills.value.delete(skillName);
   } else {
     expandedSkills.value.add(skillName);
+  }
+};
+
+// 遗忘（移除）技能
+const forgetSkill = async (skillName) => {
+  if (confirm(`确定要遗忘技能【${skillName}】吗？此操作不可逆。`)) {
+    await MvuUtil.updateMvuDataByDiff({
+      '主角': {
+        '技能列表': {
+          [skillName]: null // 传入 null 触发深层合并的删除逻辑
+        }
+      }
+    });
+    // 如果该技能处于展开状态，将其移除
+    expandedSkills.value.delete(skillName);
   }
 };
 </script>
@@ -141,6 +248,47 @@ const toggleSkill = (skillName) => {
   padding-bottom: 5px;
   margin-bottom: 15px;
   font-size: 1.2rem;
+}
+
+/* 标签页样式 */
+.type-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+  padding-bottom: 5px;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.tab-btn:hover {
+  color: var(--text-main);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.tab-btn.active {
+  color: var(--accent-gold);
+  font-weight: bold;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -7px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: var(--accent-gold);
 }
 
 .skills-container {
@@ -163,9 +311,25 @@ const toggleSkill = (skillName) => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-.skill-card.expanded {
+/* UI差异化：主动技能偏红/金，被动技能偏绿/蓝 */
+.is-active-type .skill-card {
+  border-left-color: #e67e22;
+}
+.is-active-type .skill-card.expanded {
+  border-color: #e67e22;
+  box-shadow: 0 4px 12px rgba(230, 126, 34, 0.15);
+}
+
+.is-passive-type .skill-card {
+  border-left-color: #27ae60;
+}
+.is-passive-type .skill-card.expanded {
+  border-color: #27ae60;
+  box-shadow: 0 4px 12px rgba(39, 174, 96, 0.15);
+}
+
+.is-default-type .skill-card.expanded {
   border-color: var(--accent-gold);
-  border-left: 4px solid var(--accent-gold);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -200,6 +364,33 @@ const toggleSkill = (skillName) => {
   justify-content: center;
 }
 
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.forget-btn {
+  background: transparent;
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0; /* 默认隐藏，悬浮显示 */
+}
+
+.skill-card:hover .forget-btn {
+  opacity: 1;
+}
+
+.forget-btn:hover {
+  background: #e74c3c;
+  color: #fff;
+}
+
 .toggle-icon {
   color: var(--accent-gold);
   font-size: 0.8rem;
@@ -211,6 +402,24 @@ const toggleSkill = (skillName) => {
   padding: 15px;
   border-top: 1px dashed var(--scroll-border);
   background: rgba(255, 255, 255, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 消耗项特殊样式 */
+.cost-item {
+  background: rgba(230, 126, 34, 0.05) !important;
+  border-color: rgba(230, 126, 34, 0.2) !important;
+}
+.cost-item .detail-key {
+  color: #d35400;
 }
 
 /* 网格布局优化 */
@@ -262,42 +471,6 @@ const toggleSkill = (skillName) => {
   text-align: center;
 }
 
-/* 分页 */
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 15px;
-  margin-top: 20px;
-}
-
-.pagination button {
-  background: transparent;
-  border: 1px solid var(--scroll-border);
-  color: var(--text-main);
-  padding: 6px 14px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.pagination button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.pagination button:not(:disabled):hover {
-  background: var(--accent-gold);
-  color: #fff;
-  border-color: var(--accent-gold);
-}
-
-.page-info {
-  font-size: 0.9rem;
-  color: var(--text-muted);
-  font-weight: bold;
-}
-
 /* 展开动画 */
 .expand-enter-active, .expand-leave-active {
   transition: all 0.3s ease-in-out;
@@ -312,4 +485,3 @@ const toggleSkill = (skillName) => {
   border-top-color: transparent;
 }
 </style>
-```

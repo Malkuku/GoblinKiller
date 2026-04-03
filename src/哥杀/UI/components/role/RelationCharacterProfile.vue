@@ -196,7 +196,9 @@
               </div>
               <div class="info-item">
                 <span class="label">公会阶级：</span>
-                <span class="value">{{ character['公会信息']['公会阶级'] || '无' }}</span>
+                <span class="value" :class="getRankClass(character['公会信息']['公会阶级'])">
+                  {{ formatRank(character['公会信息']['公会阶级']) }}
+                </span>
               </div>
               <div class="info-item">
                 <span class="label">贡献度：</span>
@@ -271,6 +273,24 @@ const getFirstItemName = (itemsObj: Record<string, any>) => {
   if (keys.length === 0) return '空';
   const firstItem = itemsObj[keys[0]];
   return typeof firstItem === 'object' && firstItem.name ? firstItem.name : keys[0];
+};
+
+// 辅助函数：格式化等级（去掉 lv 前缀）
+const formatRank = (rank: string) => {
+  if (!rank) return '无';
+  return String(rank).replace(/^lv\s*/i, '');
+};
+
+// 辅助函数：获取等级对应的颜色类名
+const getRankClass = (rank: string) => {
+  const cleanRank = formatRank(rank);
+  if (['白瓷', '黑曜', '钢铁'].includes(cleanRank)) return 'rank-novice';
+  if (['青玉', '翠玉', '红玉'].includes(cleanRank)) return 'rank-veteran';
+  if (cleanRank === '青铜') return 'rank-bronze';
+  if (cleanRank === '白银') return 'rank-silver';
+  if (cleanRank === '黄金') return 'rank-gold';
+  if (cleanRank === '白金') return 'rank-platinum';
+  return '';
 };
 </script>
 
@@ -395,6 +415,14 @@ const getFirstItemName = (itemsObj: Record<string, any>) => {
 .text-muted { color: var(--text-muted); font-style: italic; }
 .mb-4 { margin-bottom: 20px; }
 .mt-4 { margin-top: 20px; }
+
+/* ================= 等级颜色 ================= */
+.rank-novice { color: #71797E; font-weight: bold; }
+.rank-veteran { color: #00a86b; font-weight: bold; }
+.rank-bronze { color: #cd7f32; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+.rank-silver { color: #c0c0c0; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+.rank-gold { color: #ffd700; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
+.rank-platinum { color: #e5e4e2; font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.8), 1px 1px 2px rgba(0,0,0,0.3); }
 
 /* ================= 标签与胶囊 ================= */
 .tags-container { display: flex; flex-wrap: wrap; gap: 8px; }

@@ -15,22 +15,20 @@
           :class="{ 'is-selected': selectedCharacterId === id }"
           @click="selectCharacter(id)"
         >
-          <div class="roster-avatar-placeholder">
-            <!-- 如果有头像字段可以替换这里，目前用首字母或默认图标代替 -->
-            {{ char['姓名'] ? char['姓名'].charAt(0) : '?' }}
-          </div>
           <div class="roster-info">
             <div class="roster-name">{{ char['姓名'] }}</div>
             <div class="roster-relation">{{ char['与主角关系'] || '萍水相逢' }}</div>
           </div>
-          <!-- 羁绊层级指示器 -->
-          <div class="roster-tier" v-if="char['层级']">
-            Lv.{{ char['层级'] }}
+          <!-- 公会等级指示器 -->
+          <div class="roster-tier" v-if="char['公会信息'] && char['公会信息']['公会阶级']">
+            <span :class="getRankClass(char['公会信息']['公会阶级'])">
+              {{ formatRank(char['公会信息']['公会阶级']) }}
+            </span>
           </div>
         </div>
       </aside>
 
-      <!-- 右侧：角色详细档案 (引入上一步骤的组件) -->
+      <!-- 右侧：角色详细档案 -->
       <main class="character-detail-area">
         <transition name="fade-slide" mode="out-in">
           <RelationCharacterProfile
@@ -85,7 +83,25 @@ const selectCharacter = (id: string | number) => {
   selectedCharacterId.value = String(id);
 };
 
-// 可选：如果列表加载完毕且当前未选择角色，自动选中第一个
+// 辅助函数：格式化等级（去掉 lv 前缀）
+const formatRank = (rank: string) => {
+  if (!rank) return '未知';
+  return String(rank).replace(/^lv\s*/i, '');
+};
+
+// 辅助函数：获取等级对应的颜色类名
+const getRankClass = (rank: string) => {
+  const cleanRank = formatRank(rank);
+  if (['白瓷', '黑曜', '钢铁'].includes(cleanRank)) return 'rank-novice';
+  if (['青玉', '翠玉', '红玉'].includes(cleanRank)) return 'rank-veteran';
+  if (cleanRank === '青铜') return 'rank-bronze';
+  if (cleanRank === '白银') return 'rank-silver';
+  if (cleanRank === '黄金') return 'rank-gold';
+  if (cleanRank === '白金') return 'rank-platinum';
+  return '';
+};
+
+// 如果列表加载完毕且当前未选择角色，自动选中第一个
 watch(validCharacters, (newVal) => {
   const keys = Object.keys(newVal);
   if (keys.length > 0 && !selectedCharacterId.value) {
@@ -150,7 +166,8 @@ watch(validCharacters, (newVal) => {
 .roster-item {
   display: flex;
   align-items: center;
-  padding: 12px;
+  justify-content: space-between;
+  padding: 12px 16px;
   background: rgba(0, 0, 0, 0.03);
   border: 1px solid var(--scroll-border);
   border-radius: 8px;
@@ -181,30 +198,7 @@ watch(validCharacters, (newVal) => {
   color: rgba(255, 255, 255, 0.7);
 }
 
-.roster-avatar-placeholder {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--scroll-border);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: var(--text-main);
-  margin-right: 12px;
-  flex-shrink: 0;
-  border: 2px solid transparent;
-}
-
-.roster-item.is-selected .roster-avatar-placeholder {
-  background: var(--bg-base);
-  color: var(--flag-bg);
-  border-color: var(--accent-gold);
-}
-
 .roster-info {
-  flex: 1;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -212,27 +206,37 @@ watch(validCharacters, (newVal) => {
 
 .roster-name {
   font-weight: bold;
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .roster-relation {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
+/* ================= 等级与颜色 ================= */
 .roster-tier {
-  font-size: 0.75rem;
-  font-weight: bold;
-  color: var(--accent-gold);
-  background: rgba(0,0,0,0.1);
-  padding: 2px 6px;
-  border-radius: 10px;
+  font-size: 0.9rem;
+  background: rgba(0,0,0,0.05);
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.05);
+  flex-shrink: 0;
+  margin-left: 10px;
 }
-.dark-mode .roster-tier { background: rgba(255,255,255,0.1); }
+.dark-mode .roster-tier { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.05); }
+.roster-item.is-selected .roster-tier { background: rgba(0,0,0,0.2); border-color: transparent; }
+
+.rank-novice { color: #71797E; font-weight: bold; }
+.rank-veteran { color: #00a86b; font-weight: bold; }
+.rank-bronze { color: #cd7f32; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+.rank-silver { color: #c0c0c0; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+.rank-gold { color: #ffd700; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
+.rank-platinum { color: #e5e4e2; font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.8), 1px 1px 2px rgba(0,0,0,0.3); }
 
 /* ================= 右侧详情区域 ================= */
 .character-detail-area {
@@ -284,20 +288,29 @@ watch(validCharacters, (newVal) => {
     overflow-y: hidden;
     padding-right: 0;
     padding-bottom: 10px;
+    gap: 12px;
   }
 
   .roster-item {
     flex-direction: column;
-    min-width: 100px;
+    min-width: 130px;
     text-align: center;
-    padding: 10px;
+    padding: 12px;
+    justify-content: center;
   }
 
   .roster-item:hover { transform: translateY(-4px); }
 
-  .roster-avatar-placeholder { margin-right: 0; margin-bottom: 8px; }
+  .roster-info {
+    align-items: center;
+    margin-bottom: 8px;
+  }
 
-  .roster-tier { position: absolute; top: 5px; right: 5px; font-size: 0.65rem; }
+  .roster-tier {
+    margin-left: 0;
+    font-size: 0.8rem;
+    padding: 2px 8px;
+  }
 
   .character-detail-area {
     overflow: visible;

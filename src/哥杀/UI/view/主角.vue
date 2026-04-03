@@ -18,188 +18,194 @@
 
     <!-- 内容展示区 -->
     <section class="profile-content-area">
-        <!-- ================= 第1页：基础概览 ================= -->
-        <div v-if="activeTab === 0" class="page-content" key="page0">
-          <h2 class="page-title"><span>✧</span> 灵魂印记 <span>✧</span></h2>
+      <!-- ================= 第1页：基础概览 ================= -->
+      <div v-if="activeTab === 0" class="page-content" key="page0">
+        <h2 class="page-title"><span>✧</span> 灵魂印记 <span>✧</span></h2>
 
-          <div class="info-grid">
-            <div class="info-card">
-              <div class="card-label">姓名</div>
-              <div class="card-value highlight">{{ player.姓名 }}</div>
-            </div>
-            <div class="info-card">
-              <div class="card-label">种族</div>
-              <div class="card-value">{{ player.种族 || '未知' }}</div>
-            </div>
-            <div class="info-card">
-              <div class="card-label">经验等级</div>
-              <div class="card-value">{{ player.经验等级 }}</div>
-            </div>
-            <div class="info-card">
-              <div class="card-label">所在地</div>
-              <div class="card-value">{{ player.所在地 || '漂泊中' }}</div>
+        <div class="info-grid">
+          <div class="info-card">
+            <div class="card-label">姓名</div>
+            <div class="card-value highlight">{{ player.姓名 }}</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">种族</div>
+            <div class="card-value">{{ player.种族 || '未知' }}</div>
+          </div>
+          <div class="info-card">
+            <div class="card-label">经验等级</div>
+            <div class="card-value" :class="getRankClass(player.经验等级)">
+              {{ formatRank(player.经验等级) }}
             </div>
           </div>
-
-          <div class="section-divider"></div>
-
-          <h3 class="section-title">状态源泉</h3>
-          <div class="resource-bars">
-            <div class="res-bar-container" v-for="(res, key) in resources" :key="key">
-              <div class="res-label">{{ key }}</div>
-              <div class="res-track">
-                <div class="res-fill" :style="{ width: getPercentage(res) + '%', backgroundColor: res.color }"></div>
-                <div class="res-text">{{ res.data.当前值 }} / {{ res.data.最大值 }}</div>
-              </div>
-            </div>
+          <div class="info-card">
+            <div class="card-label">所在地</div>
+            <div class="card-value">{{ player.所在地 || '漂泊中' }}</div>
           </div>
-
-          <div class="section-divider"></div>
-
-          <h3 class="section-title">基础能力</h3>
-          <AbilityScoresDisplay :abilities="player.能力" mode="radar" />
         </div>
 
-        <!-- ================= 第2页：能力相关 ================= -->
-        <div v-if="activeTab === 1" class="page-content" key="page1">
-          <h2 class="page-title"><span>✧</span> 力量具象 <span>✧</span></h2>
+        <div class="section-divider"></div>
 
-          <div class="two-col-layout">
-            <!-- 左列：职业与历练 -->
-            <div class="col-left">
-              <h3 class="section-title">职业道途</h3>
-              <ul class="list-container">
-                <li v-for="(val, key) in player.职业" :key="key" class="list-item">
-                  <span class="item-name">{{ key }}</span>
-                  <span class="item-desc">Lv.{{ val }}</span>
-                </li>
-              </ul>
+        <h3 class="section-title">状态源泉</h3>
+        <div class="resource-bars">
+          <div class="res-bar-container" v-for="(res, key) in resources" :key="key">
+            <div class="res-label">{{ key }}</div>
+            <div class="res-track">
+              <div class="res-fill" :style="{ width: getPercentage(res) + '%', backgroundColor: res.color }"></div>
+              <div class="res-text">{{ res.data.当前值 }} / {{ res.data.最大值 }}</div>
+            </div>
+          </div>
+        </div>
 
-              <h3 class="section-title mt-4">历练进度</h3>
-              <div class="progress-grid">
-                <div class="prog-item" v-for="(val, key) in player.历练进度" :key="key">
-                  <div class="prog-header">
-                    <span>{{ key }}</span>
-                    <span>{{ val }}%</span>
-                  </div>
-                  <div class="prog-track">
-                    <div class="prog-fill" :style="{ width: val + '%' }"></div>
-                  </div>
+        <div class="section-divider"></div>
+
+        <h3 class="section-title">基础能力</h3>
+        <AbilityScoresDisplay :abilities="player.能力" mode="radar" />
+      </div>
+
+      <!-- ================= 第2页：能力相关 ================= -->
+      <div v-if="activeTab === 1" class="page-content" key="page1">
+        <h2 class="page-title"><span>✧</span> 力量具象 <span>✧</span></h2>
+
+        <div class="two-col-layout">
+          <!-- 左列：职业与历练 -->
+          <div class="col-left">
+            <h3 class="section-title">职业道途</h3>
+            <ul class="list-container">
+              <li v-for="(val, key) in player.职业" :key="key" class="list-item">
+                <span class="item-name">{{ key }}</span>
+                <span class="item-desc">Lv.{{ val }}</span>
+              </li>
+            </ul>
+
+            <h3 class="section-title mt-4">历练进度</h3>
+            <div class="progress-grid">
+              <div class="prog-item" v-for="(val, key) in player.历练进度" :key="key">
+                <div class="prog-header">
+                  <span>{{ key }}</span>
+                  <span>{{ val }}%</span>
+                </div>
+                <div class="prog-track">
+                  <div class="prog-fill" :style="{ width: val + '%' }"></div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- 右列：装备与技能 -->
-            <div class="col-right">
-              <h3 class="section-title">武装配备</h3>
-              <div class="equip-slots">
-                <div class="equip-slot" v-for="(items, type) in player.装备" :key="type">
-                  <div class="slot-type">{{ type }}</div>
-                  <div class="slot-item" v-for="(item, itemName) in items" :key="itemName">
-                    {{ itemName }} <span v-if="item !== '待初始化'" class="tier-tag">{{ item.tier }}</span>
-                  </div>
-                  <div class="slot-empty" v-if="Object.keys(items).length === 0">空无一物</div>
+          <!-- 右列：装备与技能 -->
+          <div class="col-right">
+            <h3 class="section-title">武装配备</h3>
+            <div class="equip-slots">
+              <div class="equip-slot" v-for="(items, type) in player.装备" :key="type">
+                <div class="slot-type">{{ type }}</div>
+                <div class="slot-item" v-for="(item, itemName) in items" :key="itemName">
+                  {{ itemName }} <span v-if="item !== '待初始化'" class="tier-tag">{{ item.tier }}</span>
                 </div>
+                <div class="slot-empty" v-if="Object.keys(items).length === 0">空无一物</div>
               </div>
+            </div>
 
-              <h3 class="section-title mt-4">掌握技能 <span class="sub-text">(点数: {{ player.技能点 }})</span></h3>
-              <div class="tags-container">
+            <h3 class="section-title mt-4">掌握技能 <span class="sub-text">(点数: {{ player.技能点 }})</span></h3>
+            <div class="tags-container">
                 <span class="skill-tag" v-for="(val, key) in player.技能列表" :key="key">
                   {{ key }}
                 </span>
-              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- ================= 第3页：资源相关 ================= -->
-        <div v-if="activeTab === 2" class="page-content" key="page2">
-          <h2 class="page-title"><span>✧</span> 物质沉淀 <span>✧</span></h2>
+      <!-- ================= 第3页：资源相关 ================= -->
+      <div v-if="activeTab === 2" class="page-content" key="page2">
+        <h2 class="page-title"><span>✧</span> 物质沉淀 <span>✧</span></h2>
 
-          <!-- 财富 -->
-          <div class="wealth-container">
-            <div class="coin gold"><span>🥇</span> {{ player.背包.金钱.金币 }} 金</div>
-            <div class="coin silver"><span>🥈</span> {{ player.背包.金钱.银币 }} 银</div>
-            <div class="coin copper"><span>🥉</span> {{ player.背包.金钱.铜币 }} 铜</div>
-          </div>
+        <!-- 财富 -->
+        <div class="wealth-container">
+          <div class="coin gold"><span>🥇</span> {{ player.背包.金钱.金币 }} 金</div>
+          <div class="coin silver"><span>🥈</span> {{ player.背包.金钱.银币 }} 银</div>
+          <div class="coin copper"><span>🥉</span> {{ player.背包.金钱.铜币 }} 铜</div>
+        </div>
 
-          <div class="two-col-layout mt-4">
-            <div class="col-left">
-              <h3 class="section-title">行囊背包</h3>
-              <div class="inventory-accordion">
-                <template v-for="(category, catName) in player.背包" :key="catName">
-                  <div class="inv-category" v-if="catName !== '金钱'">
-                    <div class="cat-header">{{ catName }} ({{ Object.keys(category).length }})</div>
-                    <div class="cat-body">
-                      <div class="inv-item" v-for="(item, itemName) in category" :key="itemName">
-                        <span class="item-name">{{ itemName }}</span>
-                        <span class="item-qty" v-if="item.quantity">x{{ item.quantity }}</span>
-                      </div>
-                      <div class="empty-text" v-if="Object.keys(category).length === 0">空</div>
+        <div class="two-col-layout mt-4">
+          <div class="col-left">
+            <h3 class="section-title">行囊背包</h3>
+            <div class="inventory-accordion">
+              <template v-for="(category, catName) in player.背包" :key="catName">
+                <div class="inv-category" v-if="catName !== '金钱'">
+                  <div class="cat-header">{{ catName }} ({{ Object.keys(category).length }})</div>
+                  <div class="cat-body">
+                    <div class="inv-item" v-for="(item, itemName) in category" :key="itemName">
+                      <span class="item-name">{{ itemName }}</span>
+                      <span class="item-qty" v-if="item.quantity">x{{ item.quantity }}</span>
                     </div>
+                    <div class="empty-text" v-if="Object.keys(category).length === 0">空</div>
                   </div>
-                </template>
-              </div>
+                </div>
+              </template>
             </div>
+          </div>
 
-            <div class="col-right">
-              <h3 class="section-title">固定资产</h3>
-              <ul class="list-container">
-                <li v-for="(val, key) in player.资产" :key="key" class="list-item">
-                  <span class="item-name">{{ key }}</span>
-                  <span class="item-desc">{{ val }}</span>
-                </li>
-                <li v-if="Object.keys(player.资产).length === 0" class="empty-text">暂无资产</li>
-              </ul>
+          <div class="col-right">
+            <h3 class="section-title">固定资产</h3>
+            <ul class="list-container">
+              <li v-for="(val, key) in player.资产" :key="key" class="list-item">
+                <span class="item-name">{{ key }}</span>
+                <span class="item-desc">{{ val }}</span>
+              </li>
+              <li v-if="Object.keys(player.资产).length === 0" class="empty-text">暂无资产</li>
+            </ul>
 
-              <h3 class="section-title mt-4">资源快照</h3>
-              <ul class="list-container snapshot-list">
-                <li v-for="(val, key) in player.资源快照" :key="key" class="list-item">
-                  <span class="item-name">{{ key }}</span>
-                  <span class="item-desc">{{ typeof val === 'string' ? val : val.效果 }}</span>
-                </li>
-                <li v-if="Object.keys(player.资源快照).length === 0" class="empty-text">无特殊状态</li>
-              </ul>
+            <h3 class="section-title mt-4">资源快照</h3>
+            <ul class="list-container snapshot-list">
+              <li v-for="(val, key) in player.资源快照" :key="key" class="list-item">
+                <span class="item-name">{{ key }}</span>
+                <span class="item-desc">{{ typeof val === 'string' ? val : val.效果 }}</span>
+              </li>
+              <li v-if="Object.keys(player.资源快照).length === 0" class="empty-text">无特殊状态</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= 第4页：驱动相关 ================= -->
+      <div v-if="activeTab === 3" class="page-content" key="page3">
+        <h2 class="page-title"><span>✧</span> 命运轨迹 <span>✧</span></h2>
+
+        <h3 class="section-title">公会铭牌</h3>
+        <div class="guild-card">
+          <div class="guild-emblem">🛡️</div>
+          <div class="guild-info">
+            <div class="g-name">{{ player.公会信息.所属公会 || '无所属' }}</div>
+            <div class="g-rank">阶级:
+              <span :class="getRankClass(player.公会信息.公会阶级)">
+                  {{ formatRank(player.公会信息.公会阶级) || '平民' }}
+                </span>
             </div>
+            <div class="g-contrib">贡献度: {{ player.公会信息.贡献度 || 0 }}</div>
           </div>
         </div>
 
-        <!-- ================= 第4页：驱动相关 ================= -->
-        <div v-if="activeTab === 3" class="page-content" key="page3">
-          <h2 class="page-title"><span>✧</span> 命运轨迹 <span>✧</span></h2>
+        <div class="section-divider"></div>
 
-          <h3 class="section-title">公会铭牌</h3>
-          <div class="guild-card">
-            <div class="guild-emblem">🛡️</div>
-            <div class="guild-info">
-              <div class="g-name">{{ player.公会信息.所属公会 || '无所属' }}</div>
-              <div class="g-rank">阶级: <span>{{ player.公会信息.公会阶级 || '平民' }}</span></div>
-              <div class="g-contrib">贡献度: {{ player.公会信息.贡献度 || 0 }}</div>
+        <h3 class="section-title">任务日志</h3>
+        <div class="quest-container">
+          <div class="quest-col">
+            <h4 class="quest-status-title active-quests">进行中</h4>
+            <div class="quest-card" v-for="(val, key) in player.任务日志.进行中" :key="key">
+              <div class="q-title">{{ key }}</div>
+              <div class="q-desc">{{ val.描述 || '暂无描述' }}</div>
             </div>
+            <div class="empty-text" v-if="Object.keys(player.任务日志.进行中).length === 0">暂无进行中的任务</div>
           </div>
 
-          <div class="section-divider"></div>
-
-          <h3 class="section-title">任务日志</h3>
-          <div class="quest-container">
-            <div class="quest-col">
-              <h4 class="quest-status-title active-quests">进行中</h4>
-              <div class="quest-card" v-for="(val, key) in player.任务日志.进行中" :key="key">
-                <div class="q-title">{{ key }}</div>
-                <div class="q-desc">{{ val.描述 || '暂无描述' }}</div>
-              </div>
-              <div class="empty-text" v-if="Object.keys(player.任务日志.进行中).length === 0">暂无进行中的任务</div>
+          <div class="quest-col">
+            <h4 class="quest-status-title completed-quests">已完成</h4>
+            <div class="quest-card completed" v-for="(val, key) in player.任务日志.已完成" :key="key">
+              <div class="q-title">{{ key }}</div>
             </div>
-
-            <div class="quest-col">
-              <h4 class="quest-status-title completed-quests">已完成</h4>
-              <div class="quest-card completed" v-for="(val, key) in player.任务日志.已完成" :key="key">
-                <div class="q-title">{{ key }}</div>
-              </div>
-              <div class="empty-text" v-if="Object.keys(player.任务日志.已完成).length === 0">暂无已完成的任务</div>
-            </div>
+            <div class="empty-text" v-if="Object.keys(player.任务日志.已完成).length === 0">暂无已完成的任务</div>
           </div>
         </div>
+      </div>
     </section>
   </div>
 </template>
@@ -235,6 +241,24 @@ const resources = computed(() => ({
 const getPercentage = (res) => {
   if (!res.data.最大值) return 0;
   return Math.min(100, Math.max(0, (res.data.当前值 / res.data.最大值) * 100));
+};
+
+// 辅助函数：格式化等级（去掉 lv 前缀）
+const formatRank = (rank) => {
+  if (!rank) return '未知';
+  return String(rank).replace(/^lv\s*/i, '');
+};
+
+// 辅助函数：获取等级对应的颜色类名
+const getRankClass = (rank) => {
+  const cleanRank = formatRank(rank);
+  if (['白瓷', '黑曜', '钢铁'].includes(cleanRank)) return 'rank-novice';
+  if (['青玉', '翠玉', '红玉'].includes(cleanRank)) return 'rank-veteran';
+  if (cleanRank === '青铜') return 'rank-bronze';
+  if (cleanRank === '白银') return 'rank-silver';
+  if (cleanRank === '黄金') return 'rank-gold';
+  if (cleanRank === '白金') return 'rank-platinum';
+  return '';
 };
 </script>
 
@@ -373,6 +397,14 @@ const getPercentage = (res) => {
 .card-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
 .card-value { font-size: 1.1rem; font-weight: bold; }
 .card-value.highlight { color: var(--accent-gold); font-size: 1.3rem; }
+
+/* 等级颜色 */
+.rank-novice { color: #71797E; font-weight: bold; }
+.rank-veteran { color: #00a86b; font-weight: bold; }
+.rank-bronze { color: #cd7f32; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+.rank-silver { color: #c0c0c0; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
+.rank-gold { color: #ffd700; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
+.rank-platinum { color: #e5e4e2; font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.8), 1px 1px 2px rgba(0,0,0,0.3); }
 
 .resource-bars { display: flex; flex-direction: column; gap: 12px; }
 .res-bar-container { display: flex; align-items: center; gap: 15px; }
