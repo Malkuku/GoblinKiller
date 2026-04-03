@@ -2,7 +2,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 import Layout from '../view/layout.vue';
 import optionView from '@/哥杀/UI/view/选项.vue'
 import playerView from '@/哥杀/UI/view/主角.vue'
-import relationView from '@/哥杀/UI/components/role/RelationCharacterProfile.vue'
+import relationView from '@/哥杀/UI/view/关系角色.vue'
 
 export const router = createRouter({
   history: createMemoryHistory(),

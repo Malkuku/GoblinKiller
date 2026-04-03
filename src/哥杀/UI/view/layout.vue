@@ -214,6 +214,7 @@ const navItems = [
 .scroll-main-container {
   flex: 1; display: flex; align-items: stretch; justify-content: center;
   padding: 0 40px; position: relative; z-index: 5; overflow: hidden;
+  min-height: 0; /* 【修复】防止被内部内容撑开高度 */
 }
 
 .scroll-roller {
@@ -221,6 +222,7 @@ const navItems = [
   background: linear-gradient(to right, #5c4e40, var(--roller-color), #5c4e40);
   box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 5px 0 15px rgba(0,0,0,0.3);
   position: relative; z-index: 2;
+  flex-shrink: 0; /* 【修复】防止轴承被挤压变形 */
 }
 
 .scroll-paper {
@@ -228,12 +230,15 @@ const navItems = [
   margin: 0 -10px; padding: 0; display: flex; flex-direction: column;
   box-shadow: inset 0 0 30px rgba(0,0,0,0.05), 0 10px 30px rgba(0,0,0,0.1);
   position: relative; z-index: 1;
+  min-height: 0; /* 【修复】防止被内部内容撑开高度 */
+  min-width: 0;  /* 【修复】防止被内部内容撑开宽度 */
   background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.01" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.03"/></svg>');
 }
 
 .scroll-content {
   flex: 1; padding: 20px 40px 40px 40px; overflow-y: auto;
   display: flex; flex-direction: column;
+  min-height: 0; /* 【修复】强制内容区域在父级范围内滚动，而不是溢出 */
 }
 
 .desktop-header {
@@ -254,7 +259,7 @@ const navItems = [
 .flag-item {
   position: relative; width: 46px;
   height: 55px; /* 默认全部缩短，配合clip-path刚好只显示图标 */
-  background-color: var(--flag-bg); color: var(--flag-text);
+  background-color: var(--flag-active); color: var(--flag-text);
   text-decoration: none; display: flex; flex-direction: column;
   align-items: center;
   padding-top: 25px; /* 将内容往下推，适应向上溢出 */
@@ -302,7 +307,7 @@ const navItems = [
   .roller-rune { color: var(--accent-gold); font-size: 14px; opacity: 0.7; transition: transform 0.4s ease, opacity 0.4s; text-shadow: 0 0 5px var(--accent-gold); }
   .roller-rune.is-active { transform: rotate(180deg); opacity: 1; }
   .scroll-paper { margin: -5px 0; }
-  .mobile-nav-unroll { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.5s cubic-bezier(0.25, 0.8, 0.25, 1); background: rgba(0, 0, 0, 0.02); }
+  .mobile-nav-unroll { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.5s cubic-bezier(0.25, 0.8, 0.25, 1); background: rgba(0, 0, 0, 0.02); flex-shrink: 0; }
   .mobile-nav-unroll.is-open { grid-template-rows: 1fr; }
   .mobile-nav-content { overflow: hidden; display: flex; flex-direction: column; }
 

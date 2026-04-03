@@ -113,14 +113,10 @@
             </div>
           </div>
 
-          <div class="stats-container">
-            <div class="stat-box" v-if="character['能力']">
+          <div class="stats-container" v-if="character['能力']">
+            <div class="stat-box">
               <h3 class="sub-title">基础属性</h3>
-              <div class="stat-row" v-for="(val, key) in character['能力']" :key="key">
-                <span class="stat-name">{{ key }}</span>
-                <div class="stat-bar-bg"><div class="stat-bar-fill" :style="{ width: Math.min(val * 5, 100) + '%' }"></div></div>
-                <span class="stat-val">{{ val }}</span>
-              </div>
+              <AbilityScoresDisplay :abilities="character['能力']" mode="bar" />
             </div>
 
             <div class="stat-box" v-if="character['历练进度']">
@@ -232,8 +228,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useStatStore } from '@/哥杀/UI/store/StatStore'; // 引入 Store
+import AbilityScoresDisplay from '@/哥杀/UI/components/role/AbilityScoresDisplay.vue';
+import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { computed, ref } from 'vue';
 
 // 仅需传入角色的键名（如："精灵弓手"）
 const props = defineProps<{
@@ -414,9 +411,6 @@ const getFirstItemName = (itemsObj: Record<string, any>) => {
 .stats-container { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .stat-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 0.9rem; }
 .stat-name { width: 60px; color: var(--text-muted); }
-.stat-bar-bg { flex: 1; height: 6px; background: rgba(0,0,0,0.1); border-radius: 3px; overflow: hidden; }
-.dark-mode .stat-bar-bg { background: rgba(255,255,255,0.1); }
-.stat-bar-fill { height: 100%; background: var(--accent-gold); }
 .stat-val { width: 30px; text-align: right; font-weight: bold; }
 
 /* ================= 资源与装备 ================= */

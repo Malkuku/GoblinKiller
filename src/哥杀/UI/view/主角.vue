@@ -57,12 +57,7 @@
           <div class="section-divider"></div>
 
           <h3 class="section-title">基础能力</h3>
-          <div class="attributes-grid">
-            <div class="attr-item" v-for="(val, key) in player.能力" :key="key">
-              <span class="attr-name">{{ key }}</span>
-              <span class="attr-val">{{ val }}</span>
-            </div>
-          </div>
+          <AbilityScoresDisplay :abilities="player.能力" mode="radar" />
         </div>
 
         <!-- ================= 第2页：能力相关 ================= -->
@@ -210,8 +205,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import AbilityScoresDisplay from '@/哥杀/UI/components/role/AbilityScoresDisplay.vue';
 import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { computed, ref } from 'vue';
 
 // 书签定义
 const tabs = [
@@ -391,17 +387,6 @@ const getPercentage = (res) => {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-size: 0.75rem; color: #fff; text-shadow: 0 0 2px #000; font-weight: bold;
 }
-
-.attributes-grid {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px;
-}
-.attr-item {
-  display: flex; flex-direction: column; align-items: center;
-  background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><polygon points="50,5 95,25 95,75 50,95 5,75 5,25" fill="none" stroke="%23d4c4a8" stroke-width="2"/></svg>') no-repeat center;
-  background-size: contain; padding: 20px 10px;
-}
-.attr-name { font-size: 0.8rem; color: var(--text-muted); }
-.attr-val { font-size: 1.4rem; font-weight: bold; color: var(--accent-gold); }
 
 /* ==========================================
    第2页：能力样式
