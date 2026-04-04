@@ -32,24 +32,31 @@
             {{ skill.name }}
           </span>
           <div class="header-actions">
-            <button class="use-btn" @click.stop="useSkill(skill.name)">使用</button>
-            <button class="forget-btn" @click.stop="forgetSkill(skill.name)">遗忘</button>
             <span class="toggle-icon">{{ expandedSkills.has(skill.name) ? '▼' : '▶' }}</span>
           </div>
         </div>
 
         <transition name="expand">
           <div v-if="expandedSkills.has(skill.name)" class="skill-details">
-            <template v-if="typeof skill.data === 'object' && skill.data !== null">
 
-              <!-- 1. 消耗区域 (置于最上) -->
-              <div v-if="Object.keys(parsedData(skill.data).costs).length > 0" class="detail-section costs-section">
-                <div v-for="(val, key) in parsedData(skill.data).costs" :key="key" class="detail-item full-width cost-item">
-                  <span class="detail-key">{{ translateField(key) }}</span>
-                  <span class="detail-val">{{ val }}</span>
-                </div>
+            <!-- 顶部区域：消耗(左) 与 操作按钮(右) 同排 -->
+            <div class="skill-details-top">
+              <div class="costs-container">
+                <template v-if="typeof skill.data === 'object' && skill.data !== null && Object.keys(parsedData(skill.data).costs).length > 0">
+                  <div v-for="(val, key) in parsedData(skill.data).costs" :key="key" class="detail-item cost-item">
+                    <span class="detail-key">{{ translateField(key) }}</span>
+                    <span class="detail-val">{{ val }}</span>
+                  </div>
+                </template>
               </div>
 
+              <div class="skill-actions-bar">
+                <button class="use-btn" @click.stop="useSkill(skill.name)">使用</button>
+                <button class="forget-btn" @click.stop="forgetSkill(skill.name)">遗忘</button>
+              </div>
+            </div>
+
+            <template v-if="typeof skill.data === 'object' && skill.data !== null">
               <!-- 2. 描述区域 (置于消耗下方) -->
               <div v-if="Object.keys(parsedData(skill.data).descs).length > 0" class="detail-section descs-section">
                 <div v-for="(val, key) in parsedData(skill.data).descs" :key="key" class="detail-item full-width desc-item">
@@ -70,8 +77,8 @@
                   <span class="detail-val">{{ val }}</span>
                 </div>
               </div>
-
             </template>
+
             <template v-else>
               <div class="detail-item full-width">
                 <span class="detail-val">{{ skill.data }}</span>
@@ -380,48 +387,6 @@ const useSkill = (skillName) => {
   gap: 15px;
 }
 
-.forget-btn {
-  background: transparent;
-  border: 1px solid #e74c3c;
-  color: #e74c3c;
-  padding: 2px 8px;
-  font-size: 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  opacity: 0; /* 默认隐藏，悬浮显示 */
-}
-
-.skill-card:hover .forget-btn {
-  opacity: 1;
-}
-
-.forget-btn:hover {
-  background: #e74c3c;
-  color: #fff;
-}
-
-.use-btn {
-  background: transparent;
-  border: 1px solid #27ae60;
-  color: #27ae60;
-  padding: 2px 8px;
-  font-size: 0.75rem;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
-  opacity: 0;
-}
-
-.skill-card:hover .use-btn {
-  opacity: 1;
-}
-
-.use-btn:hover {
-  background: #27ae60;
-  color: #fff;
-}
-
 .toggle-icon {
   color: var(--accent-gold);
   font-size: 0.8rem;
@@ -438,19 +403,79 @@ const useSkill = (skillName) => {
   gap: 10px;
 }
 
+/* 详情顶部：消耗与操作按钮同排 */
+.skill-details-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  margin-bottom: 5px;
+}
+
+.costs-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+}
+
+.skill-actions-bar {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.forget-btn {
+  background: transparent;
+  border: 1px solid #e74c3c;
+  color: #e74c3c;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.forget-btn:hover {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.use-btn {
+  background: transparent;
+  border: 1px solid #27ae60;
+  color: #27ae60;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.use-btn:hover {
+  background: #27ae60;
+  color: #fff;
+}
+
 .detail-section {
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-/* 消耗项特殊样式 */
+/* 消耗项特殊样式 (改为横向排列更紧凑) */
 .cost-item {
+  flex-direction: row !important;
+  align-items: baseline;
   background: rgba(230, 126, 34, 0.05) !important;
   border-color: rgba(230, 126, 34, 0.2) !important;
+  padding: 4px 10px !important;
 }
 .cost-item .detail-key {
   color: #d35400;
+  margin-right: 6px;
 }
 
 /* 网格布局优化 */
