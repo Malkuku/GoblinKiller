@@ -110,17 +110,26 @@
           stroke="#fff"
           stroke-width="2"
         />
-        <!-- 标签 -->
-        <text
-          v-for="(val, key, index) in abilities"
-          :key="`label-${key}`"
-          :x="getRadarLabelPosition(index).x"
-          :y="getRadarLabelPosition(index).y"
-          text-anchor="middle"
-          class="radar-label"
-        >
-          {{ key }}
-        </text>
+        <!-- 标签与数值 -->
+        <g v-for="(val, key, index) in abilities" :key="`label-group-${key}`">
+          <text
+            :x="getRadarLabelPosition(index).x"
+            :y="getRadarLabelPosition(index).y"
+            text-anchor="middle"
+            class="radar-label"
+          >
+            {{ key }}
+          </text>
+          <text
+            :x="getRadarLabelPosition(index).x"
+            :y="getRadarLabelPosition(index).y + 14"
+            text-anchor="middle"
+            class="radar-value"
+            :fill="getAbilityColor(key)"
+          >
+            {{ val }}
+          </text>
+        </g>
       </svg>
     </div>
 
@@ -382,6 +391,11 @@ const getRadarLabelPosition = (index: number) => {
 .radar-label {
   font-size: 12px;
   fill: var(--text-main);
+  font-weight: bold;
+}
+
+.radar-value {
+  font-size: 11px;
   font-weight: bold;
 }
 
