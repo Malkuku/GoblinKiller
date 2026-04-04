@@ -1,40 +1,18 @@
 <template>
   <div class="player-assets-view">
-    <h2 class="page-title">资产与能力</h2>
-
-    <!-- 标签页导航 -->
-    <div class="tabs-container">
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'inventory' }"
-        @click="activeTab = 'inventory'"
-      >
-        装备与背包
-      </button>
-      <button
-        class="tab-btn"
-        :class="{ active: activeTab === 'skills' }"
-        @click="activeTab = 'skills'"
-      >
-        技能列表
-      </button>
-    </div>
+    <h2 class="page-title">装备与背包</h2>
 
     <div class="module-divider"></div>
 
     <!-- 内容展示区 -->
     <div class="content-area">
-      <!-- 使用 v-if 实现按需渲染和切换 -->
-      <InventoryEquipment v-if="activeTab === 'inventory'" class="fade-in-content" />
-
-      <SkillList v-if="activeTab === 'skills'" class="fade-in-content" />
+      <InventoryEquipment class="fade-in-content" />
     </div>
   </div>
 </template>
 
 <script setup>
 import InventoryEquipment from '@/哥杀/UI/components/item/InventoryEquipment.vue';
-import SkillList from '@/哥杀/UI/components/item/SkillList.vue';
 import { ref } from 'vue';
 
 // 定义当前激活的标签页，默认显示 'inventory' (背包)

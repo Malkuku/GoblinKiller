@@ -110,11 +110,7 @@
             </div>
 
             <h3 class="section-title mt-4">掌握技能 <span class="sub-text">(点数: {{ player.技能点 }})</span></h3>
-            <div class="tags-container">
-                <span class="skill-tag" v-for="(val, key) in player.技能列表" :key="key">
-                  {{ key }}
-                </span>
-            </div>
+            <SkillList />
           </div>
         </div>
       </div>
@@ -251,6 +247,7 @@
 
 <script setup>
 import { MvuUtil } from '@/Utils/MvuUtil';
+import SkillList from '@/哥杀/UI/components/item/SkillList.vue';
 import AbilityScoresDisplay from '@/哥杀/UI/components/role/AbilityScoresDisplay.vue';
 import { getSVG } from '@/哥杀/UI/composables/icon/icon';
 import { useStatStore } from '@/哥杀/UI/store/StatStore';
