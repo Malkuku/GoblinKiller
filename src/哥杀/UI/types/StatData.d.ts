@@ -83,6 +83,34 @@ export interface SexProfile {
   "私密偏好": string;
 }
 
+/** 职业等级信息 */
+export interface ClassLevel {
+  "当前等级": number;
+  "最大等级": number;
+  "当前经验": number;
+  "升级所需": number;
+}
+
+/** 进行中任务 */
+export interface ActiveQuest {
+  "类型": string;
+  "当前目标": string;
+  "进度说明": string;
+  "奖励预览": string;
+}
+
+/** 已完成任务 */
+export interface CompletedQuest {
+  "完成评价": string;
+  "获得奖励": string;
+}
+
+/** 任务日志 */
+export interface QuestLog {
+  "进行中": Record<string, ActiveQuest>;
+  "已完成": Record<string, CompletedQuest>;
+}
+
 /** 角色共有能力属性 */
 export interface AbilityScores {
   "力量": number;
@@ -109,7 +137,7 @@ export interface PlayerCharacter {
   "姓名": string;
   "所在地": string | null;
   "层级": string; // 经过 normalizeRelationTier 标准化
-  "职业": Record<string, any>; // 职业记录，值类型任意
+  "职业": Record<string, ClassLevel>;
   "经验等级": number;
   "技能点": number;
   "种族": string | null;
@@ -125,10 +153,7 @@ export interface PlayerCharacter {
   "技能列表": Record<string, any>;
   "资产": Record<string, any>;
   "当前状态": Record<string, any>;
-  "任务日志": {
-    "进行中": Record<string, any>;
-    "已完成": Record<string, any>;
-  };
+  "任务日志": QuestLog;
   "背包": Inventory;
   "公会信息": GuildInfo;
 }
@@ -136,7 +161,7 @@ export interface PlayerCharacter {
 /** 关系角色（NPC/同伴） */
 export interface RelationCharacter {
   "姓名": string;
-  "职业": Record<string, any>;
+  "职业": Record<string, ClassLevel>;
   "职业等级": number;
   "种族": string;
   "is_companion": boolean;
