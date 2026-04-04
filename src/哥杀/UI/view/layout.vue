@@ -107,10 +107,10 @@
 </template>
 
 <script setup>
+import { getSVG } from '@/哥杀/UI/composables/icon/icon';
+import { useUiStore } from '@/哥杀/UI/store/UIStore';
 import { computed, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
-import { useUiStore } from '@/哥杀/UI/store/UIStore';
-import { getSVG } from '@/哥杀/UI/composables/icon/icon';
 const uiStore = useUiStore();
 const router = useRouter();
 const route = useRoute();
