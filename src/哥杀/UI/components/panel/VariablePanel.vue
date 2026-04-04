@@ -2,7 +2,7 @@
   <transition name="slide-down-edit">
     <div class="edit-panel variable-panel">
       <div class="edit-header">
-        <span>变量监控 (VARIABLE_DEBUGGER)</span>
+        <span>变量监控</span>
         <button class="close-edit" @click="$emit('close')">✕</button>
       </div>
 
@@ -32,10 +32,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, h, defineComponent, computed, onMounted, watch } from 'vue';
 import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
+import { computed, defineComponent, h, onMounted, ref, watch } from 'vue';
 
-const emit = defineEmits<{ (e: 'close'): void; }>();
 const messageStore = useMessageStore();
 const parsedLogs = ref<Array<{ type: string, data: any }>>([]);
 
@@ -49,21 +48,260 @@ const formatType = (type: string) => {
   return map[type] || type.toUpperCase();
 };
 
-// ... (此处保留原有的 parsePath, ensureParent, setAtPath, removeAtPath, deltaAtPath, applyJSONPatch, parseMessageContent 逻辑，与原文件完全一致) ...
-// 为节省篇幅，此处省略 JSONPatch 工具函数，请直接复用原文件中的逻辑。
+function parsePath(path: string): string[] {
+  if (!path) return [];
+  const normalized = path.startsWith('/') ? path.slice(1) : path;
+  return normalized.split('/').filter(seg => seg !== '');
+}
 
-onMounted(() => { /* parseMessageContent(); */ });
-watch(() => messageStore.message, () => { /* parseMessageContent(); */ });
+function isNumericIndex(str: string): boolean {
+  return /^\d+$/.test(str);
+}
+
+function ensureParent(root: any, segments: string[], createMissing = true): { parent: any; key: string } | null {
+  let current = root;
+  for (let i = 0; i < segments.length - 1; i++) {
+    const seg = segments[i];
+    const nextSeg = segments[i + 1];
+    if (!(seg in current)) {
+      if (!createMissing) return null;
+      if (nextSeg && (nextSeg === '-' || isNumericIndex(nextSeg))) {
+        current[seg] = [];
+      } else {
+        current[seg] = {};
+      }
+    }
+    current = current[seg];
+  }
+  return { parent: current, key: segments[segments.length - 1] };
+}
+
+function setAtPath(root: any, segments: string[], value: any, isAppend = false) {
+  if (segments.length === 0) {
+    Object.assign(root, value);
+    return;
+  }
+  const parentInfo = ensureParent(root, segments, true);
+  if (!parentInfo) return;
+  const { parent, key } = parentInfo;
+
+  if (isAppend && key === '-') {
+    if (Array.isArray(parent)) parent.push(value);
+  } else {
+    parent[key] = value;
+  }
+}
+
+function removeAtPath(root: any, segments: string[]) {
+  if (segments.length === 0) return;
+  const parentInfo = ensureParent(root, segments, false);
+  if (!parentInfo) return;
+  const { parent, key } = parentInfo;
+  if (Array.isArray(parent)) {
+    const index = Number(key);
+    if (!isNaN(index) && index >= 0 && index < parent.length) {
+      parent.splice(index, 1);
+    }
+  } else {
+    delete parent[key];
+  }
+}
+
+function deltaAtPath(root: any, segments: string[], delta: number) {
+  const parentInfo = ensureParent(root, segments, false);
+  if (!parentInfo) {
+    setAtPath(root, segments, 0);
+    deltaAtPath(root, segments, delta);
+    return;
+  }
+  const { parent, key } = parentInfo;
+  let currentValue = parent[key];
+  if (typeof currentValue === 'number') {
+    parent[key] = currentValue + delta;
+  } else {
+    parent[key] = delta;
+  }
+}
+
+function applyJSONPatch(patchArray: any[]): any {
+  const root = {};
+  for (const op of patchArray) {
+    const { op: type, path, value } = op;
+    const segments = parsePath(path);
+    try {
+      switch (type) {
+        case 'replace':
+        case 'insert':
+          setAtPath(root, segments, value, type === 'insert' && segments[segments.length - 1] === '-');
+          break;
+        case 'delta':
+          deltaAtPath(root, segments, value);
+          break;
+        case 'remove':
+          removeAtPath(root, segments);
+          break;
+      }
+    } catch (e) {
+      console.error('Error applying patch operation:', op, e);
+    }
+  }
+  return root;
+}
+const parseMessageContent = () => {
+  const text = messageStore.message;
+  if (!text) {
+    parsedLogs.value = [];
+    return;
+  }
+
+  const results = [];
+
+  // 1. 匹配 <variable...> 系列标签
+  const varRegex = /<(variable(?:insert|edit|delete|think))>(.*?)<\/\1>/gsi;
+  let varMatch;
+  while ((varMatch = varRegex.exec(text)) !== null) {
+    const type = varMatch[1].toLowerCase();
+    const content = varMatch[2];
+    let parsedData = type === 'variablethink' ? content.trim() : content;
+    try { if (type !== 'variablethink') parsedData = JSON.parse(content); } catch (e) {}
+    results.push({ type, data: parsedData });
+  }
+
+  // 2. 匹配 <UpdateVariable> 标签及其内部的 <Analysis> 和 <JSONPatch>
+  const updateVarRegex = /<UpdateVariable>([\s\S]*?)<\/UpdateVariable>/gi;
+  let updateMatch;
+  while ((updateMatch = updateVarRegex.exec(text)) !== null) {
+    const updateContent = updateMatch[1];
+
+    const analysisRegex = /<Analysis>([\s\S]*?)<\/Analysis>/i;
+    const analysisMatch = analysisRegex.exec(updateContent);
+    if (analysisMatch) {
+      const analysisText = analysisMatch[1].trim();
+      results.push({ type: 'variablethink', data: analysisText });
+    }
+
+    const patchRegex = /<JSONPatch>([\s\S]*?)<\/JSONPatch>/i;
+    const patchMatch = patchRegex.exec(updateContent);
+    if (patchMatch) {
+      const patchContent = patchMatch[1].trim();
+      try {
+        const patchArray = JSON.parse(patchContent);
+        if (Array.isArray(patchArray)) {
+          const finalTree = applyJSONPatch(patchArray);
+          results.push({ type: 'variableedit', data: finalTree });
+        } else {
+          results.push({ type: 'jsonpatch', data: patchArray });
+        }
+      } catch (e) {
+        results.push({ type: 'jsonpatch', data: patchContent });
+      }
+    }
+  }
+
+  parsedLogs.value = results;
+};
+
+
+onMounted(() => {
+  parseMessageContent();
+});
+
+watch(() => messageStore.message, () => {
+  parseMessageContent();
+});
 
 const JsonNode = defineComponent({
-  // ... (保留原有的 JsonNode 渲染逻辑) ...
+  name: 'JsonNode',
+  props: {
+    name: { type: [String, Number], default: '' },
+    value: { type: [Object, Array, String, Number, Boolean, null] as any, default: null },
+    isLast: { type: Boolean, default: true },
+    depth: { type: Number, default: 0 },
+    forceOpen: { type: Boolean, default: true }
+  },
+  setup(props) {
+    const isOpen = ref(props.forceOpen);
+    const toggle = () => { isOpen.value = !isOpen.value; };
+
+    const isObject = computed(() => props.value !== null && typeof props.value === 'object');
+    const isArray = computed(() => Array.isArray(props.value));
+
+    const valueClass = computed(() => {
+      if (props.value === null) return 'jv-null';
+      if (typeof props.value === 'string') return 'jv-string';
+      if (typeof props.value === 'number') return 'jv-number';
+      if (typeof props.value === 'boolean') return 'jv-boolean';
+      return '';
+    });
+
+    const formattedValue = computed(() => {
+      if (props.value === null) return 'NULL';
+      if (typeof props.value === 'string') return `"${props.value}"`;
+      return String(props.value);
+    });
+
+    return () => {
+      const { name, value, isLast, depth } = props;
+      const indent = { paddingLeft: `${depth * 15}px` };
+
+      if (isObject.value) {
+        const keys = Object.keys(value);
+        const isEmpty = keys.length === 0;
+        const openBracket = isArray.value ? '[' : '{';
+        const closeBracket = isArray.value ? ']' : '}';
+        const itemCount = keys.length;
+
+        const headerContent = [
+          !isEmpty && h('span', {
+            class: ['jv-toggle', { open: isOpen.value }],
+            onClick: (e: Event) => { e.stopPropagation(); toggle(); }
+          }, '▶'),
+          name !== '' && h('span', { class: 'jv-key' }, `${name}: `),
+          h('span', { class: 'jv-bracket' }, openBracket),
+          !isOpen.value && !isEmpty && h('span', { class: 'jv-ellipsis', onClick: toggle }, ` ... `),
+          (!isOpen.value || isEmpty) && h('span', { class: 'jv-bracket' }, closeBracket),
+          (!isLast && (!isOpen.value || isEmpty)) && h('span', { class: 'jv-comma' }, ','),
+          !isOpen.value && !isEmpty && h('span', { class: 'jv-count' }, ` // ${itemCount}`)
+        ];
+
+        const children: any[] = [];
+        if (isOpen.value && !isEmpty) {
+          keys.forEach((key, index) => {
+            children.push(h(JsonNode, {
+              key: key,
+              name: isArray.value ? '' : key,
+              value: value[key],
+              isLast: index === keys.length - 1,
+              depth: depth + 1,
+              forceOpen: true
+            }));
+          });
+          children.push(h('div', { class: 'jv-line', style: indent }, [
+            h('span', { class: 'jv-bracket' }, closeBracket),
+            !isLast && h('span', { class: 'jv-comma' }, ',')
+          ]));
+        }
+
+        return h('div', { class: 'jv-node' }, [
+          h('div', { class: 'jv-line jv-clickable', style: indent, onClick: toggle }, headerContent),
+          children
+        ]);
+      } else {
+        return h('div', { class: 'jv-line', style: indent }, [
+          name !== '' && h('span', { class: 'jv-key' }, `${name}: `),
+          h('span', { class: valueClass.value }, formattedValue.value),
+          !isLast && h('span', { class: 'jv-comma' }, ',')
+        ]);
+      }
+    };
+  }
 });
 </script>
 
 <style scoped>
 .edit-panel {
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 80%; height: 80%; background: var(--scroll-paper);
+  width: 65%; height: 90%; background: var(--scroll-paper);
   border: 1px solid var(--scroll-border); border-radius: 6px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.2); z-index: 10000;
   display: flex; flex-direction: column; color: var(--text-main);
@@ -124,7 +362,17 @@ const JsonNode = defineComponent({
 .slide-down-edit-enter-from, .slide-down-edit-leave-to { opacity: 0; transform: translate(-50%, -55%); }
 
 @media (max-width: 1000px) {
-  .edit-panel { top: 0; left: 0; transform: none; width: 100%; height: 100dvh; border-radius: 0; border: none; }
+  .edit-panel {
+    top: 50px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    transform: none;
+    width: 95%;
+    height: 80dvh;
+    border-radius: 6px;
+    border: 1px solid var(--scroll-border);
+  }
   .slide-down-edit-enter-from, .slide-down-edit-leave-to { opacity: 0; transform: translateY(-10px); }
 }
 </style>
