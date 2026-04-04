@@ -158,9 +158,12 @@ const navItems = [
   --scroll-paper: #fffcf5;
   --scroll-border: #d4c4a8;
   --roller-color: #8b7e70;
-  --flag-bg: #8c3a3a;
+
+  /* 亮色模式旗帜颜色 */
+  --flag-bg: #dfbc73;
   --flag-text: #f4f1ea;
   --flag-active: #c6a664;
+  --flag-active-text: #4a3f35;
   --status-bar-bg: rgba(244, 241, 234, 0.9);
 
   /* 特殊竖旗颜色 */
@@ -186,14 +189,17 @@ const navItems = [
   --scroll-paper: #1f293d;
   --scroll-border: #3a4b6b;
   --roller-color: #0a0e17;
-  --flag-bg: #2a3b5c;
-  --flag-text: #dce4ee;
-  --flag-active: #8ba4c7;
+
+  /* 优化后的暗黑模式旗帜颜色 */
+  --flag-bg: #304f7d; /* 深邃的蓝灰底色 */
+  --flag-text: #cbd5e1; /* 柔和的银灰文字 */
+  --flag-active: #6366f1; /* 亮靛蓝色，突出选中状态 */
+  --flag-active-text: #ffffff; /* 选中时文字纯白 */
   --status-bar-bg: rgba(31, 41, 61, 0.9);
 
   /* 暗黑模式特殊竖旗颜色 */
-  --flag-theme-bg: #2c3e50;
-  --flag-close-bg: #641e16;
+  --flag-theme-bg: #8b5cf6; /* 神秘的紫色，契合夜幕/魔法主题 */
+  --flag-close-bg: #be123c; /* 较亮的深红，警示关闭 */
 }
 
 .fantasy-background {
@@ -250,12 +256,13 @@ const navItems = [
 .flag-item {
   position: relative; width: 46px;
   height: 55px; /* 默认全部缩短，配合clip-path刚好只显示图标 */
-  background-color: var(--flag-active); color: var(--flag-text);
+  background-color: var(--flag-bg); /* 【修复】默认应为 flag-bg，而不是 flag-active */
+  color: var(--flag-text);
   text-decoration: none; display: flex; flex-direction: column;
   align-items: center;
   padding-top: 25px; /* 将内容往下推，适应向上溢出 */
   clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%);
-  transition: transform 0.3s ease, background-color 0.3s, height 0.3s;
+  transition: transform 0.3s ease, background-color 0.3s, color 0.3s, height 0.3s, filter 0.3s;
   box-shadow: 0 4px 6px rgba(0,0,0,0.3);
   z-index: 10;
 }
@@ -264,11 +271,12 @@ const navItems = [
   transform: translateY(5px);
   height: 130px; /* 【关键修改】悬浮时拉得更长，足以遮挡下方内容 */
   z-index: 15; /* 保证悬浮时处于最上层 */
+  filter: brightness(1.1);
 }
 
 .flag-item.active {
   background-color: var(--flag-active);
-  color: var(--bg-base);
+  color: var(--flag-active-text);
 }
 
 /* 特殊操作竖旗样式 */
@@ -329,7 +337,14 @@ const navItems = [
     text-decoration: none; color: var(--text-main); border: 1px solid var(--scroll-border); border-radius: 6px; background: rgba(255, 255, 255, 0.4); transition: all 0.3s ease;
   }
   .mobile-nav-item .icon { font-size: 1.1rem; }
-  .mobile-nav-item.active { background-color: var(--flag-bg); color: var(--flag-text); border-color: var(--flag-bg); box-shadow: inset 0 0 10px rgba(0,0,0,0.2); }
+
+  /* 【同步修复】移动端选中状态颜色 */
+  .mobile-nav-item.active {
+    background-color: var(--flag-active);
+    color: var(--flag-active-text);
+    border-color: var(--flag-active);
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+  }
 
   /* 移动端特殊按钮样式 */
   .mobile-nav-divider { width: 1px; height: 30px; background-color: var(--scroll-border); margin: 0 5px; flex-shrink: 0; }
