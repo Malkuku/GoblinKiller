@@ -533,7 +533,7 @@ const handleOptionClick = (option: string) => {
   }
   .extra-toolbar {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-start;
     overflow-x: auto;
     flex-wrap: nowrap;
   }
