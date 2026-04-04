@@ -467,13 +467,12 @@ const handleOptionClick = (option: string) => {
 /* 桌面端隐藏控制 */
 .mobile-only { display: none; }
 .mobile-only-flex { display: none; }
-
 @media (max-width: 768px) {
   .mobile-only { display: block; }
   .mobile-only-flex { display: flex; }
 
   .interaction-panel {
-    position: absolute;
+    position: absolute; /* 恢复为 absolute */
     bottom: 0;
     left: 0;
     padding: 10px 15px 20px;
@@ -485,15 +484,18 @@ const handleOptionClick = (option: string) => {
   }
   .interaction-panel::before { display: none; }
 
+  /* 【关键修改在这里】解决底部白块 */
   .interaction-panel:not(.is-expanded) {
-    transform: translateY(100%);
+    /* 去掉 translateY(100%)，改为轻微下移，防止把页面底部撑开 */
+    transform: translateY(15px);
     opacity: 0;
     pointer-events: none;
+    visibility: hidden; /* 确保隐藏后彻底从屏幕交互中移除 */
   }
 
   /* 羽毛笔悬浮按钮 (仅移动端) */
   .quill-trigger {
-    position: absolute;
+    position: absolute; /* 恢复为 absolute */
     bottom: 20px;
     right: 20px;
     width: 56px;
