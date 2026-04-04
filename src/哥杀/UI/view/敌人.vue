@@ -20,7 +20,7 @@
             <span class="entity-badge uninit">迷雾笼罩</span>
           </div>
           <div class="card-body uninit-body">
-            <p>该目标的情报尚未探明 (待初始化)...</p>
+            <p>该目标的情报尚未探明...</p>
           </div>
         </template>
 
@@ -75,20 +75,10 @@
 </template>
 
 <script setup lang="ts">
-import type { EnemyEntry, Resource } from '@/哥杀/UI/types/StatData';
-import { ref } from 'vue';
-
-// 模拟数据注入
-const enemies = ref<Record<string, EnemyEntry>>({
-  "哥布林萨满": {
-    "类型": "类人邪恶生物",
-    "生命值": { "当前值": 45, "最大值": 60 },
-    "护甲值": { "当前值": 5, "最大值": 15 },
-    "能力": { "力量": 8, "敏捷": 12, "魔力": 18, "感知": 14 },
-    "备注": "躲在后排施放火球术，优先击杀目标。"
-  },
-  "潜伏的黑影": "待初始化"
-});
+import type { Resource } from '@/哥杀/UI/types/StatData';
+import { useStatStore } from '@/哥杀/UI/store/StatStore';
+const statStore = useStatStore();
+const enemies = computed( () => statStore.stat_data?.敌人列表);
 
 // 计算进度条百分比
 const getPercentage = (res: Resource) => {

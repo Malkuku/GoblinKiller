@@ -57,20 +57,9 @@
 </template>
 
 <script setup lang="ts">
-import type { Pet } from '@/哥杀/UI/types/StatData';
-import { ref } from 'vue';
-
-// 模拟数据注入，实际使用时可从 Store 或 Props 获取
-const pets = ref<Record<string, Pet>>({
-  "白影": {
-    "品类": "极地灵狼",
-    "内在": "忠诚、机警、护主",
-    "外在": "雪白的皮毛，幽蓝的双瞳",
-    "评价": "在风雪中最为可靠的向导与战友。",
-    "词条": { "冰霜抗性": true, "撕咬": true, "灵体化": true },
-    "装备": { "秘银项圈": {}, "御寒披风": {} }
-  }
-});
+import { useStatStore } from '@/哥杀/UI/store/StatStore';
+const statStore = useStatStore();
+const pets = computed(() => statStore.stat_data?.宠物);
 </script>
 
 <style scoped>
