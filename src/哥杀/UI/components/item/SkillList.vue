@@ -32,6 +32,7 @@
             {{ skill.name }}
           </span>
           <div class="header-actions">
+            <button class="use-btn" @click.stop="useSkill(skill.name)">使用</button>
             <button class="forget-btn" @click.stop="forgetSkill(skill.name)">遗忘</button>
             <span class="toggle-icon">{{ expandedSkills.has(skill.name) ? '▼' : '▶' }}</span>
           </div>
@@ -84,12 +85,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
-import { useStatStore } from '@/哥杀/UI/store/StatStore';
-import { getSVG } from '@/哥杀/UI/composables/icon/icon';
 import { MvuUtil } from '@/Utils/MvuUtil';
+import { getSVG } from '@/哥杀/UI/composables/icon/icon';
+import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { useUiStore } from '@/哥杀/UI/store/UIStore';
+import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 
 const statStore = useStatStore();
+const uiStore = useUiStore();
+const router = useRouter();
 
 // 技能图标
 const skillIcon = getSVG('skill', { size: 18, color: 'var(--accent-gold)' });
@@ -227,13 +232,18 @@ const forgetSkill = async (skillName) => {
     await MvuUtil.updateMvuDataByDiff({
       '主角': {
         '技能列表': {
-          [skillName]: null // 传入 null 触发深层合并的删除逻辑
+          [skillName]: null
         }
       }
     });
-    // 如果该技能处于展开状态，将其移除
     expandedSkills.value.delete(skillName);
   }
+};
+
+// 使用技能
+const useSkill = (skillName) => {
+  uiStore.setPendingInput(`<user>准备施展【${skillName}】`);
+  router.push('/选项');
 };
 </script>
 
@@ -388,6 +398,27 @@ const forgetSkill = async (skillName) => {
 
 .forget-btn:hover {
   background: #e74c3c;
+  color: #fff;
+}
+
+.use-btn {
+  background: transparent;
+  border: 1px solid #27ae60;
+  color: #27ae60;
+  padding: 2px 8px;
+  font-size: 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  opacity: 0;
+}
+
+.skill-card:hover .use-btn {
+  opacity: 1;
+}
+
+.use-btn:hover {
+  background: #27ae60;
   color: #fff;
 }
 

@@ -135,6 +135,12 @@
                 @click="equipItem(itemObj.category, itemObj.name, itemObj.item)">
                 装备
               </button>
+              <button
+                v-else
+                class="action-btn use-btn"
+                @click="useItem(itemObj.name)">
+                使用
+              </button>
             </div>
           </div>
           <div class="item-meta" :style="{ paddingLeft: isBatchDeleteMode ? '40px' : '24px' }">
@@ -158,12 +164,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue';
-import { useStatStore } from '@/哥杀/UI/store/StatStore';
 import { MvuUtil } from '@/Utils/MvuUtil';
-import { getSVG, getItemIcon } from '@/哥杀/UI/composables/icon/icon';
+import { getItemIcon, getSVG } from '@/哥杀/UI/composables/icon/icon';
+import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { useUiStore } from '@/哥杀/UI/store/UIStore';
+import { computed, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 
 const statStore = useStatStore();
+const uiStore = useUiStore();
+const router = useRouter();
 
 // 状态控制
 const sortMethod = ref('type');
@@ -346,8 +356,14 @@ const deleteSelectedItems = async () => {
   }
 
   await MvuUtil.updateMvuDataByDiff(diff);
-  selectedItems.value = []; // 清空选中状态
-  isBatchDeleteMode.value = false; // 删除完成后退出批量模式
+  selectedItems.value = [];
+  isBatchDeleteMode.value = false;
+};
+
+// 使用物品（非可装备物品）
+const useItem = (name) => {
+  uiStore.setPendingInput(`<user>准备使用【${name}】`);
+  router.push('/选项');
 };
 </script>
 
@@ -370,6 +386,8 @@ const deleteSelectedItems = async () => {
 .item-desc { font-size: 0.85rem; color: var(--text-muted); line-height: 1.4; transition: padding-left 0.2s; }
 .action-btn { background: transparent; border: 1px solid var(--scroll-border); color: var(--text-main); padding: 2px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8rem; transition: all 0.2s; }
 .action-btn:hover { background: var(--accent-gold); color: #fff; border-color: var(--accent-gold); }
+.use-btn { color: #27ae60; border-color: #27ae60; }
+.use-btn:hover { background: #27ae60; color: #fff; border-color: #27ae60; }
 .delete-btn { color: #b33939; border-color: #b33939; }
 .delete-btn:hover:not(:disabled) { background: #b33939; color: #fff; border-color: #b33939; }
 .delete-btn:disabled { opacity: 0.5; cursor: not-allowed; border-color: var(--scroll-border); color: var(--text-muted); }
