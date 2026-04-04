@@ -250,10 +250,10 @@
 </template>
 
 <script setup>
+import { MvuUtil } from '@/Utils/MvuUtil';
 import AbilityScoresDisplay from '@/哥杀/UI/components/role/AbilityScoresDisplay.vue';
 import { getSVG } from '@/哥杀/UI/composables/icon/icon';
 import { useStatStore } from '@/哥杀/UI/store/StatStore';
-import { MvuUtil } from '@/Utils/MvuUtil';
 import { computed, ref } from 'vue';
 
 const tabs = [
@@ -373,6 +373,9 @@ const deleteQuest = (status, key) => {
   color: var(--text-main);
   background: rgba(255, 255, 255, 0.3);
 }
+.dark-mode .bookmark:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
 
 .bookmark.active {
   color: var(--accent-gold);
@@ -466,6 +469,9 @@ const deleteQuest = (status, key) => {
   border-radius: 6px;
   text-align: center;
 }
+.dark-mode .info-card {
+  background: rgba(255, 255, 255, 0.05);
+}
 .card-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 5px; }
 .card-value { font-size: 1.1rem; font-weight: bold; }
 .card-value.highlight { color: var(--accent-gold); font-size: 1.3rem; }
@@ -477,6 +483,12 @@ const deleteQuest = (status, key) => {
 .rank-silver { color: #c0c0c0; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
 .rank-gold { color: #ffd700; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
 .rank-platinum { color: #e5e4e2; font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.8), 1px 1px 2px rgba(0,0,0,0.3); }
+.rank-novice { color: #a8b0b7; }
+.rank-veteran { color: #2ecc71; }
+.rank-bronze { color: #e8a84c; }
+.rank-silver { color: #e0e0e0; text-shadow: 0 0 8px rgba(192, 192, 192, 0.5); }
+.rank-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
+.rank-platinum { color: #f5f5f5; text-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
 
 .resource-bars { display: flex; flex-direction: column; gap: 12px; }
 .res-bar-container { display: flex; align-items: center; gap: 15px; }
@@ -506,6 +518,9 @@ const deleteQuest = (status, key) => {
   border: 1px solid var(--scroll-border);
   border-radius: 6px;
   padding: 12px;
+}
+.dark-mode .class-item {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .class-header {
@@ -573,6 +588,9 @@ const deleteQuest = (status, key) => {
   border: 1px solid var(--scroll-border); border-radius: 4px; padding: 10px;
   background: rgba(255,255,255,0.2);
 }
+.dark-mode .equip-slot {
+  background: rgba(255, 255, 255, 0.03);
+}
 .slot-type { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 5px; }
 .slot-item { font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
 .tier-tag { font-size: 0.7rem; background: var(--accent-gold); color: var(--bg-base); padding: 2px 6px; border-radius: 10px; }
@@ -618,13 +636,19 @@ const deleteQuest = (status, key) => {
 .quest-status-title { text-align: center; padding-bottom: 10px; border-bottom: 2px solid; margin-bottom: 15px; }
 .active-quests { color: #b33939; border-color: #b33939; }
 .completed-quests { color: #218c74; border-color: #218c74; }
+.dark-mode .active-quests { color: #e74c3c; border-color: #e74c3c; }
+.dark-mode .completed-quests { color: #2ecc71; border-color: #2ecc71; }
 
 .quest-card {
   background: rgba(255,255,255,0.5); border: 1px solid var(--scroll-border);
   padding: 12px; border-radius: 6px; margin-bottom: 10px;
   border-left: 4px solid #b33939;
 }
+.dark-mode .quest-card {
+  background: rgba(255, 255, 255, 0.05);
+}
 .quest-card.completed { border-left-color: #218c74; opacity: 0.85; }
+.dark-mode .quest-card.completed { border-left-color: #2ecc71; }
 .q-header { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
 .q-spacer { flex: 1; }
 .delete-btn {

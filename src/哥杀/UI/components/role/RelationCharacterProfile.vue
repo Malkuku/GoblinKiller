@@ -358,12 +358,17 @@ const getRankClass = (rank: string) => {
   box-shadow: inset 0 0 20px rgba(0,0,0,0.02);
   position: relative;
   z-index: 1;
-  margin-left: -2px; /* 掩盖边框重合 */
+  margin-left: -2px;
   overflow-y: auto;
 }
 
 .dark-mode .page-content {
   background-color: rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .page-content {
+  background-color: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.1);
 }
 
 .section-title {
@@ -403,6 +408,11 @@ const getRankClass = (rank: string) => {
 
 .dark-mode .info-item { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.05); }
 
+.dark-mode .info-item {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
 .info-item .label { font-size: 0.85rem; color: var(--text-muted); }
 .info-item .value { font-size: 1.05rem; font-weight: bold; }
 .info-item .value.highlight { color: var(--accent-gold); }
@@ -423,6 +433,13 @@ const getRankClass = (rank: string) => {
 .rank-silver { color: #c0c0c0; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
 .rank-gold { color: #ffd700; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
 .rank-platinum { color: #e5e4e2; font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.8), 1px 1px 2px rgba(0,0,0,0.3); }
+
+.rank-novice { color: #a8b0b7; }
+.rank-veteran { color: #2ecc71; }
+.rank-bronze { color: #e8a84c; }
+.rank-silver { color: #e0e0e0; text-shadow: 0 0 8px rgba(192, 192, 192, 0.5); }
+.rank-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
+.rank-platinum { color: #f5f5f5; text-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
 
 /* ================= 标签与胶囊 ================= */
 .tags-container { display: flex; flex-wrap: wrap; gap: 8px; }

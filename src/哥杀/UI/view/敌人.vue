@@ -75,8 +75,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
 import type { EnemyEntry, Resource } from '@/哥杀/UI/types/StatData';
+import { ref } from 'vue';
 
 // 模拟数据注入
 const enemies = ref<Record<string, EnemyEntry>>({
@@ -119,6 +119,10 @@ const getPercentage = (res: Resource) => {
   border-radius: 8px; padding: 15px;
   box-shadow: inset 0 0 10px rgba(0,0,0,0.02), 0 4px 6px rgba(0,0,0,0.05);
   transition: transform 0.3s ease, border-color 0.3s ease;
+}
+.dark-mode .fantasy-card {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.2);
 }
 .enemy-card:hover { transform: translateY(-2px); border-color: var(--flag-close-bg); }
 

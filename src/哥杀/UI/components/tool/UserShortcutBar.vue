@@ -109,4 +109,16 @@ const getPercent = (stat: any) => {
 .sp .bar-fill { background: linear-gradient(90deg, #a3854b, #c6a664); }
 .mp .bar-fill { background: linear-gradient(90deg, #2a406d, #3b5998); }
 .faith .bar-fill { background: linear-gradient(90deg, #8f8168, #b8a98d); }
+
+.dark-mode .hp .icon { color: #ef5350; }
+.dark-mode .armor .icon { color: #9e9e9e; }
+.dark-mode .sp .icon { color: #ffd54f; }
+.dark-mode .mp .icon { color: #64b5f6; }
+.dark-mode .faith .icon { color: #ffe082; }
+
+.dark-mode .hp .bar-fill { background: linear-gradient(90deg, #c62828, #ef5350); }
+.dark-mode .armor .bar-fill { background: linear-gradient(90deg, #616161, #9e9e9e); }
+.dark-mode .sp .bar-fill { background: linear-gradient(90deg, #f9a825, #ffd54f); }
+.dark-mode .mp .bar-fill { background: linear-gradient(90deg, #1976d2, #64b5f6); }
+.dark-mode .faith .bar-fill { background: linear-gradient(90deg, #f9a825, #ffe082); }
 </style>

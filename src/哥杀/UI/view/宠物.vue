@@ -57,8 +57,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
 import type { Pet } from '@/哥杀/UI/types/StatData';
+import { ref } from 'vue';
 
 // 模拟数据注入，实际使用时可从 Store 或 Props 获取
 const pets = ref<Record<string, Pet>>({
@@ -122,6 +122,10 @@ const pets = ref<Record<string, Pet>>({
   padding: 15px;
   box-shadow: inset 0 0 10px rgba(0,0,0,0.02), 0 4px 6px rgba(0,0,0,0.05);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.dark-mode .fantasy-card {
+  background: rgba(255, 255, 255, 0.03);
+  box-shadow: inset 0 0 10px rgba(0,0,0,0.1), 0 4px 6px rgba(0,0,0,0.2);
 }
 
 .fantasy-card:hover {

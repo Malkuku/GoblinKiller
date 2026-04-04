@@ -196,12 +196,20 @@ const inventory = computed(() => player.value['背包'] || {});
 
 // 获取品质对应颜色
 const getTierColor = (tier) => {
+  const isDark = uiStore.darkMode;
   const colors = {
-    '普通': '#757575', '精良': '#3f51b5', '稀有': '#9c27b0',
-    '史诗': '#f57c00', '传奇': '#d81b60', '传说': '#d81b60',
-    '特殊': '#6a1b9a', '奥义': '#f9a825', '唯一': '#d32f2f', '通用': '#455a64'
+    '普通': isDark ? '#a0a0a0' : '#757575',
+    '精良': isDark ? '#7986cb' : '#3f51b5',
+    '稀有': isDark ? '#ce93d8' : '#9c27b0',
+    '史诗': isDark ? '#ffb74d' : '#f57c00',
+    '传奇': isDark ? '#f48fb1' : '#d81b60',
+    '传说': isDark ? '#f48fb1' : '#d81b60',
+    '特殊': isDark ? '#ce93d8' : '#6a1b9a',
+    '奥义': isDark ? '#fff176' : '#f9a825',
+    '唯一': isDark ? '#ef9a9a' : '#d32f2f',
+    '通用': isDark ? '#90a4ae' : '#455a64'
   };
-  return colors[tier] || '#8b7355'; // 默认回退到古铜色
+  return colors[tier] || (isDark ? '#b8a98d' : '#8b7355');
 };
 
 // 获取图标HTML (根据品质上色)

@@ -79,6 +79,12 @@ const handleLevelChange = (e: Event) => {
 .log-text :deep(.log-char-main) { color: #6a1b9a; font-weight: bold; }
 .log-text :deep(.log-char-minor) { color: var(--text-muted); font-style: italic; }
 
+.dark-mode .log-text :deep(.log-positive) { color: #4caf50; }
+.dark-mode .log-text :deep(.log-negative) { color: #ef5350; }
+.dark-mode .log-text :deep(.log-attr) { color: #ff7043; }
+.dark-mode .log-text :deep(.log-char-user) { color: #42a5f5; }
+.dark-mode .log-text :deep(.log-char-main) { color: #ab47bc; }
+
 .log-empty { text-align: center; padding: 20px; color: var(--text-muted); font-style: italic; }
 
 .slide-down-log-enter-active, .slide-down-log-leave-active { transition: all 0.3s ease; }

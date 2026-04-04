@@ -292,6 +292,9 @@ const useSkill = (skillName) => {
   color: var(--text-main);
   background: rgba(0, 0, 0, 0.03);
 }
+.dark-mode .tab-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
 
 .tab-btn.active {
   color: var(--accent-gold);
@@ -361,6 +364,9 @@ const useSkill = (skillName) => {
   user-select: none;
   transition: background 0.2s;
 }
+.dark-mode .skill-header {
+  background: rgba(255, 255, 255, 0.03);
+}
 
 .skill-header:hover {
   background: rgba(198, 166, 100, 0.1);
@@ -401,6 +407,9 @@ const useSkill = (skillName) => {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+.dark-mode .skill-details {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 /* 详情顶部：消耗与操作按钮同排 */
@@ -495,6 +504,10 @@ const useSkill = (skillName) => {
   padding: 8px 10px;
   border-radius: 4px;
   border: 1px solid rgba(0, 0, 0, 0.05);
+}
+.dark-mode .detail-item {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.05);
 }
 
 /* 长文本跨越整行 */

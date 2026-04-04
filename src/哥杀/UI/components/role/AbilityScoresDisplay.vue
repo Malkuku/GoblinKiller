@@ -187,18 +187,21 @@ const props = withDefaults(defineProps<{
   maxValue: 20
 });
 
-const abilityConfig: Record<string, { color: string; icon: string }> = {
-  '力量': { color: '#c0392b', icon: '⚔' },
-  '敏捷': { color: '#27ae60', icon: '⚡' },
-  '感知': { color: '#2980b9', icon: '👁' },
-  '知识': { color: '#8e44ad', icon: '📖' },
-  '魅力': { color: '#e84393', icon: '❤' },
-  '魔力': { color: '#3498db', icon: '✦' },
-  '信仰力': { color: '#f39c12', icon: '✧' }
+const abilityConfig: Record<string, { color: string; darkColor: string; icon: string }> = {
+  '力量': { color: '#c0392b', darkColor: '#e74c3c', icon: '⚔' },
+  '敏捷': { color: '#27ae60', darkColor: '#2ecc71', icon: '⚡' },
+  '感知': { color: '#2980b9', darkColor: '#3498db', icon: '👁' },
+  '知识': { color: '#8e44ad', darkColor: '#9b59b6', icon: '📖' },
+  '魅力': { color: '#e84393', darkColor: '#f06292', icon: '❤' },
+  '魔力': { color: '#3498db', darkColor: '#5dade2', icon: '✦' },
+  '信仰力': { color: '#f39c12', darkColor: '#f1c40f', icon: '✧' }
 };
 
 const getAbilityColor = (name: string): string => {
-  return abilityConfig[name]?.color || 'var(--accent-gold)';
+  const config = abilityConfig[name];
+  if (!config) return 'var(--accent-gold)';
+  const isDark = document.documentElement.classList.contains('dark-mode');
+  return isDark ? config.darkColor : config.color;
 };
 
 const getAbilityIcon = (name: string): string => {

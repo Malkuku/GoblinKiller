@@ -10,7 +10,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick, computed } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { getCharacterInfo } from './characterConfig';
 
 const props = defineProps<{
@@ -189,7 +189,7 @@ defineExpose({ scrollContainer, scrollToBottom });
   gap: 16px;
   margin: 1.2em 0;
   padding: 16px 20px;
-  background: rgba(255, 255, 255, 0.6); /* 稍微提高一点透明度让背景更干净 */
+  background: rgba(255, 255, 255, 0.6);
   border-radius: 8px;
   border: 1px solid var(--scroll-border, #d4c4a8);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
@@ -197,8 +197,18 @@ defineExpose({ scrollContainer, scrollToBottom });
 }
 
 .text-body :deep(.role-block:hover) {
-  box-shadow: 0 6px 16px rgba(198, 166, 100, 0.08); /* 悬浮阴影带一点点金色 */
+  box-shadow: 0 6px 16px rgba(198, 166, 100, 0.08);
   background: rgba(255, 255, 255, 0.8);
+}
+
+.dark-mode .text-body :deep(.role-block) {
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.dark-mode .text-body :deep(.role-block:hover) {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 16px rgba(139, 164, 199, 0.1);
 }
 
 .text-body :deep(.role-avatar) {
@@ -223,6 +233,9 @@ defineExpose({ scrollContainer, scrollToBottom });
   letter-spacing: 1px; text-transform: capitalize;
   font-family: 'Georgia', 'Noto Serif SC', serif;
   color: #5c4e40;
+}
+.dark-mode .text-body :deep(.role-name-wrapper) {
+  color: var(--accent-gold);
 }
 .text-body :deep(.name-char) { display: inline-block; }
 .text-body :deep(.name-first-char) { font-size: 1.15em; margin-right: 1px; font-style: italic; }

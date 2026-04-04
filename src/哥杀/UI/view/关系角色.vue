@@ -52,9 +52,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { useStatStore } from '@/哥杀/UI/store/StatStore';
 import { getSVG } from '@/哥杀/UI/composables/icon/icon';
+import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { computed, ref, watch } from 'vue';
 import RelationCharacterProfile from '../components/role/RelationCharacterProfile.vue';
 
 const statStore = useStatStore();
@@ -238,6 +238,12 @@ watch(validCharacters, (newVal) => {
 .rank-silver { color: #c0c0c0; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
 .rank-gold { color: #ffd700; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
 .rank-platinum { color: #e5e4e2; font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.8), 1px 1px 2px rgba(0,0,0,0.3); }
+.rank-novice { color: #a8b0b7; }
+.rank-veteran { color: #2ecc71; }
+.rank-bronze { color: #e8a84c; }
+.rank-silver { color: #e0e0e0; text-shadow: 0 0 8px rgba(192, 192, 192, 0.5); }
+.rank-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
+.rank-platinum { color: #f5f5f5; text-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
 
 /* ================= 右侧详情区域 ================= */
 .character-detail-area {

@@ -33,9 +33,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
 import InventoryEquipment from '@/哥杀/UI/components/item/InventoryEquipment.vue';
 import SkillList from '@/哥杀/UI/components/item/SkillList.vue';
+import { ref } from 'vue';
 
 // 定义当前激活的标签页，默认显示 'inventory' (背包)
 const activeTab = ref('inventory');
@@ -76,7 +76,10 @@ const activeTab = ref('inventory');
 }
 
 .tab-btn:hover {
-  background: rgba(212, 175, 55, 0.1); /* 悬浮时的浅色背景 */
+  background: rgba(212, 175, 55, 0.1);
+}
+.dark-mode .tab-btn:hover {
+  background: rgba(139, 164, 199, 0.15);
 }
 
 .tab-btn.active {
