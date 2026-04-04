@@ -69,12 +69,18 @@
           <!-- 左列：职业与历练 -->
           <div class="col-left">
             <h3 class="section-title">职业道途</h3>
-            <ul class="list-container">
-              <li v-for="(val, key) in player.职业" :key="key" class="list-item">
-                <span class="item-name">{{ key }}</span>
-                <span class="item-desc">Lv.{{ val }}</span>
-              </li>
-            </ul>
+            <div class="class-progress-list">
+              <div v-for="(val, key) in player.职业" :key="key" class="class-item">
+                <div class="class-header">
+                  <span class="class-name">{{ key }}</span>
+                  <span class="class-level">Lv.{{ val.当前等级 }} / {{ val.最大等级 }}</span>
+                </div>
+                <div class="class-exp-bar">
+                  <div class="exp-fill" :style="{ width: getExpPercentage(val) + '%' }"></div>
+                  <span class="exp-text">{{ val.当前经验 }} / {{ val.升级所需 }}</span>
+                </div>
+              </div>
+            </div>
 
             <h3 class="section-title mt-4">历练进度</h3>
             <div class="progress-grid">
@@ -190,8 +196,27 @@
           <div class="quest-col">
             <h4 class="quest-status-title active-quests">进行中</h4>
             <div class="quest-card" v-for="(val, key) in player.任务日志.进行中" :key="key">
-              <div class="q-title">{{ key }}</div>
-              <div class="q-desc">{{ val.描述 || '暂无描述' }}</div>
+              <div class="q-header" @click="toggleQuest('进行中', key)">
+                <span class="q-type-tag" v-if="val.类型">{{ val.类型 }}</span>
+                <div class="q-title">{{ key }}</div>
+                <div class="q-spacer"></div>
+                <button class="delete-btn" @click.stop="deleteQuest('进行中', key)" title="删除任务">✖</button>
+                <span class="expand-icon" :class="{ expanded: isQuestExpanded('进行中', key) }">▼</span>
+              </div>
+              <div class="q-details" v-show="isQuestExpanded('进行中', key)" v-if="val.当前目标 || val.进度说明 || val.奖励预览">
+                <div class="q-detail-item" v-if="val.当前目标">
+                  <span class="q-detail-label">当前目标</span>
+                  <span class="q-detail-value">{{ val.当前目标 }}</span>
+                </div>
+                <div class="q-detail-item" v-if="val.进度说明">
+                  <span class="q-detail-label">进度说明</span>
+                  <span class="q-detail-value">{{ val.进度说明 }}</span>
+                </div>
+                <div class="q-detail-item" v-if="val.奖励预览">
+                  <span class="q-detail-label">奖励预览</span>
+                  <span class="q-detail-value reward">{{ val.奖励预览 }}</span>
+                </div>
+              </div>
             </div>
             <div class="empty-text" v-if="Object.keys(player.任务日志.进行中).length === 0">暂无进行中的任务</div>
           </div>
@@ -199,7 +224,22 @@
           <div class="quest-col">
             <h4 class="quest-status-title completed-quests">已完成</h4>
             <div class="quest-card completed" v-for="(val, key) in player.任务日志.已完成" :key="key">
-              <div class="q-title">{{ key }}</div>
+              <div class="q-header" @click="toggleQuest('已完成', key)">
+                <div class="q-title">{{ key }}</div>
+                <div class="q-spacer"></div>
+                <button class="delete-btn" @click.stop="deleteQuest('已完成', key)" title="删除任务">✖</button>
+                <span class="expand-icon" :class="{ expanded: isQuestExpanded('已完成', key) }">▼</span>
+              </div>
+              <div class="q-details" v-show="isQuestExpanded('已完成', key)" v-if="val.完成评价 || val.获得奖励">
+                <div class="q-detail-item" v-if="val.完成评价">
+                  <span class="q-detail-label">完成评价</span>
+                  <span class="q-detail-value rating">{{ val.完成评价 }}</span>
+                </div>
+                <div class="q-detail-item" v-if="val.获得奖励">
+                  <span class="q-detail-label">获得奖励</span>
+                  <span class="q-detail-value reward">{{ val.获得奖励 }}</span>
+                </div>
+              </div>
             </div>
             <div class="empty-text" v-if="Object.keys(player.任务日志.已完成).length === 0">暂无已完成的任务</div>
           </div>
@@ -211,8 +251,9 @@
 
 <script setup>
 import AbilityScoresDisplay from '@/哥杀/UI/components/role/AbilityScoresDisplay.vue';
-import { useStatStore } from '@/哥杀/UI/store/StatStore';
 import { getSVG } from '@/哥杀/UI/composables/icon/icon';
+import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { MvuUtil } from '@/Utils/MvuUtil';
 import { computed, ref } from 'vue';
 
 const tabs = [
@@ -242,6 +283,11 @@ const getPercentage = (res) => {
   return Math.min(100, Math.max(0, (res.data.当前值 / res.data.最大值) * 100));
 };
 
+const getExpPercentage = (classData) => {
+  if (!classData.升级所需) return 0;
+  return Math.min(100, Math.max(0, (classData.当前经验 / classData.升级所需) * 100));
+};
+
 // 辅助函数：格式化等级（去掉 lv 前缀）
 const formatRank = (rank) => {
   if (!rank) return '未知';
@@ -258,6 +304,33 @@ const getRankClass = (rank) => {
   if (cleanRank === '黄金') return 'rank-gold';
   if (cleanRank === '白金') return 'rank-platinum';
   return '';
+};
+
+// 任务折叠与删除逻辑
+const expandedQuests = ref({});
+
+const isQuestExpanded = (status, key) => {
+  return !!expandedQuests.value[`${status}-${key}`];
+};
+
+const toggleQuest = (status, key) => {
+  const id = `${status}-${key}`;
+  expandedQuests.value[id] = !expandedQuests.value[id];
+};
+
+const deleteQuest = (status, key) => {
+  if (!confirm(`确定要删除任务「${key}」吗？`)) return;
+
+  const diff = {
+    主角: {
+      任务日志: {
+        [status]: {
+          [key]: null
+        }
+      }
+    }
+  };
+  MvuUtil.updateMvuDataByDiff(diff);
 };
 </script>
 
@@ -422,6 +495,65 @@ const getRankClass = (rank) => {
 /* ==========================================
    第2页：能力样式
 ========================================== */
+.class-progress-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.class-item {
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--scroll-border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.class-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.class-name {
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--text-main);
+}
+
+.class-level {
+  color: var(--accent-gold);
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+
+.class-exp-bar {
+  height: 16px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.exp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-gold), #e6c200);
+  transition: width 0.5s ease;
+}
+
+.exp-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: #fff;
+  text-shadow: 0 0 2px #000;
+  font-weight: bold;
+}
+
 .list-container { list-style: none; padding: 0; margin: 0; }
 .list-item {
   display: flex; justify-content: space-between;
@@ -492,9 +624,34 @@ const getRankClass = (rank) => {
   padding: 12px; border-radius: 6px; margin-bottom: 10px;
   border-left: 4px solid #b33939;
 }
-.quest-card.completed { border-left-color: #218c74; opacity: 0.7; }
-.q-title { font-weight: bold; margin-bottom: 5px; }
-.q-desc { font-size: 0.85rem; color: var(--text-muted); }
+.quest-card.completed { border-left-color: #218c74; opacity: 0.85; }
+.q-header { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.q-spacer { flex: 1; }
+.delete-btn {
+  background: none; border: none; color: var(--text-muted); cursor: pointer;
+  padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.delete-btn:hover { color: #b33939; background: rgba(179, 57, 57, 0.1); }
+.expand-icon {
+  font-size: 0.7rem; color: var(--text-muted); transition: transform 0.3s ease;
+}
+.expand-icon.expanded { transform: rotate(180deg); }
+.q-type-tag {
+  background: #b33939;
+  color: #fff;
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.q-title { font-weight: bold; }
+.q-details { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(0,0,0,0.1); }
+.q-detail-item { display: flex; flex-direction: column; gap: 2px; }
+.q-detail-label { font-size: 0.75rem; color: var(--text-muted); }
+.q-detail-value { font-size: 0.85rem; color: var(--text-main); }
+.q-detail-value.reward { color: var(--accent-gold); font-weight: 500; }
+.q-detail-value.rating { color: #218c74; font-weight: bold; }
 
 /* ==========================================
    动画与响应式
