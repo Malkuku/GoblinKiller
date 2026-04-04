@@ -13,7 +13,8 @@
       @toggle-log-panel="toggleLogPanel"
       @toggle-edit-panel="showEditPanel = !showEditPanel"
       @toggle-variable-panel="showVariablePanel = !showVariablePanel"
-      @change-font-size="changeFontSize"
+      @increase-font-size="changeFontSize(2)"
+      @decrease-font-size="changeFontSize(-2)"
     />
 
     <!-- 事件日志面板 -->
