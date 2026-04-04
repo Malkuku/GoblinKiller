@@ -12,6 +12,7 @@
       :unread-log-count="unreadLogCount"
       @toggle-log-panel="toggleLogPanel"
       @toggle-edit-panel="showEditPanel = !showEditPanel"
+      @toggle-variable-panel="showVariablePanel = !showVariablePanel"
       @change-font-size="changeFontSize"
     />
 
@@ -28,6 +29,12 @@
     <ContentEditPanel
       v-if="showEditPanel"
       @close="showEditPanel = false"
+    />
+
+    <!-- 变量监控面板 -->
+    <VariablePanel
+      v-if="showVariablePanel"
+      @close="showVariablePanel = false"
     />
 
     <!-- 消息滚动显示区域 -->
@@ -54,19 +61,20 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted, watch } from 'vue';
-  import InteractionPanel from '@/哥杀/UI/components/panel/InteractionPanel.vue';
-  import MessageDisplay from '@/哥杀/UI/components/panel/MessageDisplay.vue';
   import ContentEditPanel from '@/哥杀/UI/components/panel/ContentEditPanel.vue';
-  import EventLogPanel from '@/哥杀/UI/components/panel/EventLogPanel.vue';
-  import StatusBar from '@/哥杀/UI/components/panel/StatusBar.vue';
-  import LoadingOverlay from '@/哥杀/UI/components/panel/LoadingOverlay.vue';
-  import { useMessageStore } from '@/哥杀/UI/store/MessageStore';
-  import { useUiStore } from '@/哥杀/UI/store/UIStore';
-  import { useTavernInteraction } from '@/哥杀/UI/composables/panel/useTavernInteraction';
-  import { useStoryProcessor } from '@/哥杀/UI/composables/panel/useStoryProcessor';
-  import { useStatusSync } from '@/哥杀/UI/composables/panel/useStatusSync';
-  import { useEventLogger } from '@/哥杀/UI/composables/panel/useEventLogger';
+import EventLogPanel from '@/哥杀/UI/components/panel/EventLogPanel.vue';
+import InteractionPanel from '@/哥杀/UI/components/panel/InteractionPanel.vue';
+import LoadingOverlay from '@/哥杀/UI/components/panel/LoadingOverlay.vue';
+import MessageDisplay from '@/哥杀/UI/components/panel/MessageDisplay.vue';
+import StatusBar from '@/哥杀/UI/components/panel/StatusBar.vue';
+import { useEventLogger } from '@/哥杀/UI/composables/panel/useEventLogger';
+import { useStatusSync } from '@/哥杀/UI/composables/panel/useStatusSync';
+import { useStoryProcessor } from '@/哥杀/UI/composables/panel/useStoryProcessor';
+import { useTavernInteraction } from '@/哥杀/UI/composables/panel/useTavernInteraction';
+import { useMessageStore } from '@/哥杀/UI/store/MessageStore';
+import { useUiStore } from '@/哥杀/UI/store/UIStore';
+import { onMounted, ref, watch } from 'vue';
+  import VariablePanel from '@/哥杀/UI/components/panel/VariablePanel.vue';
 
   // --- Store Initialization ---
   const messageStore = useMessageStore();
@@ -110,6 +118,7 @@
   const fontSize = ref(18);
   const messageDisplayRef = ref<InstanceType<typeof MessageDisplay> | null>(null);
   const showEditPanel = ref(false);
+  const showVariablePanel = ref(false);
 
   // --- Event Handlers & Logic ---
   const handleSendOrStop = async () => {

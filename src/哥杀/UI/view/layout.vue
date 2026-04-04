@@ -276,7 +276,7 @@ const navItems = [
 .flag-theme { background-color: var(--flag-theme-bg); }
 .flag-close { background-color: var(--flag-close-bg); }
 
-.flag-content { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.flag-content { display: flex; flex-direction: column; align-items: center; gap: 8px; z-index: 2 }
 .flag-content .text { writing-mode: vertical-rl; font-size: 0.9rem; letter-spacing: 2px; }
 
 .nav-badge {

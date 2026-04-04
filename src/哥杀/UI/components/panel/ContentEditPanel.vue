@@ -120,7 +120,22 @@ const handleConfirm = async () => {
 .slide-down-edit-enter-from, .slide-down-edit-leave-to { opacity: 0; transform: translate(-50%, -55%); }
 
 @media (max-width: 1000px) {
-  .edit-panel { top: 20%; left: 0; transform: none; width: 100%; height: 80dvh; border-radius: 0; border: none; }
-  .slide-down-edit-enter-from, .slide-down-edit-leave-to { opacity: 0; transform: translateY(-10px); }
+  .edit-panel {
+    top: 50px;
+    left: 0;
+    right: 0;
+    margin: 0 auto; /* 利用 left:0 + right:0 + margin:auto 实现 fixed 元素的水平居中 */
+    transform: none; /* 强制取消 PC 端的 transform */
+    width: 95%; /* 宽度设为 95% 留出左右边距，体现居中效果 */
+    height: 80dvh;
+    border-radius: 6px; /* 恢复一点圆角让弹窗更好看 */
+    border: 1px solid var(--scroll-border);
+  }
+
+  /* 动画部分的 transform: translateY 不影响最终定位，可以保留用于过渡动画 */
+  .slide-down-edit-enter-from, .slide-down-edit-leave-to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
 }
 </style>

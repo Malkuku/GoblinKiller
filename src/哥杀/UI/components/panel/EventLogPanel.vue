@@ -85,9 +85,9 @@ const handleLevelChange = (e: Event) => {
 .slide-down-log-enter-from, .slide-down-log-leave-to { opacity: 0; transform: translateY(-10px); }
 
 @media (max-width: 768px) {
-  .log-panel { width: calc(100vw - 30px); right: 15px; top: 90px; }
+  .log-panel { width: calc(100vw - 30px); left: 0; right: 0; margin: 0 auto; top: 90px; }
 }
 @media (max-width: 480px) {
-  .log-panel { width: calc(100vw - 20px); right: 10px; }
+  .log-panel { width: calc(100vw - 20px); }
 }
 </style>
