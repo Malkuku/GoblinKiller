@@ -47,6 +47,7 @@
                   v-for="(option, index) in cachedOptions"
                   :key="index"
                   class="option-item"
+                  :style="{ animationDelay: `${index * 0.08}s` }"
                   @click="handleOptionClick(option)"
                 >
                   <span class="option-index">{{ index + 1 }}.</span>
@@ -66,7 +67,7 @@
             @click="toggleOptionsPanel"
             :disabled="isTavernBusy"
           >
-            <span class="toggle-icon">{{ isTavernBusy ? '۞' : '❖' }}</span>
+            <span class="toggle-icon" :class="{'spin-animation': isTavernBusy}">{{ isTavernBusy ? '۞' : '❖' }}</span>
             <span v-if="cachedOptions.length > 0 && !isTavernBusy" class="options-badge">{{ cachedOptions.length }}</span>
           </button>
         </div>
@@ -75,8 +76,14 @@
         <div class="input-area-stack">
           <transition name="fade-input" mode="out-in">
             <div v-if="isTavernBusy" class="story-input busy-state" key="busy">
-              <span class="busy-icon">✒</span>
-              <span class="busy-text">历史正在等候命运回应...</span>
+              <span class="busy-icon">
+                <svg class="quill-busy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z"></path>
+                  <line x1="16" y1="8" x2="2" y2="22"></line>
+                  <line x1="17.5" y1="15" x2="9" y2="15"></line>
+                </svg>
+              </span>
+              <span class="busy-text">命运正在书写你的旅途...</span>
             </div>
             <textarea
               v-else
@@ -282,6 +289,21 @@ const handleOptionClick = (option: string) => {
   color: var(--scroll-paper, #fffcf5);
 }
 
+/* 旋转动画 (共用) */
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.spin-animation {
+  display: inline-block;
+  animation: spin-slow 4s linear infinite;
+}
+
+/* 选项角标浮动动画 */
+@keyframes float-badge {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
 .options-badge {
   position: absolute; top: -2px; right: -2px;
   background: var(--flag-bg, #8c3a3a);
@@ -289,6 +311,7 @@ const handleOptionClick = (option: string) => {
   width: 18px; height: 18px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   border: 2px solid var(--scroll-paper, #fffcf5);
+  animation: float-badge 2s ease-in-out infinite;
 }
 
 /* 选项菜单 - 羊皮纸风格 */
@@ -310,6 +333,12 @@ const handleOptionClick = (option: string) => {
 .close-options { background: none; border: none; color: var(--text-muted, #8b7e70); cursor: pointer; font-size: 1.4rem; transition: color 0.2s; }
 .close-options:hover { color: var(--flag-bg, #8c3a3a); }
 .options-list { overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+/* 选项依次滑入动画 */
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(-15px); }
+  to { opacity: 1; transform: translateX(0); }
+}
 .option-item {
   background: transparent;
   border: 1px dashed var(--scroll-border, #d4c4a8);
@@ -317,13 +346,15 @@ const handleOptionClick = (option: string) => {
   text-align: left; cursor: pointer;
   font-family: 'EB Garamond', serif; font-size: 1.05rem;
   transition: all 0.2s; display: flex; gap: 10px; border-radius: 2px;
+  opacity: 0;
+  animation: slide-in-right 0.4s ease-out forwards;
 }
 .option-index { color: var(--accent-gold, #c6a664); font-weight: bold; font-family: 'Cinzel', serif; }
 .option-item:hover {
   background: rgba(198, 166, 100, 0.08);
   border-color: var(--accent-gold, #c6a664);
   border-style: solid;
-  transform: translateX(2px);
+  transform: translateX(4px);
 }
 
 /* 输入框区域 - 融入纸张 */
@@ -331,22 +362,22 @@ const handleOptionClick = (option: string) => {
 
 .story-input {
   width: 100%; height: 100%;
-  background: transparent !important; /* 强制透明背景，防止黑底 */
+  background: transparent !important;
   border: none !important;
-  color: var(--text-main, #4a3f35) !important; /* 强制浅色模式文字颜色 */
+  color: var(--text-main, #4a3f35) !important;
   padding: 10px 15px;
   font-family: 'EB Garamond', serif; font-size: 1.15rem;
   resize: none; transition: all 0.3s; display: block;
   line-height: 1.5;
 }
 .story-input::placeholder {
-  color: var(--text-muted, #8b7e70) !important; /* 强制占位符颜色 */
+  color: var(--text-muted, #8b7e70) !important;
   font-style: italic;
   opacity: 0.6;
 }
 .story-input:focus {
   outline: none !important;
-  background: rgba(198, 166, 100, 0.03) !important; /* 强制聚焦时的浅色高亮背景 */
+  background: rgba(198, 166, 100, 0.03) !important;
 }
 
 /* 底部墨迹装饰线 */
@@ -365,10 +396,31 @@ const handleOptionClick = (option: string) => {
   box-shadow: 0 1px 5px rgba(198, 166, 100, 0.4);
 }
 
+/* 输入框忙碌状态动画 */
+@keyframes breathe-text {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+/* 优化后的羽毛笔顺滑连笔动画 */
+@keyframes write-quill {
+  0%, 100% { transform: rotate(0deg) translate(0, 0); }
+  33% { transform: rotate(-8deg) translate(-2px, 1px); }
+  66% { transform: rotate(8deg) translate(2px, -1px); }
+}
 .story-input.busy-state {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   color: var(--text-muted, #8b7e70) !important; cursor: default; user-select: none;
   font-style: italic;
+}
+.busy-text {
+  animation: breathe-text 2s infinite ease-in-out;
+}
+.quill-busy-icon {
+  width: 22px;
+  height: 22px;
+  animation: write-quill 1.5s infinite ease-in-out;
+  transform-origin: bottom left;
 }
 
 /* 发送按钮 - 符文印章风格 */
@@ -401,12 +453,15 @@ const handleOptionClick = (option: string) => {
   border-color: var(--scroll-paper, #fffcf5);
   transform: rotate(45deg);
 }
+
+/* 停止按钮忙碌状态动画 (仅虚线圈旋转) */
 .send-btn.is-busy {
   border-color: var(--flag-bg, #8c3a3a);
   color: var(--flag-bg, #8c3a3a);
 }
 .send-btn.is-busy::before {
   border-color: var(--flag-bg, #8c3a3a);
+  animation: spin-slow 3s linear infinite;
 }
 
 /* 桌面端隐藏控制 */

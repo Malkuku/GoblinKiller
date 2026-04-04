@@ -3,11 +3,10 @@ import { App as VueApp, createApp } from 'vue';
 import App from './App.vue';
 import { createMountPoint, destroyMountPoint, deteleportStyle, teleportStyle } from '../utils/dom';
 import { router } from './router/router';
-import { useStatStore } from '@/尘史使徒/UI/store/StatStore';
-import { useMessageStore } from '@/尘史使徒/UI/store/MessageStore';
-import { useUiStore } from '@/尘史使徒/UI/store/UIStore';
-import { useAudioStore } from '@/尘史使徒/UI/store/AudioStore';
-import { useStatWatcher } from '@/尘史使徒/UI/composables/panel/useStatWatcher';
+import { useStatStore } from '@/哥杀/UI/store/StatStore';
+import { useMessageStore } from '@/哥杀/UI/store/MessageStore';
+import { useUiStore } from '@/哥杀/UI/store/UIStore';
+import { useStatWatcher } from '@/哥杀/UI/composables/panel/useStatWatcher';
 import { initIconifyCDN } from '@/哥杀/UI/composables/icon/icon';
 
 let vueApp: VueApp | null = null;
@@ -80,7 +79,6 @@ $(() => {
   useStatStore().registerListener()
   useStatStore().initData()
   useMessageStore().getMessage();
-  useAudioStore().initAudioResources();
 
   //初始化数据
   initIconifyCDN();

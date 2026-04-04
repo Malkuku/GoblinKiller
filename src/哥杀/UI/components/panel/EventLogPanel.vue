@@ -6,8 +6,8 @@
           <span>事件日志</span>
           <select :value="logLevel" @change="handleLevelChange" class="log-level-select">
             <option :value="0">仅自己</option>
-            <option :value="1">主要角色</option>
-            <option :value="2">全部角色</option>
+            <option :value="1">关系者</option>
+            <option :value="2">所有人</option>
           </select>
         </div>
         <button class="close-log" @click="$emit('close')">✕</button>
