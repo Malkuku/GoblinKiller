@@ -136,6 +136,7 @@ const toggleMobileMenu = () => {
 };
 
 const navItems = [
+  //TODO { name: '开局', path: '/开局', icon: 'nav_start' },
   { name: '旅途', path: '/选项', icon: 'journey' },
   { name: '自我', path: '/主角', icon: 'nav_protagonist' },
   { name: '背包', path: '/背包', icon: 'nav_bag' },

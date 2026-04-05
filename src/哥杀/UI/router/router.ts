@@ -1,11 +1,11 @@
+import playerView from '@/哥杀/UI/view/主角.vue';
+import relationView from '@/哥杀/UI/view/关系角色.vue';
+import petView from '@/哥杀/UI/view/宠物.vue';
+import EnemyView from '@/哥杀/UI/view/敌人.vue';
+import ItemView from '@/哥杀/UI/view/背包.vue';
+import optionView from '@/哥杀/UI/view/选项.vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import Layout from '../view/layout.vue';
-import optionView from '@/哥杀/UI/view/选项.vue'
-import playerView from '@/哥杀/UI/view/主角.vue'
-import relationView from '@/哥杀/UI/view/关系角色.vue'
-import petView from '@/哥杀/UI/view/宠物.vue'
-import EnemyView from '@/哥杀/UI/view/敌人.vue'
-import ItemView from '@/哥杀/UI/view/背包.vue'
 
 export const router = createRouter({
   history: createMemoryHistory(),
