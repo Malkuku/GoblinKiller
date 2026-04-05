@@ -1,3 +1,4 @@
+<!-- src/哥杀/UI/components/panel/StatusBar.vue -->
 <template>
   <div class="status-bar">
     <!-- 桌面端布局 -->
@@ -37,6 +38,13 @@
 
       <!-- 右侧：控制按钮 -->
       <div class="status-controls">
+        <!-- 宿命按钮 -->
+        <button v-if="globalDestinyText" class="control-btn icon-btn destiny-btn" :class="{ 'has-unread': globalDestinyUnread }" @click="openDestiny" title="宿命序列">
+          <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7.5 18c-.83 0-1.5-.67-1.5-1.5S6.67 15 7.5 15s1.5.67 1.5 1.5S8.33 18 7.5 18zm0-9c-.83 0-1.5-.67-1.5-1.5S6.67 6 7.5 6s1.5.67 1.5 1.5S8.33 9 7.5 9zm4.5 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4.5 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm0-9c-.83 0-1.5-.67-1.5-1.5S15.67 6 16.5 6s1.5.67 1.5 1.5S17.33 9 16.5 9z"/>
+          </svg>
+        </button>
+
         <button class="control-btn icon-btn" @click="$emit('toggle-variable-panel')" title="变量监控">
           <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
         </button>
@@ -54,64 +62,75 @@
       </div>
     </div>
 
-    <!-- 移动端布局 -->
+    <!-- 移动端布局：三栏布局 -->
     <div class="mobile-layout">
-      <template v-if="!showMobileTools">
-        <div class="mobile-row">
-          <div class="status-group" title="当前时间">
-            <svg class="status-svg" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4z"/>
-            </svg>
-            <span class="status-text">{{ currentTime }}</span>
-          </div>
-          <button class="control-btn icon-btn" @click="showMobileTools = true" title="展开工具">
-            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
-          </button>
+      <!-- 第一栏：当前时间 -->
+      <div class="mobile-row">
+        <div class="status-group" title="当前时间">
+          <svg class="status-svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 2v6h.01L6 8.01 10 12l-4 4 .01.01H6V22h12v-5.99h-.01L18 16l-4-4 4-3.99-.01-.01H18V2H6zm10 14.5V20H8v-3.5l4-4 4 4z"/>
+          </svg>
+          <span class="status-text">{{ currentTime }}</span>
         </div>
-        <div class="mobile-row">
-          <div class="status-group" title="所在地">
-            <svg class="status-svg" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-            <span class="status-text">{{ location }}</span>
-          </div>
-          <div class="status-group money-group" title="金钱">
-            <div class="money-item">
-              <span>{{ money.gold }}</span>
-              <svg class="coin-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="1"/></svg>
-              <span>{{ money.silver }}</span>
-              <svg class="coin-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#E0E0E0" stroke="#BDBDBD" stroke-width="1"/></svg>
-              <span>{{ money.copper }}</span>
-              <svg class="coin-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#CD7F32" stroke="#A0522D" stroke-width="1"/></svg>
-            </div>
+      </div>
+
+      <!-- 第二栏：所在地与金钱 -->
+      <div class="mobile-row">
+        <div class="status-group" title="所在地">
+          <svg class="status-svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          </svg>
+          <span class="status-text">{{ location }}</span>
+        </div>
+        <div class="status-group money-group" title="金钱">
+          <div class="money-item">
+            <span>{{ money.gold }}</span>
+            <svg class="coin-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#FFD700" stroke="#DAA520" stroke-width="1"/></svg>
+            <span>{{ money.silver }}</span>
+            <svg class="coin-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#E0E0E0" stroke="#BDBDBD" stroke-width="1"/></svg>
+            <span>{{ money.copper }}</span>
+            <svg class="coin-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#CD7F32" stroke="#A0522D" stroke-width="1"/></svg>
           </div>
         </div>
-      </template>
-      <template v-else>
-        <div class="mobile-row tools-row">
-          <button class="control-btn icon-btn" @click="showMobileTools = false" title="返回">
-            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
-          </button>
-          <button class="control-btn text-btn" @click="$emit('decrease-font-size')" title="减小字体">A-</button>
-          <button class="control-btn text-btn" @click="$emit('increase-font-size')" title="增大字体">A+</button>
-          <button class="control-btn icon-btn" @click="$emit('toggle-variable-panel')" title="变量监控">
-            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
-          </button>
-          <button class="control-btn icon-btn" @click="$emit('toggle-edit-panel')" title="编辑正文">
-            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-          </button>
-          <button class="control-btn icon-btn" @click="$emit('toggle-log-panel')" title="事件日志">
-            <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 12H9V5h10v9z"/></svg>
-          </button>
-        </div>
-      </template>
+      </div>
+
+      <!-- 第三栏：功能按钮栏（固定在下方） -->
+      <div class="mobile-row tools-row">
+        <!-- 宿命按钮 -->
+        <button v-if="globalDestinyText" class="control-btn icon-btn destiny-btn" :class="{ 'has-unread': globalDestinyUnread }" @click="openDestiny" title="宿命序列">
+          <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM7.5 18c-.83 0-1.5-.67-1.5-1.5S6.67 15 7.5 15s1.5.67 1.5 1.5S8.33 18 7.5 18zm0-9c-.83 0-1.5-.67-1.5-1.5S6.67 6 7.5 6s1.5.67 1.5 1.5S8.33 9 7.5 9zm4.5 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4.5 4.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm0-9c-.83 0-1.5-.67-1.5-1.5S15.67 6 16.5 6s1.5.67 1.5 1.5S17.33 9 16.5 9z"/>
+          </svg>
+        </button>
+
+        <button class="control-btn text-btn" @click="$emit('decrease-font-size')" title="减小字体">A-</button>
+        <button class="control-btn text-btn" @click="$emit('increase-font-size')" title="增大字体">A+</button>
+        <button class="control-btn icon-btn" @click="$emit('toggle-variable-panel')" title="变量监控">
+          <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M9.4 16.6L4.8 12l4.6-4.6L8 6l-6 6 6 6 1.4-1.4zm5.2 0l4.6-4.6-4.6-4.6L16 6l6 6-6 6-1.4-1.4z"/></svg>
+        </button>
+        <button class="control-btn icon-btn" @click="$emit('toggle-edit-panel')" title="编辑正文">
+          <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+        </button>
+        <button class="control-btn icon-btn" @click="$emit('toggle-log-panel')" title="事件日志">
+          <svg class="control-svg" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 12H9V5h10v9z"/></svg>
+        </button>
+      </div>
     </div>
+
+    <!-- 宿命弹窗 -->
+    <DestinyPopup
+      v-if="showDestinyPopup"
+      :text="globalDestinyText"
+      @close="showDestinyPopup = false"
+    />
   </div>
 </template>
 
 <script setup>
 import { useStatStore } from '@/哥杀/UI/store/StatStore';
 import { computed, ref } from 'vue';
+import { globalDestinyText, globalDestinyUnread } from '@/哥杀/UI/composables/panel/useStoryProcessor';
+import DestinyPopup from './DestinyPopup.vue';
 
 const props = defineProps({
   isDarkMode: Boolean,
@@ -129,7 +148,13 @@ defineEmits([
 ]);
 
 const statStore = useStatStore();
-const showMobileTools = ref(false);
+
+// 宿命弹窗控制
+const showDestinyPopup = ref(false);
+const openDestiny = () => {
+  globalDestinyUnread.value = false; // 点击展开时暂停红点动画
+  showDestinyPopup.value = true;
+};
 
 // 适配 StatData.d.ts
 const location = computed(() => statStore.stat_data?.['主角']?.['所在地'] || '漂泊中');
@@ -203,13 +228,26 @@ const money = computed(() => {
 .text-btn { padding: 4px 12px; font-size: 0.85rem; height: 30px; }
 .control-svg { width: 18px; height: 18px; }
 
+/* 宿命按钮高级红点动画 */
+.destiny-btn { position: relative; }
+.destiny-btn.has-unread::after {
+  content: ''; position: absolute; top: -3px; right: -3px;
+  width: 8px; height: 8px; background: #e74c3c; border-radius: 50%;
+  box-shadow: 0 0 5px #e74c3c; animation: pulse-red 1.5s infinite;
+}
+@keyframes pulse-red {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(231, 76, 60, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+
 @media (max-width: 768px) {
   .desktop-layout { display: none; }
   .mobile-layout { display: flex; }
   .status-bar { padding: 8px 15px; }
   .mobile-row { display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 8px; }
   .tools-row {
-    overflow-x: auto; justify-content: flex-start; padding-bottom: 4px; scrollbar-width: thin;
+    overflow-x: auto; justify-content: flex-start; padding-top: 8px; border-top: 1px solid var(--scroll-border); scrollbar-width: thin;
   }
   .tools-row::-webkit-scrollbar { height: 4px; }
   .tools-row::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 2px; }
