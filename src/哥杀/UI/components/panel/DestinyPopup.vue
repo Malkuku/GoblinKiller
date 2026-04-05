@@ -86,7 +86,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useUiStore } from '@/哥杀/UI/store/UIStore'; // 引入全局状态以同步主题
+import { useUiStore } from '@/哥杀/UI/store/UIStore';
 
 const uiStore = useUiStore();
 const props = defineProps({ text: String });
@@ -98,7 +98,6 @@ let interval;
 
 const randomFace = () => currentRandom.value;
 
-// 罗马数字转换
 const getRoman = (num) => {
   const romanNumerals = ['O', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'];
   return romanNumerals[num] || num;
@@ -140,9 +139,6 @@ const parsed = computed(() => {
 <style scoped>
 @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600&family=Noto+Serif+SC:wght@400;700&display=swap');
 
-/* ==========================================
-   局部重新声明主题变量，防止脱离 layout 作用域
-========================================== */
 .destiny-overlay {
   --bg-base: #f4f1ea;
   --text-main: #4a3f35;
@@ -155,7 +151,10 @@ const parsed = computed(() => {
   position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(4px);
-  display: flex; align-items: center; justify-content: center; z-index: 10000;
+  display: flex;
+  align-items: center; /* PC端默认垂直居中 */
+  justify-content: center;
+  z-index: 10000;
   transition: color 0.5s ease;
 }
 
@@ -181,13 +180,11 @@ const parsed = computed(() => {
   transition: background-color 0.5s ease, border-color 0.5s ease;
 }
 
-/* 模拟卷轴上下轴承 - 材质完全对齐 layout.vue */
 .destiny-modal::before, .destiny-modal::after {
   content: '';
   position: absolute;
   left: -12px; right: -12px;
   height: 14px;
-  /* 边缘深棕色，中间跟随主题变量，彻底消除异常蓝色 */
   background: linear-gradient(to right, #5c4e40, var(--roller-color), #5c4e40);
   border-radius: 4px;
   box-shadow: inset 0 0 5px rgba(0,0,0,0.5), 0 4px 6px rgba(0,0,0,0.3);
@@ -201,7 +198,7 @@ const parsed = computed(() => {
   padding: 28px 24px 16px;
   text-align: center;
   position: relative;
-  background: transparent !important; /* 强制透明，防止被全局样式污染 */
+  background: transparent !important;
   border-bottom: 2px solid transparent;
   border-image: linear-gradient(to right, transparent, var(--accent-gold), transparent) 1;
   margin: 0 20px;
@@ -257,7 +254,7 @@ const parsed = computed(() => {
 
 .d-dices {
   display: flex; gap: 10px;
-  padding: 4px 0; /* 给阴影留出空间 */
+  padding: 4px 0;
 }
 
 .dice {
@@ -265,7 +262,6 @@ const parsed = computed(() => {
   transition: transform 0.3s ease;
 }
 
-/* 赋予骰子自然散落的轻微旋转感 */
 .dice:nth-child(odd) { transform: rotate(-4deg); }
 .dice:nth-child(even) { transform: rotate(5deg); }
 .dice:nth-child(3n) { transform: rotate(-2deg); }
@@ -307,12 +303,51 @@ const parsed = computed(() => {
   to { transform: scaleY(1); opacity: 1; }
 }
 
-/* 优化后的立体滚动动画 */
 @keyframes dice-roll {
   0% { transform: translate(0, 0) rotate(0deg) scale(1); }
   25% { transform: translate(2px, -2px) rotate(-15deg) scale(1.1); }
   50% { transform: translate(-2px, 2px) rotate(10deg) scale(0.9); }
   75% { transform: translate(2px, 2px) rotate(20deg) scale(1.05); }
   100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+}
+
+/* ==========================================
+   移动端适配：重点控制 宽、高、Top距离
+========================================== */
+@media (max-width: 768px) {
+  .destiny-overlay {
+    /* 取消垂直居中，改为顶部对齐，以便精确控制距离顶部的距离 */
+    align-items: flex-start;
+    /* 【重点1：距离 Top 的距离】您可以按需修改 12vh 或换成具体像素如 80px */
+    padding-top: 12vh;
+  }
+
+  .destiny-modal {
+    /* 【重点2：宽度】移动端下增加宽度占比，充分利用屏幕 */
+    width: 94%;
+    max-width: none; /* 解除 PC 端的 500px 限制（如果需要的话） */
+  }
+
+  .modal-body {
+    /* 【重点3：高度】配合 top 距离，调整内容区域最大高度，防止超出屏幕底部 */
+    max-height: 70vh;
+    padding: 16px 16px 24px;
+  }
+
+  /* 以下为辅助移动端排版的细节优化（防止文字/骰子拥挤） */
+  .modal-header {
+    padding: 20px 16px 12px;
+    margin: 0 10px;
+  }
+  .title { font-size: 1.2rem; }
+  .close-btn { top: 12px; right: -10px; }
+  .destiny-list { gap: 16px; }
+  .row-content { gap: 8px; }
+  .roman-numeral { font-size: 1.2rem; min-width: 24px; }
+  .colon { font-size: 1rem; }
+  .d-dices { gap: 6px; }
+  .dice { width: 28px; height: 28px; }
+  .d-rest { font-size: 0.95rem; }
+  .plain-text { font-size: 0.95rem; }
 }
 </style>
