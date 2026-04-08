@@ -21,34 +21,43 @@
         <!-- ================= 第一页：基础信息 ================= -->
         <div v-if="activeTab === 'basic'" class="page-section" key="basic">
           <h2 class="section-title">基础印记</h2>
-          <div class="info-grid">
-            <div class="info-item">
-              <span class="label">真名：</span>
-              <span class="value highlight">{{ character['姓名'] || '未知' }}</span>
+
+          <div class="basic-layout">
+            <!-- 左侧：信息网格 -->
+            <div class="info-grid basic-info-grid">
+              <div class="info-item">
+                <span class="label">真名：</span>
+                <span class="value highlight">{{ character['姓名'] || '未知' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">种族：</span>
+                <span class="value">{{ character['种族'] || '未知' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">与主角关系：</span>
+                <span class="value">{{ character['与主角关系'] || '萍水相逢' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">羁绊层级：</span>
+                <span class="value">{{ character['层级'] || '0' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">专属称呼：</span>
+                <span class="value">{{ character['称呼'] || '无' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">同行状态：</span>
+                <span class="value">{{ character['is_companion'] ? '结伴同行' : '独自行动' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="label">当前在场：</span>
+                <span class="value">{{ character['在场'] ? '是' : '否' }}</span>
+              </div>
             </div>
-            <div class="info-item">
-              <span class="label">种族：</span>
-              <span class="value">{{ character['种族'] || '未知' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">与主角关系：</span>
-              <span class="value">{{ character['与主角关系'] || '萍水相逢' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">羁绊层级：</span>
-              <span class="value">{{ character['层级'] || '0' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">专属称呼：</span>
-              <span class="value">{{ character['称呼'] || '无' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">同行状态：</span>
-              <span class="value">{{ character['is_companion'] ? '结伴同行' : '独自行动' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="label">当前在场：</span>
-              <span class="value">{{ character['在场'] ? '是' : '否' }}</span>
+
+            <!-- 右侧：角色立绘显示 -->
+            <div class="portrait-container" v-if="portraitUrl">
+              <img :src="portraitUrl" alt="角色立绘" class="character-portrait" />
             </div>
           </div>
         </div>
@@ -232,7 +241,8 @@
 <script setup lang="ts">
 import AbilityScoresDisplay from '@/哥杀/UI/components/role/AbilityScoresDisplay.vue';
 import { useStatStore } from '@/哥杀/UI/store/StatStore';
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
+import { PortraitManager } from '@/哥杀/UI/composables/role/PortraitManager';
 
 // 仅需传入角色的键名（如："精灵弓手"）
 const props = defineProps<{
@@ -258,6 +268,33 @@ const tabs = [
 ];
 
 const activeTab = ref('basic');
+
+// ================= 立绘管理 =================
+const portraitManager = new PortraitManager();
+const portraitUrl = ref<string | null>(null);
+
+const updatePortrait = () => {
+  if (!character.value) {
+    portraitUrl.value = null;
+    return;
+  }
+  const name = character.value['姓名'] || props.characterId;
+  const profession = getPrimaryClass(character.value['职业']);
+  const race = character.value['种族'];
+  const location = character.value['所处地点'];
+
+  const portrait = portraitManager.getMatchPortrait(name, profession, race, location);
+  portraitUrl.value = portrait?.url || null;
+};
+
+onMounted(async () => {
+  await portraitManager.loadPortraitDatabase();
+  updatePortrait();
+});
+
+watch(() => character.value, () => {
+  updatePortrait();
+}, { deep: true });
 
 // 辅助函数：获取主要职业名称
 const getPrimaryClass = (classesObj: Record<string, any>) => {
@@ -389,6 +426,18 @@ const getRankClass = (rank: string) => {
   padding-left: 10px;
 }
 
+/* ================= 基础页分栏布局 ================= */
+.basic-layout {
+  display: flex;
+  gap: 25px;
+  align-items: flex-start;
+}
+
+.basic-info-grid {
+  flex: 1;
+  align-content: flex-start;
+}
+
 /* ================= 通用排版 ================= */
 .info-grid {
   display: grid;
@@ -425,6 +474,32 @@ const getRankClass = (rank: string) => {
 .text-muted { color: var(--text-muted); font-style: italic; }
 .mb-4 { margin-bottom: 20px; }
 .mt-4 { margin-top: 20px; }
+
+/* ================= 立绘显示 ================= */
+.portrait-container {
+  flex: 0 0 35%; /* 占据右侧约35%的宽度 */
+  max-width: 280px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  background: rgba(0,0,0,0.02);
+  border-radius: 8px;
+  border: 1px dashed var(--scroll-border);
+}
+
+.dark-mode .portrait-container {
+  background: rgba(255,255,255,0.02);
+}
+
+.character-portrait {
+  width: 100%;
+  height: auto;
+  max-height: 500px;
+  object-fit: contain;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
 
 /* ================= 等级颜色 ================= */
 .rank-novice { color: #71797E; font-weight: bold; }
@@ -489,5 +564,9 @@ const getRankClass = (rank: string) => {
   .bookmark-tab.is-active { width: auto; transform: translateY(-2px); }
   .page-content { border-radius: 0 0 12px 12px; margin-left: 0; margin-top: -2px; padding: 15px; }
   .stats-container { grid-template-columns: 1fr; }
+
+  /* 移动端立绘布局调整为上下排列 */
+  .basic-layout { flex-direction: column-reverse; }
+  .portrait-container { flex: 1; max-width: 100%; width: 100%; }
 }
 </style>
