@@ -8,22 +8,39 @@
     <div v-if="hasCharacters" class="relations-content">
       <!-- 左侧：角色名册列表 -->
       <aside class="character-roster">
-        <div
-          v-for="(char, id) in validCharacters"
-          :key="id"
-          class="roster-item"
-          :class="{ 'is-selected': selectedCharacterId === id }"
-          @click="selectCharacter(id)"
-        >
-          <div class="roster-info">
-            <div class="roster-name">{{ char['姓名'] }}</div>
-            <div class="roster-relation">{{ char['与主角关系'] || '萍水相逢' }}</div>
+        <!-- 搜索框 -->
+        <div class="roster-search">
+          <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="搜索角色姓名或标识..."
+          />
+        </div>
+
+        <!-- 列表区域 -->
+        <div class="roster-list">
+          <div
+            v-for="(char, id) in filteredCharacters"
+            :key="id"
+            class="roster-item"
+            :class="{ 'is-selected': selectedCharacterId === id }"
+            @click="selectCharacter(id)"
+          >
+            <div class="roster-info">
+              <div class="roster-name">{{ char['姓名'] }}</div>
+              <div class="roster-relation">{{ char['与主角关系'] || '萍水相逢' }}</div>
+            </div>
+            <!-- 公会等级指示器 -->
+            <div class="roster-tier" v-if="char['公会信息'] && char['公会信息']['公会阶级']">
+              <span :class="getRankClass(char['公会信息']['公会阶级'])">
+                {{ formatRank(char['公会信息']['公会阶级']) }}
+              </span>
+            </div>
           </div>
-          <!-- 公会等级指示器 -->
-          <div class="roster-tier" v-if="char['公会信息'] && char['公会信息']['公会阶级']">
-            <span :class="getRankClass(char['公会信息']['公会阶级'])">
-              {{ formatRank(char['公会信息']['公会阶级']) }}
-            </span>
+
+          <!-- 搜索无结果提示 -->
+          <div v-if="Object.keys(filteredCharacters).length === 0" class="no-search-result">
+            未找到匹配的角色
           </div>
         </div>
       </aside>
@@ -61,6 +78,8 @@ const statStore = useStatStore();
 
 // 当前选中的角色 ID（键名）
 const selectedCharacterId = ref<string | null>(null);
+// 搜索关键词
+const searchQuery = ref('');
 
 // 计算属性：过滤出有效的角色（排除 '待初始化' 和 '屏蔽' 为 true 的角色）
 const validCharacters = computed(() => {
@@ -74,6 +93,22 @@ const validCharacters = computed(() => {
     }
   }
   return filtered;
+});
+
+// 计算属性：根据搜索框过滤角色
+const filteredCharacters = computed(() => {
+  const query = searchQuery.value.toLowerCase().trim();
+  const chars = validCharacters.value;
+  if (!query) return chars;
+
+  const result: Record<string, any> = {};
+  for (const [key, char] of Object.entries(chars)) {
+    const name = char['姓名'] || '';
+    if (key.toLowerCase().includes(query) || name.toLowerCase().includes(query)) {
+      result[key] = char;
+    }
+  }
+  return result;
 });
 
 // 是否有有效角色
@@ -102,11 +137,15 @@ const getRankClass = (rank: string) => {
   return '';
 };
 
-// 如果列表加载完毕且当前未选择角色，自动选中第一个
-watch(validCharacters, (newVal) => {
+// 如果列表加载完毕或搜索结果变化，且当前未选择角色（或选中的角色被过滤掉了），自动选中第一个
+watch(filteredCharacters, (newVal) => {
   const keys = Object.keys(newVal);
-  if (keys.length > 0 && !selectedCharacterId.value) {
-    selectedCharacterId.value = keys[0];
+  if (keys.length > 0) {
+    if (!selectedCharacterId.value || !newVal[selectedCharacterId.value]) {
+      selectedCharacterId.value = keys[0];
+    }
+  } else {
+    selectedCharacterId.value = null;
   }
 }, { immediate: true });
 </script>
@@ -124,6 +163,7 @@ watch(validCharacters, (newVal) => {
   margin-bottom: 20px;
   padding-bottom: 15px;
   border-bottom: 2px solid var(--scroll-border);
+  flex-shrink: 0;
 }
 
 .view-title {
@@ -151,6 +191,39 @@ watch(validCharacters, (newVal) => {
 /* ================= 左侧名册列表 ================= */
 .character-roster {
   width: 260px;
+  flex-shrink: 0; /* 防止左侧区域被挤压 */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.roster-search {
+  flex-shrink: 0;
+}
+
+.roster-search input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--scroll-border);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.02);
+  color: var(--text-main);
+  outline: none;
+  transition: all 0.3s ease;
+}
+
+.roster-search input:focus {
+  border-color: var(--accent-gold);
+  background: rgba(198, 166, 100, 0.05);
+}
+
+.dark-mode .roster-search input {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.roster-list {
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -161,10 +234,11 @@ watch(validCharacters, (newVal) => {
   scrollbar-color: var(--accent-gold) transparent;
 }
 
-.character-roster::-webkit-scrollbar { width: 4px; }
-.character-roster::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 2px; }
+.roster-list::-webkit-scrollbar { width: 4px; }
+.roster-list::-webkit-scrollbar-thumb { background: var(--accent-gold); border-radius: 2px; }
 
 .roster-item {
+  flex-shrink: 0; /* 防止角色过多时纵向挤压 */
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -219,6 +293,14 @@ watch(validCharacters, (newVal) => {
   margin-top: 4px;
 }
 
+.no-search-result {
+  text-align: center;
+  padding: 20px 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
 /* ================= 等级与颜色 ================= */
 .roster-tier {
   font-size: 0.9rem;
@@ -238,12 +320,12 @@ watch(validCharacters, (newVal) => {
 .rank-silver { color: #c0c0c0; font-weight: bold; text-shadow: 1px 1px 2px rgba(0,0,0,0.3); }
 .rank-gold { color: #ffd700; font-weight: bold; text-shadow: 1px 1px 3px rgba(0,0,0,0.3); }
 .rank-platinum { color: #e5e4e2; font-weight: bold; text-shadow: 0 0 5px rgba(255,255,255,0.8), 1px 1px 2px rgba(0,0,0,0.3); }
-.rank-novice { color: #a8b0b7; }
-.rank-veteran { color: #2ecc71; }
-.rank-bronze { color: #e8a84c; }
-.rank-silver { color: #e0e0e0; text-shadow: 0 0 8px rgba(192, 192, 192, 0.5); }
-.rank-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
-.rank-platinum { color: #f5f5f5; text-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
+.dark-mode .rank-novice { color: #a8b0b7; }
+.dark-mode .rank-veteran { color: #2ecc71; }
+.dark-mode .rank-bronze { color: #e8a84c; }
+.dark-mode .rank-silver { color: #e0e0e0; text-shadow: 0 0 8px rgba(192, 192, 192, 0.5); }
+.dark-mode .rank-gold { color: #ffd700; text-shadow: 0 0 10px rgba(255, 215, 0, 0.6); }
+.dark-mode .rank-platinum { color: #f5f5f5; text-shadow: 0 0 12px rgba(255, 255, 255, 0.8); }
 
 /* ================= 右侧详情区域 ================= */
 .character-detail-area {
@@ -290,6 +372,9 @@ watch(validCharacters, (newVal) => {
 
   .character-roster {
     width: 100%;
+  }
+
+  .roster-list {
     flex-direction: row;
     overflow-x: auto;
     overflow-y: hidden;
