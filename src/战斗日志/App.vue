@@ -1,4 +1,5 @@
 <template>
+<<<<<<< HEAD:src/战斗日志/App.vue
   <div class="app-container animus-theme">
     <!-- 全局扫描线遮罩 -->
     <div class="scanlines"></div>
@@ -784,3 +785,11 @@ const replayCombat = () => {
   .list-section ul li { margin-bottom: 4px; }
 }
 </style>
+=======
+  <div></div>
+</template>
+
+<script setup lang="ts"></script>
+
+<style lang="scss" scoped></style>
+>>>>>>> 6a70f8e1a961db42005bf8013b76cf97e1512794:初始模板/前端界面/新建为src文件夹中的文件夹/App.vue
